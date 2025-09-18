@@ -1,7 +1,0 @@
-# Don't redirect JavaScript, CSS, or other static files
-/js/*    /js/:splat    200
-/css/*   /css/:splat   200
-/pages/* /pages/:splat 200
-
-# SPA fallback - redirect all other routes to index.html
-/*       /index.html   200
