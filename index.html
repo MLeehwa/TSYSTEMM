@@ -402,7 +402,7 @@
                      </div>
 
                      <!-- Summary Cards -->
-                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                          <div class="bg-white rounded-lg shadow-sm border p-6">
                              <h3 class="text-lg font-semibold text-gray-900 mb-4">Total Pallets</h3>
                              <div id="packagingTotalPallets" class="text-gray-600">
@@ -410,14 +410,20 @@
                              </div>
                          </div>
                          <div class="bg-white rounded-lg shadow-sm border p-6">
-                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Optimized Pallets</h3>
-                             <div id="packagingOptimizedPallets" class="text-gray-600">
+                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Before Packaging</h3>
+                             <div id="packagingBeforePallets" class="text-gray-600">
                                  Please load data...
                              </div>
                          </div>
                          <div class="bg-white rounded-lg shadow-sm border p-6">
-                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Efficiency</h3>
-                             <div id="packagingEfficiency" class="text-gray-600">
+                             <h3 class="text-lg font-semibold text-gray-900 mb-4">After Packaging</h3>
+                             <div id="packagingAfterPallets" class="text-gray-600">
+                                 Please load data...
+                             </div>
+                         </div>
+                         <div class="bg-white rounded-lg shadow-sm border p-6">
+                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Packaging Rate</h3>
+                             <div id="packagingRate" class="text-gray-600">
                                  Please load data...
                              </div>
                          </div>
@@ -466,13 +472,13 @@
                                              TM Count
                                              <span id="packaging-sort-tmCount" class="ml-1">↕</span>
                                          </th>
-                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('packagingType')">
-                                             Packaging Type
-                                             <span id="packaging-sort-packagingType" class="ml-1">↕</span>
+                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('packagingStatus')">
+                                             Packaging Status
+                                             <span id="packaging-sort-packagingStatus" class="ml-1">↕</span>
                                          </th>
-                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('optimization')">
-                                             Optimization
-                                             <span id="packaging-sort-optimization" class="ml-1">↕</span>
+                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('location')">
+                                             Location
+                                             <span id="packaging-sort-location" class="ml-1">↕</span>
                                          </th>
                                      </tr>
                                  </thead>
@@ -675,6 +681,7 @@
                
                console.log('Filter conditions:', { location, partNo, holdWhether, palletQuantity });
                console.log('Original data count:', window.allData.length);
+               console.log('Sample data:', window.allData.slice(0, 3));
                
                // 필터 적용 로직
                let filtered = [...window.allData];
@@ -690,6 +697,7 @@
                if (holdWhether) {
                  filtered = filtered.filter(item => item.hold_whether === holdWhether);
                  console.log('After holdWhether filter:', filtered.length);
+                 console.log('Hold whether values in data:', [...new Set(window.allData.map(item => item.hold_whether))]);
                }
                
                window.filteredData = filtered;
@@ -1039,6 +1047,7 @@
                
                console.log('Packaging filter conditions:', { location, partNo, holdWhether, palletQuantity });
                console.log('Original packaging data count:', window.packagingAllData.length);
+               console.log('Sample packaging data:', window.packagingAllData.slice(0, 3));
                
                // 필터 적용 로직
                let filtered = [...window.packagingAllData];
@@ -1054,6 +1063,7 @@
                if (holdWhether) {
                  filtered = filtered.filter(item => item.hold_whether === holdWhether);
                  console.log('After holdWhether filter:', filtered.length);
+                 console.log('Hold whether values in packaging data:', [...new Set(window.packagingAllData.map(item => item.hold_whether))]);
                }
                
                window.packagingFilteredData = filtered;
@@ -1092,31 +1102,49 @@
                const data = window.packagingFilteredData || [];
                console.log('Packaging data:', data.length, 'records');
                
-               // 팔레트별로 그룹화하여 분석
-               const palletGroups = {};
+               // Location별로 그룹화하여 포장 전/후 분석
+               const locationGroups = {};
                data.forEach(item => {
-                 const palletNo = item.pallet_no || 'Unknown';
-                 if (!palletGroups[palletNo]) {
-                   palletGroups[palletNo] = {
-                     palletNo: palletNo,
-                     rackNo: item.rack_no || 'N/A',
-                     partNo: item.part_no || 'N/A',
-                     tmCount: 8, // 1개 팔레트 = 8개 TM
-                     packagingType: determinePackagingType(item.part_no),
-                     optimization: calculateOptimization(item.part_no, item.location)
+                 const location = item.location || 'Unknown';
+                 if (!locationGroups[location]) {
+                   locationGroups[location] = {
+                     location: location,
+                     totalPallets: 0,
+                     beforePackaging: 0,
+                     afterPackaging: 0,
+                     pallets: []
                    };
-                 } else {
-                   // 같은 팔레트에 여러 Part No가 있는 경우 처리
-                   if (item.part_no && !palletGroups[palletNo].partNo.includes(item.part_no)) {
-                     palletGroups[palletNo].partNo += ', ' + item.part_no;
-                   }
                  }
+                 
+                 locationGroups[location].totalPallets++;
+                 
+                 // Hold Whether에 따라 포장 전/후 구분
+                 if (item.hold_whether === 'N') {
+                   locationGroups[location].afterPackaging++;
+                 } else {
+                   locationGroups[location].beforePackaging++;
+                 }
+                 
+                 // 팔레트 정보 저장
+                 locationGroups[location].pallets.push({
+                   palletNo: item.pallet_no || 'N/A',
+                   rackNo: item.rack_no || 'N/A',
+                   partNo: item.part_no || 'N/A',
+                   tmCount: 8,
+                   packagingStatus: item.hold_whether === 'N' ? 'After Packaging' : 'Before Packaging',
+                   location: location
+                 });
                });
                
-               const results = Object.values(palletGroups);
+               // 결과를 평면화하여 테이블에 표시
+               const results = [];
+               Object.values(locationGroups).forEach(group => {
+                 results.push(...group.pallets);
+               });
+               
                window.packagingLastResults = results;
                displayPackagingResults(results);
-               updatePackagingSummary(results);
+               updatePackagingSummary(locationGroups);
              }
              
              // 패키징 타입 결정
@@ -1167,19 +1195,17 @@
                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${result.tmCount}</td>
                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                      <span class="px-2 py-1 text-xs font-medium rounded-full ${
-                       result.packagingType === 'High Priority' ? 'bg-red-100 text-red-800' :
-                       result.packagingType === 'Standard' ? 'bg-blue-100 text-blue-800' :
-                       result.packagingType === 'Bulk' ? 'bg-green-100 text-green-800' :
+                       result.packagingStatus === 'After Packaging' ? 'bg-green-100 text-green-800' :
+                       result.packagingStatus === 'Before Packaging' ? 'bg-yellow-100 text-yellow-800' :
                        'bg-gray-100 text-gray-800'
-                     }">${result.packagingType}</span>
+                     }">${result.packagingStatus}</span>
                    </td>
                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                      <span class="px-2 py-1 text-xs font-medium rounded-full ${
-                       result.optimization === 'Excellent' ? 'bg-green-100 text-green-800' :
-                       result.optimization === 'Good' ? 'bg-blue-100 text-blue-800' :
-                       result.optimization === 'Fair' ? 'bg-yellow-100 text-yellow-800' :
-                       'bg-red-100 text-red-800'
-                     }">${result.optimization}</span>
+                       result.location === 'F101' ? 'bg-blue-100 text-blue-800' :
+                       result.location === 'F100' ? 'bg-purple-100 text-purple-800' :
+                       'bg-gray-100 text-gray-800'
+                     }">${result.location}</span>
                    </td>
                  </tr>
                `);
@@ -1194,27 +1220,41 @@
              }
              
              // Packaging 요약 업데이트
-             function updatePackagingSummary(results) {
+             function updatePackagingSummary(locationGroups) {
                console.log('📊 Updating Packaging summary...');
                
                const totalPallets = document.getElementById('packagingTotalPallets');
-               const optimizedPallets = document.getElementById('packagingOptimizedPallets');
-               const efficiency = document.getElementById('packagingEfficiency');
+               const beforePallets = document.getElementById('packagingBeforePallets');
+               const afterPallets = document.getElementById('packagingAfterPallets');
+               const packagingRate = document.getElementById('packagingRate');
+               
+               // 전체 통계 계산
+               let totalCount = 0;
+               let beforeCount = 0;
+               let afterCount = 0;
+               
+               Object.values(locationGroups).forEach(group => {
+                 totalCount += group.totalPallets;
+                 beforeCount += group.beforePackaging;
+                 afterCount += group.afterPackaging;
+               });
+               
+               const packagingRatePercent = totalCount > 0 ? Math.round((afterCount / totalCount) * 100) : 0;
                
                if (totalPallets) {
-                 totalPallets.innerHTML = `<div class="text-2xl font-bold text-blue-600">${results.length}</div><div class="text-sm text-gray-500">팔레트</div>`;
+                 totalPallets.innerHTML = `<div class="text-2xl font-bold text-blue-600">${totalCount}</div><div class="text-sm text-gray-500">팔레트</div>`;
                }
                
-               if (optimizedPallets) {
-                 const optimizedCount = results.filter(r => r.optimization === 'Excellent' || r.optimization === 'Good').length;
-                 optimizedPallets.innerHTML = `<div class="text-2xl font-bold text-green-600">${optimizedCount}</div><div class="text-sm text-gray-500">팔레트</div>`;
+               if (beforePallets) {
+                 beforePallets.innerHTML = `<div class="text-2xl font-bold text-yellow-600">${beforeCount}</div><div class="text-sm text-gray-500">팔레트</div>`;
                }
                
-               if (efficiency) {
-                 const total = results.length;
-                 const optimized = results.filter(r => r.optimization === 'Excellent' || r.optimization === 'Good').length;
-                 const efficiencyPercent = total > 0 ? Math.round((optimized / total) * 100) : 0;
-                 efficiency.innerHTML = `<div class="text-2xl font-bold text-purple-600">${efficiencyPercent}%</div><div class="text-sm text-gray-500">효율성</div>`;
+               if (afterPallets) {
+                 afterPallets.innerHTML = `<div class="text-2xl font-bold text-green-600">${afterCount}</div><div class="text-sm text-gray-500">팔레트</div>`;
+               }
+               
+               if (packagingRate) {
+                 packagingRate.innerHTML = `<div class="text-2xl font-bold text-purple-600">${packagingRatePercent}%</div><div class="text-sm text-gray-500">포장률</div>`;
                }
              }
              
@@ -1232,7 +1272,7 @@
                const worksheet = workbook.addWorksheet('Packaging Analysis Results');
                
                // 헤더 추가
-               worksheet.addRow(['Pallet No', 'Rack No', 'Part No', 'TM Count', 'Packaging Type', 'Optimization']);
+               worksheet.addRow(['Pallet No', 'Rack No', 'Part No', 'TM Count', 'Packaging Status', 'Location']);
                
                // 데이터 추가
                window.packagingLastResults.forEach(result => {
@@ -1241,8 +1281,8 @@
                    result.rackNo || '',
                    result.partNo || '',
                    result.tmCount || 0,
-                   result.packagingType || '',
-                   result.optimization || ''
+                   result.packagingStatus || '',
+                   result.location || ''
                  ]);
                });
                
@@ -1297,7 +1337,7 @@
              
              // Packaging 정렬 아이콘 업데이트
              function updatePackagingSortIcons(activeColumn) {
-               const columns = ['palletNo', 'rackNo', 'partNo', 'tmCount', 'packagingType', 'optimization'];
+               const columns = ['palletNo', 'rackNo', 'partNo', 'tmCount', 'packagingStatus', 'location'];
                columns.forEach(col => {
                  const icon = document.getElementById(`packaging-sort-${col}`);
                  if (icon) {
