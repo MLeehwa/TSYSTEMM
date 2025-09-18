@@ -5,11 +5,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LEEHWA VW TM System</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.6/dist/umd/supabase.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/handsontable@13.0.0/dist/handsontable.full.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable@13.0.0/dist/handsontable.full.min.css">
+  
+  <!-- 라이브러리 로딩을 지연시켜 확장 프로그램 충돌 방지 -->
+  <script>
+    // 라이브러리 로딩을 지연시켜 확장 프로그램 충돌 방지
+    window.addEventListener('DOMContentLoaded', function() {
+      // Supabase 로드
+      const supabaseScript = document.createElement('script');
+      supabaseScript.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.6/dist/umd/supabase.min.js';
+      supabaseScript.onload = function() {
+        // ExcelJS 로드
+        const excelJSScript = document.createElement('script');
+        excelJSScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+        excelJSScript.onload = function() {
+          // XLSX 로드
+          const xlsxScript = document.createElement('script');
+          xlsxScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+          xlsxScript.onload = function() {
+            // Handsontable 로드
+            const handsontableScript = document.createElement('script');
+            handsontableScript.src = 'https://cdn.jsdelivr.net/npm/handsontable@13.0.0/dist/handsontable.full.min.js';
+            handsontableScript.onload = function() {
+              console.log('✅ 모든 라이브러리가 로드되었습니다');
+              // 모든 라이브러리가 로드된 후 초기화
+              initializeApp();
+            };
+            document.head.appendChild(handsontableScript);
+          };
+          document.head.appendChild(xlsxScript);
+        };
+        document.head.appendChild(excelJSScript);
+      };
+      document.head.appendChild(supabaseScript);
+    });
+  </script>
 </head>
 <body class="bg-gray-50">
   <div class="flex h-screen">
@@ -113,13 +143,29 @@
   </div>
 
   <script>
-    // Supabase 설정
-    const SUPABASE_URL = 'https://wfnihtmmaebgjtdmazmo.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmbmlodG1tYWViZ2p0ZG1hem1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3NTY3NTcsImV4cCI6MjA2NTMzMjc1N30.FYfdgSvOT1qUvANGlqXCEGvSR2JujggU7T_Sjzys3HQ';
-    
-    // Supabase 클라이언트 생성
-    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    window.sb = sb;
+    // 앱 초기화 함수
+    function initializeApp() {
+      console.log('🚀 TM System 초기화 시작');
+      
+      // Supabase 설정
+      const SUPABASE_URL = 'https://wfnihtmmaebgjtdmazmo.supabase.co';
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmbmlodG1tYWViZ2p0ZG1hem1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3NTY3NTcsImV4cCI6MjA2NTMzMjc1N30.FYfdgSvOT1qUvANGlqXCEGvSR2JujggU7T_Sjzys3HQ';
+      
+      // Supabase 클라이언트 생성
+      if (typeof supabase !== 'undefined') {
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window.sb = sb;
+        console.log('✅ Supabase 클라이언트 생성 완료');
+      } else {
+        console.warn('⚠️ Supabase 라이브러리가 로드되지 않았습니다');
+      }
+      
+      // 전역 함수 등록
+      window.loadPage = loadPage;
+      window.openStatusInNewTab = openStatusInNewTab;
+      
+      console.log('✅ TM System 초기화 완료');
+    }
 
     // 간단한 페이지 로더
     function loadPage(path) {
@@ -501,10 +547,6 @@
       const statusUrl = './pages/truck/status.html';
       window.open(statusUrl, '_blank');
     }
-
-    // 전역 함수로 등록
-    window.loadPage = loadPage;
-    window.openStatusInNewTab = openStatusInNewTab;
 
     console.log('✅ TM System loaded successfully');
   </script>
