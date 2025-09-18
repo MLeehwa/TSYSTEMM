@@ -359,16 +359,7 @@
                      <!-- Filter Panel -->
                      <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
                          <h3 class="text-lg font-semibold text-gray-900 mb-4">Search Filters</h3>
-                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                             <div>
-                                 <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                                 <select id="packagingLocationFilter" 
-                                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                     <option value="F101" selected>F101</option>
-                                     <option value="F100">F100</option>
-                                     <option value="">All</option>
-                                 </select>
-                             </div>
+                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                              <div>
                                  <label class="block text-sm font-medium text-gray-700 mb-2">Part No</label>
                                  <select id="packagingPartNoFilter" 
@@ -377,15 +368,6 @@
                                      <option value="" disabled>Loading...</option>
                                  </select>
                                  <p id="packagingPartNoStatus" class="text-xs text-gray-500 mt-1">Loading part numbers...</p>
-                             </div>
-                             <div>
-                                 <label class="block text-sm font-medium text-gray-700 mb-2">Hold Whether</label>
-                                 <select id="packagingHoldWhetherFilter" 
-                                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                     <option value="N" selected>N</option>
-                                     <option value="Y">Y</option>
-                                     <option value="">All</option>
-                                 </select>
                              </div>
                              <div>
                                  <label class="block text-sm font-medium text-gray-700 mb-2">팔렛 수량</label>
@@ -404,8 +386,8 @@
                                      Reset
                                  </button>
                              </div>
-                             <div class="col-span-4 mt-2">
-                                 <p id="packagingFilterStatus" class="text-xs text-gray-500">Default filters: F101, N</p>
+                             <div class="col-span-3 mt-2">
+                                 <p id="packagingFilterStatus" class="text-xs text-gray-500">Fixed filters: Location=F101, Hold Whether=N (Part No only searchable)</p>
                              </div>
                          </div>
                      </div>
@@ -1124,7 +1106,7 @@
              function populatePackagingFilterOptions() {
                console.log('🔧 Populating Packaging filter options...');
                
-               // Part No 필터 옵션 채우기
+               // Part No 필터 옵션만 채우기 (Location과 Hold Whether는 고정값)
                const partNoFilter = document.getElementById('packagingPartNoFilter');
                if (partNoFilter) {
                  const partNos = [...new Set(window.packagingAllData.map(item => item.part_no))].filter(Boolean);
@@ -1137,51 +1119,31 @@
                  }
                }
                
-               // Location 필터 옵션 채우기
-               const locationFilter = document.getElementById('packagingLocationFilter');
-               if (locationFilter) {
-                 const locations = [...new Set(window.packagingAllData.map(item => item.location))].filter(Boolean);
-                 locationFilter.innerHTML = '<option value="">All</option>' + 
-                   locations.map(loc => `<option value="${loc}">${loc}</option>`).join('');
-               }
-               
-               // Hold Whether 필터 옵션 채우기
-               const holdWhetherFilter = document.getElementById('packagingHoldWhetherFilter');
-               if (holdWhetherFilter) {
-                 const holdValues = [...new Set(window.packagingAllData.map(item => item.hold_whether))].filter(Boolean);
-                 holdWhetherFilter.innerHTML = '<option value="">All</option>' + 
-                   holdValues.map(hold => `<option value="${hold}">${hold}</option>`).join('');
-               }
+               console.log('Packaging filter options populated (Location=F101, Hold Whether=N fixed)');
              }
              
              // Packaging 필터 적용
              function applyPackagingFilter() {
                console.log('🔍 Applying Packaging filter...');
                
-               const location = document.getElementById('packagingLocationFilter')?.value || '';
                const partNo = document.getElementById('packagingPartNoFilter')?.value || '';
-               const holdWhether = document.getElementById('packagingHoldWhetherFilter')?.value || '';
                const palletQuantity = document.getElementById('packagingPalletQuantityInput')?.value || '20';
                
-               console.log('Packaging filter conditions:', { location, partNo, holdWhether, palletQuantity });
+               console.log('Packaging filter conditions:', { partNo, palletQuantity });
                console.log('Original packaging data count:', window.packagingAllData.length);
                console.log('Sample packaging data:', window.packagingAllData.slice(0, 3));
                
-               // 필터 적용 로직
+               // 필터 적용 로직 (Location=F101, Hold Whether=N 고정)
                let filtered = [...window.packagingAllData];
                
-               if (location) {
-                 filtered = filtered.filter(item => item.location === location);
-                 console.log('After location filter:', filtered.length);
-               }
+               // Location=F101, Hold Whether=N 고정 필터 적용
+               filtered = filtered.filter(item => item.location === 'F101' && item.hold_whether === 'N');
+               console.log('After fixed filters (F101, N):', filtered.length);
+               
+               // Part No 필터만 사용자가 변경 가능
                if (partNo) {
                  filtered = filtered.filter(item => item.part_no === partNo);
                  console.log('After partNo filter:', filtered.length);
-               }
-               if (holdWhether) {
-                 filtered = filtered.filter(item => item.hold_whether === holdWhether);
-                 console.log('After holdWhether filter:', filtered.length);
-                 console.log('Hold whether values in packaging data:', [...new Set(window.packagingAllData.map(item => item.hold_whether))]);
                }
                
                window.packagingFilteredData = filtered;
@@ -1191,7 +1153,11 @@
                // 상태 업데이트
                const status = document.getElementById('packagingFilterStatus');
                if (status) {
-                 status.textContent = `필터 적용됨: ${filtered.length}개 레코드`;
+                 if (partNo) {
+                   status.textContent = `Fixed: F101, N | Applied: Part No=${partNo} | ${filtered.length}개 레코드`;
+                 } else {
+                   status.textContent = `Fixed filters: Location=F101, Hold Whether=N (Part No only searchable) | ${filtered.length}개 레코드`;
+                 }
                }
              }
              
@@ -1199,17 +1165,19 @@
              function resetPackagingFilter() {
                console.log('🔄 Resetting Packaging filter...');
                
-               document.getElementById('packagingLocationFilter').value = 'F101';
                document.getElementById('packagingPartNoFilter').value = '';
-               document.getElementById('packagingHoldWhetherFilter').value = 'N';
                document.getElementById('packagingPalletQuantityInput').value = '20';
                
-               window.packagingFilteredData = [...window.packagingAllData];
+               // Location=F101, Hold Whether=N 고정 필터 적용
+               let filtered = [...window.packagingAllData];
+               filtered = filtered.filter(item => item.location === 'F101' && item.hold_whether === 'N');
+               
+               window.packagingFilteredData = filtered;
                performPackagingAnalysis();
                
                const status = document.getElementById('packagingFilterStatus');
                if (status) {
-                 status.textContent = 'Default filters applied (F101, N)';
+                 status.textContent = `Fixed filters: Location=F101, Hold Whether=N (Part No only searchable) | ${filtered.length}개 레코드`;
                }
              }
              
