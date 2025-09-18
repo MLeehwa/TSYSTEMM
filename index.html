@@ -329,8 +329,9 @@
                                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                      </svg>
                                  </div>
-                                 <h3 class="text-lg font-medium text-gray-900 mt-4">Processing...</h3>
-                                 <p class="text-sm text-gray-500 mt-2">Please wait while we analyze the data...</p>
+                                 <h3 class="text-lg font-medium text-gray-900 mt-4">Loading Data...</h3>
+                                 <p class="text-sm text-gray-500 mt-2">Loading all data from database...</p>
+                                 <p id="loadingProgress" class="text-xs text-blue-600 mt-1">Please wait...</p>
                              </div>
                          </div>
                      </div>
@@ -509,8 +510,9 @@
                                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                      </svg>
                                  </div>
-                                 <h3 class="text-lg font-medium text-gray-900 mt-4">Processing...</h3>
-                                 <p class="text-sm text-gray-500 mt-2">Please wait while we analyze the packaging data...</p>
+                                 <h3 class="text-lg font-medium text-gray-900 mt-4">Loading Data...</h3>
+                                 <p class="text-sm text-gray-500 mt-2">Loading all data from database...</p>
+                                 <p id="packagingLoadingProgress" class="text-xs text-blue-600 mt-1">Please wait...</p>
                              </div>
                          </div>
                      </div>
@@ -588,28 +590,9 @@
                  loadingState.classList.remove('hidden');
                }
                
-               // Supabase에서 데이터 로드
+               // Supabase에서 모든 데이터 로드 (페이지네이션)
                if (window.sb) {
-                 window.sb.from('vwtm_list_data')
-                   .select('*')
-                   .then(({ data, error }) => {
-                     if (error) {
-                       console.error('❌ Database error:', error);
-                       showAnalysisSampleData();
-                     } else {
-                       console.log('✅ Analysis data loaded:', data.length, 'records');
-                       console.log('Sample data:', data.slice(0, 3));
-                       window.allData = data || [];
-                       window.filteredData = [...window.allData];
-                       populateAnalysisFilterOptions();
-                       performAnalysis();
-                     }
-                     
-                     // 로딩 상태 숨기기
-                     if (loadingState) {
-                       loadingState.classList.add('hidden');
-                     }
-                   });
+                 loadAllAnalysisData(0, []);
                } else {
                  console.log('⚠️ Supabase not available, using sample data');
                  showAnalysisSampleData();
@@ -619,6 +602,63 @@
                    loadingState.classList.add('hidden');
                  }
                }
+             }
+             
+             // 모든 Analysis 데이터 로드 (페이지네이션)
+             function loadAllAnalysisData(offset, allData) {
+               console.log(`🔄 Loading Analysis data batch starting from ${offset}...`);
+               
+               // 로딩 진행 상황 업데이트
+               const progressElement = document.getElementById('loadingProgress');
+               if (progressElement) {
+                 progressElement.textContent = `Loading batch ${Math.floor(offset / 1000) + 1}... (${allData.length} records loaded)`;
+               }
+               
+               window.sb.from('vwtm_list_data')
+                 .select('*')
+                 .range(offset, offset + 999) // 1000개씩 로드
+                 .then(({ data, error }) => {
+                   if (error) {
+                     console.error('❌ Database error:', error);
+                     showAnalysisSampleData();
+                     
+                     // 로딩 상태 숨기기
+                     const loadingState = document.getElementById('loadingState');
+                     if (loadingState) {
+                       loadingState.classList.add('hidden');
+                     }
+                     return;
+                   }
+                   
+                   const batchData = data || [];
+                   console.log(`✅ Loaded batch: ${batchData.length} records (offset: ${offset})`);
+                   
+                   // 데이터 추가
+                   allData.push(...batchData);
+                   
+                   // 더 많은 데이터가 있는지 확인
+                   if (batchData.length === 1000) {
+                     // 다음 배치 로드
+                     setTimeout(() => {
+                       loadAllAnalysisData(offset + 1000, allData);
+                     }, 100); // 100ms 대기
+                   } else {
+                     // 모든 데이터 로드 완료
+                     console.log('✅ All Analysis data loaded:', allData.length, 'records');
+                     console.log('Sample data:', allData.slice(0, 3));
+                     
+                     window.allData = allData;
+                     window.filteredData = [...window.allData];
+                     populateAnalysisFilterOptions();
+                     performAnalysis();
+                     
+                     // 로딩 상태 숨기기
+                     const loadingState = document.getElementById('loadingState');
+                     if (loadingState) {
+                       loadingState.classList.add('hidden');
+                     }
+                   }
+                 });
              }
              
              // Analysis 샘플 데이터 표시
@@ -971,28 +1011,9 @@
                  loadingState.classList.remove('hidden');
                }
                
-               // Supabase에서 데이터 로드
+               // Supabase에서 모든 데이터 로드 (페이지네이션)
                if (window.sb) {
-                 window.sb.from('vwtm_list_data')
-                   .select('*')
-                   .then(({ data, error }) => {
-                     if (error) {
-                       console.error('❌ Database error:', error);
-                       showPackagingSampleData();
-                     } else {
-                       console.log('✅ Packaging data loaded:', data.length, 'records');
-                       console.log('Sample packaging data:', data.slice(0, 3));
-                       window.packagingAllData = data || [];
-                       window.packagingFilteredData = [...window.packagingAllData];
-                       populatePackagingFilterOptions();
-                       performPackagingAnalysis();
-                     }
-                     
-                     // 로딩 상태 숨기기
-                     if (loadingState) {
-                       loadingState.classList.add('hidden');
-                     }
-                   });
+                 loadAllPackagingData(0, []);
                } else {
                  console.log('⚠️ Supabase not available, using sample data');
                  showPackagingSampleData();
@@ -1002,6 +1023,63 @@
                    loadingState.classList.add('hidden');
                  }
                }
+             }
+             
+             // 모든 Packaging 데이터 로드 (페이지네이션)
+             function loadAllPackagingData(offset, allData) {
+               console.log(`🔄 Loading Packaging data batch starting from ${offset}...`);
+               
+               // 로딩 진행 상황 업데이트
+               const progressElement = document.getElementById('packagingLoadingProgress');
+               if (progressElement) {
+                 progressElement.textContent = `Loading batch ${Math.floor(offset / 1000) + 1}... (${allData.length} records loaded)`;
+               }
+               
+               window.sb.from('vwtm_list_data')
+                 .select('*')
+                 .range(offset, offset + 999) // 1000개씩 로드
+                 .then(({ data, error }) => {
+                   if (error) {
+                     console.error('❌ Database error:', error);
+                     showPackagingSampleData();
+                     
+                     // 로딩 상태 숨기기
+                     const loadingState = document.getElementById('packagingLoadingState');
+                     if (loadingState) {
+                       loadingState.classList.add('hidden');
+                     }
+                     return;
+                   }
+                   
+                   const batchData = data || [];
+                   console.log(`✅ Loaded batch: ${batchData.length} records (offset: ${offset})`);
+                   
+                   // 데이터 추가
+                   allData.push(...batchData);
+                   
+                   // 더 많은 데이터가 있는지 확인
+                   if (batchData.length === 1000) {
+                     // 다음 배치 로드
+                     setTimeout(() => {
+                       loadAllPackagingData(offset + 1000, allData);
+                     }, 100); // 100ms 대기
+                   } else {
+                     // 모든 데이터 로드 완료
+                     console.log('✅ All Packaging data loaded:', allData.length, 'records');
+                     console.log('Sample packaging data:', allData.slice(0, 3));
+                     
+                     window.packagingAllData = allData;
+                     window.packagingFilteredData = [...window.packagingAllData];
+                     populatePackagingFilterOptions();
+                     performPackagingAnalysis();
+                     
+                     // 로딩 상태 숨기기
+                     const loadingState = document.getElementById('packagingLoadingState');
+                     if (loadingState) {
+                       loadingState.classList.add('hidden');
+                     }
+                   }
+                 });
              }
              
              // Packaging 샘플 데이터 표시
