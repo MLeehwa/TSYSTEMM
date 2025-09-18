@@ -168,43 +168,14 @@
                  .then(html => {
                    document.getElementById('mainContent').innerHTML = html;
                    
-                   // 페이지별 초기화 함수 호출 (약간의 지연 후)
-                   setTimeout(() => {
-                     if (path.includes('analysis-new.html')) {
-                       // Analysis 페이지 초기화
-                       console.log('🔍 Checking for initAnalysis function...');
-                       if (typeof window.initAnalysis === 'function') {
-                         console.log('✅ Calling initAnalysis...');
-                         window.initAnalysis();
-                       } else {
-                         console.log('⚠️ initAnalysis function not found, trying alternative...');
-                         // 대안: 직접 이벤트 리스너 설정
-                         setupAnalysisPage();
-                       }
-                     } else if (path.includes('packaging-analysis-fixed.html')) {
-                       // Packaging Analysis 페이지 초기화
-                       console.log('🔍 Checking for initPackagingAnalysis function...');
-                       if (typeof window.initPackagingAnalysis === 'function') {
-                         console.log('✅ Calling initPackagingAnalysis...');
-                         window.initPackagingAnalysis();
-                       } else {
-                         console.log('⚠️ initPackagingAnalysis function not found, trying alternative...');
-                         // 대안: 직접 이벤트 리스너 설정
-                         setupPackagingPage();
-                       }
-                     } else if (path.includes('management.html')) {
-                       // Truck Management 페이지 초기화
-                       console.log('🔍 Checking for initTruckManagement function...');
-                       if (typeof window.initTruckManagement === 'function') {
-                         console.log('✅ Calling initTruckManagement...');
-                         window.initTruckManagement();
-                       } else {
-                         console.log('⚠️ initTruckManagement function not found, trying alternative...');
-                         // 대안: 직접 이벤트 리스너 설정
-                         setupTruckManagementPage();
-                       }
-                     }
-                   }, 100); // 100ms 지연
+                   // 페이지별 JavaScript 로드 및 초기화
+                   if (path.includes('analysis-new.html')) {
+                     loadAnalysisScript();
+                   } else if (path.includes('packaging-analysis-fixed.html')) {
+                     loadPackagingScript();
+                   } else if (path.includes('management.html')) {
+                     setupTruckManagementPage();
+                   }
                  })
                  .catch(error => {
                    console.error('Error loading page:', error);
@@ -216,6 +187,58 @@
                      </div>
                    `;
                  });
+             }
+
+             // JavaScript 동적 로드 함수들
+             function loadAnalysisScript() {
+               console.log('📜 Loading Analysis JavaScript...');
+               
+               // 기존 스크립트가 있으면 제거
+               const existingScript = document.getElementById('analysis-script');
+               if (existingScript) {
+                 existingScript.remove();
+               }
+               
+               // Analysis JavaScript 파일 로드
+               const script = document.createElement('script');
+               script.id = 'analysis-script';
+               script.src = './js/fifo/analysis-new.js';
+               script.onload = function() {
+                 console.log('✅ Analysis script loaded successfully');
+                 // 스크립트 로드 후 이벤트 리스너 설정
+                 setTimeout(() => {
+                   setupAnalysisPage();
+                 }, 100);
+               };
+               script.onerror = function() {
+                 console.error('❌ Failed to load Analysis script');
+                 setupAnalysisPage(); // 대안으로 수동 설정
+               };
+               document.head.appendChild(script);
+             }
+             
+             function loadPackagingScript() {
+               console.log('📜 Loading Packaging JavaScript...');
+               
+               // Packaging 페이지는 이미 HTML에 JavaScript가 포함되어 있으므로
+               // HTML을 다시 실행하도록 처리
+               const scripts = document.querySelectorAll('#mainContent script');
+               scripts.forEach(script => {
+                 try {
+                   // 스크립트 내용을 새로 실행
+                   const newScript = document.createElement('script');
+                   newScript.textContent = script.textContent;
+                   document.head.appendChild(newScript);
+                   console.log('✅ Packaging script executed');
+                 } catch (error) {
+                   console.error('❌ Error executing Packaging script:', error);
+                 }
+               });
+               
+               // 이벤트 리스너 설정
+               setTimeout(() => {
+                 setupPackagingPage();
+               }, 100);
              }
 
              // 페이지별 대안 초기화 함수들
