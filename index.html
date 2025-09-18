@@ -175,15 +175,169 @@
                  `;
                } else if (path === 'pages/analysis-new.html') {
                  document.getElementById('mainContent').innerHTML = `
-                   <div class="bg-white rounded-lg shadow-md p-8">
-                     <h2 class="text-2xl font-bold text-gray-800 mb-6">Shipping Plan Analysis</h2>
-                     <div class="text-center py-8">
-                       <div class="text-4xl mb-4">📊</div>
-                       <h3 class="text-xl font-semibold text-gray-700 mb-2">데이터 분석</h3>
-                       <p class="text-gray-600">분석 기능이 준비되었습니다</p>
+                   <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                     <!-- Header -->
+                     <div class="mb-8">
+                         <h2 class="text-2xl font-bold text-gray-900 mb-2">Advanced Part No Analysis</h2>
+                         <p class="text-gray-600">Advanced pallet analysis with separate Excel sheets for shipping planning</p>
+                     </div>
+
+                     <!-- Filter Panel -->
+                     <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+                         <h3 class="text-lg font-semibold text-gray-900 mb-4">Search Filters</h3>
+                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                             <div>
+                                 <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                                 <select id="locationFilter" 
+                                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                     <option value="">All</option>
+                                     <option value="F100">F100</option>
+                                     <option value="F101" selected>F101</option>
+                                 </select>
+                             </div>
+                             <div>
+                                 <label class="block text-sm font-medium text-gray-700 mb-2">Part No</label>
+                                 <select id="partNoFilter" 
+                                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                     <option value="">All</option>
+                                     <option value="" disabled>Loading...</option>
+                                 </select>
+                                 <p id="partNoStatus" class="text-xs text-gray-500 mt-1">Loading part numbers...</p>
+                             </div>
+                             <div>
+                                 <label class="block text-sm font-medium text-gray-700 mb-2">Hold Whether</label>
+                                 <select id="holdWhetherFilter" 
+                                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                     <option value="">All</option>
+                                     <option value="Y">Y</option>
+                                     <option value="N" selected>N</option>
+                                 </select>
+                             </div>
+                             <div>
+                                 <label class="block text-sm font-medium text-gray-700 mb-2">팔렛 수량</label>
+                                 <input type="number" id="palletQuantityInput" 
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        placeholder="20" value="20" min="1" max="100">
+                                 <p class="text-xs text-gray-500 mt-1">출하할 팔렛 수량 (1팔렛 = 8개 TM)</p>
+                             </div>
+                             <div class="flex items-end space-x-2">
+                                 <button id="applyFilterBtn" 
+                                         class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                     Apply Filter
+                                 </button>
+                                 <button id="resetFilterBtn" 
+                                         class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                                     Reset
+                                 </button>
+                             </div>
+                             <div class="col-span-4 mt-2">
+                                 <p id="filterStatus" class="text-xs text-gray-500">No filters applied</p>
+                             </div>
+                         </div>
+                     </div>
+
+                     <!-- Summary Cards -->
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                         <div class="bg-white rounded-lg shadow-sm border p-6">
+                             <h3 class="text-lg font-semibold text-gray-900 mb-4">8+ Pallets Summary</h3>
+                             <div id="summary8" class="text-gray-600">
+                                 Please load data...
+                             </div>
+                         </div>
+                         <div class="bg-white rounded-lg shadow-sm border p-6">
+                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Under 8 Pallets Summary</h3>
+                             <div id="summary7" class="text-gray-600">
+                                 Please load data...
+                             </div>
+                         </div>
+                     </div>
+
+                     <!-- Data Table -->
+                     <div class="bg-white rounded-lg shadow-sm border">
+                         <div class="px-6 py-4 border-b border-gray-200">
+                             <div class="flex justify-between items-center">
+                                 <div>
+                                     <h3 class="text-lg font-semibold text-gray-900">Analysis Results</h3>
+                                     <p id="resultCount" class="text-sm text-gray-500 mt-1">데이터 로딩 중...</p>
+                                 </div>
+                                 <div class="flex items-center space-x-4">
+                                     <div class="flex space-x-2">
+                                         <button id="exportExcelBtn" 
+                                                 class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                                             📊 Export to Excel
+                                         </button>
+                                         <button id="refreshDataBtn" 
+                                                 class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                             🔄 Refresh Data
+                                         </button>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                         
+                         <div class="overflow-x-auto">
+                             <table class="min-w-full divide-y divide-gray-200">
+                                 <thead class="bg-gray-50">
+                                     <tr>
+                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('palletNo')">
+                                             Pallet No
+                                             <span id="sort-palletNo" class="ml-1">↕</span>
+                                         </th>
+                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('rackNo')">
+                                             Rack No
+                                             <span id="sort-rackNo" class="ml-1">↕</span>
+                                         </th>
+                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('dataCount')">
+                                             Data Count
+                                             <span id="sort-dataCount" class="ml-1">↕</span>
+                                         </th>
+                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('tmCount')">
+                                             TM Count
+                                             <span id="sort-tmCount" class="ml-1">↕</span>
+                                         </th>
+                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('partNoList')">
+                                             Part No List
+                                             <span id="sort-partNoList" class="ml-1">↕</span>
+                                         </th>
+                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('earliestDate')">
+                                             Earliest Date
+                                             <span id="sort-earliestDate" class="ml-1">↕</span>
+                                         </th>
+                                     </tr>
+                                 </thead>
+                                 <tbody id="resultsTable" class="bg-white divide-y divide-gray-200">
+                                     <tr>
+                                         <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                                             데이터를 로딩 중입니다... 잠시만 기다려주세요.
+                                         </td>
+                                     </tr>
+                                 </tbody>
+                             </table>
+                         </div>
+                     </div>
+
+                     <!-- Loading State -->
+                     <div id="loadingState" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                         <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                             <div class="mt-3 text-center">
+                                 <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+                                     <svg class="animate-spin h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                     </svg>
+                                 </div>
+                                 <h3 class="text-lg font-medium text-gray-900 mt-4">Processing...</h3>
+                                 <p class="text-sm text-gray-500 mt-2">Please wait while we analyze the data...</p>
+                             </div>
+                         </div>
                      </div>
                    </div>
                  `;
+                 
+                 // Analysis 페이지 초기화
+                 setTimeout(() => {
+                   initializeAnalysisPage();
+                 }, 100);
                } else if (path === 'pages/packaging-analysis-fixed.html') {
                  document.getElementById('mainContent').innerHTML = `
                    <div class="bg-white rounded-lg shadow-md p-8">
@@ -214,6 +368,346 @@
                    </div>
                  `;
                }
+             }
+
+             // Analysis 페이지 초기화
+             function initializeAnalysisPage() {
+               console.log('🔧 Initializing Analysis page...');
+               
+               // 전역 변수 초기화
+               window.allData = [];
+               window.filteredData = [];
+               window.currentSortColumn = 'palletNo';
+               window.currentSortDirection = 'asc';
+               window.lastAnalysisResults = [];
+               
+               // 이벤트 리스너 설정
+               const refreshBtn = document.getElementById('refreshDataBtn');
+               if (refreshBtn) {
+                 refreshBtn.onclick = loadAnalysisData;
+               }
+               
+               const applyBtn = document.getElementById('applyFilterBtn');
+               if (applyBtn) {
+                 applyBtn.onclick = applyAnalysisFilter;
+               }
+               
+               const resetBtn = document.getElementById('resetFilterBtn');
+               if (resetBtn) {
+                 resetBtn.onclick = resetAnalysisFilter;
+               }
+               
+               const exportBtn = document.getElementById('exportExcelBtn');
+               if (exportBtn) {
+                 exportBtn.onclick = exportAnalysisData;
+               }
+               
+               // 초기 데이터 로드
+               loadAnalysisData();
+             }
+             
+             // Analysis 데이터 로드
+             function loadAnalysisData() {
+               console.log('🔄 Loading Analysis data...');
+               
+               // 로딩 상태 표시
+               const loadingState = document.getElementById('loadingState');
+               if (loadingState) {
+                 loadingState.classList.remove('hidden');
+               }
+               
+               // Supabase에서 데이터 로드
+               if (window.sb) {
+                 window.sb.from('vwtm_list_data')
+                   .select('*')
+                   .limit(1000)
+                   .then(({ data, error }) => {
+                     if (error) {
+                       console.error('❌ Database error:', error);
+                       showAnalysisSampleData();
+                     } else {
+                       console.log('✅ Analysis data loaded:', data.length, 'records');
+                       window.allData = data || [];
+                       window.filteredData = [...window.allData];
+                       populateAnalysisFilterOptions();
+                       performAnalysis();
+                     }
+                     
+                     // 로딩 상태 숨기기
+                     if (loadingState) {
+                       loadingState.classList.add('hidden');
+                     }
+                   });
+               } else {
+                 console.log('⚠️ Supabase not available, using sample data');
+                 showAnalysisSampleData();
+                 
+                 // 로딩 상태 숨기기
+                 if (loadingState) {
+                   loadingState.classList.add('hidden');
+                 }
+               }
+             }
+             
+             // Analysis 샘플 데이터 표시
+             function showAnalysisSampleData() {
+               console.log('📊 Showing Analysis sample data...');
+               
+               const sampleData = [
+                 { pallet_no: 'PAL001', rack_no: 'F101-01', part_no: '3T24', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
+                 { pallet_no: 'PAL002', rack_no: 'F101-02', part_no: '3T33', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
+                 { pallet_no: 'PAL003', rack_no: 'F100-01', part_no: '3T24', hold_whether: 'N', location: 'F100', upload_time: new Date().toISOString() },
+                 { pallet_no: 'PAL004', rack_no: 'F101-03', part_no: '3T34', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
+                 { pallet_no: 'PAL005', rack_no: 'F100-02', part_no: '3T35', hold_whether: 'N', location: 'F100', upload_time: new Date().toISOString() }
+               ];
+               
+               window.allData = sampleData;
+               window.filteredData = [...sampleData];
+               populateAnalysisFilterOptions();
+               performAnalysis();
+             }
+             
+             // Analysis 필터 옵션 채우기
+             function populateAnalysisFilterOptions() {
+               console.log('🔧 Populating Analysis filter options...');
+               
+               // Part No 필터 옵션 채우기
+               const partNoFilter = document.getElementById('partNoFilter');
+               if (partNoFilter) {
+                 const partNos = [...new Set(window.allData.map(item => item.part_no))].filter(Boolean);
+                 partNoFilter.innerHTML = '<option value="">All</option>' + 
+                   partNos.map(part => `<option value="${part}">${part}</option>`).join('');
+                 
+                 const partNoStatus = document.getElementById('partNoStatus');
+                 if (partNoStatus) {
+                   partNoStatus.textContent = `${partNos.length} part numbers loaded`;
+                 }
+               }
+             }
+             
+             // Analysis 필터 적용
+             function applyAnalysisFilter() {
+               console.log('🔍 Applying Analysis filter...');
+               
+               const location = document.getElementById('locationFilter')?.value || '';
+               const partNo = document.getElementById('partNoFilter')?.value || '';
+               const holdWhether = document.getElementById('holdWhetherFilter')?.value || '';
+               const palletQuantity = document.getElementById('palletQuantityInput')?.value || '20';
+               
+               console.log('Filter conditions:', { location, partNo, holdWhether, palletQuantity });
+               
+               // 필터 적용 로직
+               let filtered = [...window.allData];
+               
+               if (location) {
+                 filtered = filtered.filter(item => item.location === location);
+               }
+               if (partNo) {
+                 filtered = filtered.filter(item => item.part_no === partNo);
+               }
+               if (holdWhether) {
+                 filtered = filtered.filter(item => item.hold_whether === holdWhether);
+               }
+               
+               window.filteredData = filtered;
+               performAnalysis();
+               
+               // 상태 업데이트
+               const status = document.getElementById('filterStatus');
+               if (status) {
+                 status.textContent = `필터 적용됨: ${filtered.length}개 레코드`;
+               }
+             }
+             
+             // Analysis 필터 초기화
+             function resetAnalysisFilter() {
+               console.log('🔄 Resetting Analysis filter...');
+               
+               document.getElementById('locationFilter').value = '';
+               document.getElementById('partNoFilter').value = '';
+               document.getElementById('holdWhetherFilter').value = '';
+               document.getElementById('palletQuantityInput').value = '20';
+               
+               window.filteredData = [...window.allData];
+               performAnalysis();
+               
+               const status = document.getElementById('filterStatus');
+               if (status) {
+                 status.textContent = 'No filters applied';
+               }
+             }
+             
+             // Analysis 수행
+             function performAnalysis() {
+               console.log('📊 Performing Analysis...');
+               
+               const data = window.filteredData || [];
+               console.log('Analysis data:', data.length, 'records');
+               
+               // Part No별로 그룹화하여 분석
+               const partGroups = {};
+               data.forEach(item => {
+                 const partNo = item.part_no || 'Unknown';
+                 if (!partGroups[partNo]) {
+                   partGroups[partNo] = {
+                     palletNo: item.pallet_no || 'N/A',
+                     rackNo: item.rack_no || 'N/A',
+                     dataCount: 0,
+                     tmCount: 0,
+                     partNoList: partNo,
+                     earliestDate: item.upload_time ? new Date(item.upload_time).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)
+                   };
+                 }
+                 partGroups[partNo].dataCount++;
+                 partGroups[partNo].tmCount += 8; // 1개 팔레트 = 8개 TM
+               });
+               
+               const results = Object.values(partGroups);
+               window.lastAnalysisResults = results;
+               displayAnalysisResults(results);
+               updateAnalysisSummary(results);
+             }
+             
+             // Analysis 결과 표시
+             function displayAnalysisResults(results) {
+               console.log('📋 Displaying Analysis results...');
+               
+               const tableBody = document.getElementById('resultsTable');
+               if (!tableBody) return;
+               
+               if (results.length === 0) {
+                 tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">분석 결과가 없습니다.</td></tr>';
+                 return;
+               }
+               
+               const tableRows = results.map(result => `
+                 <tr class="hover:bg-gray-50">
+                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${result.palletNo}</td>
+                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${result.rackNo}</td>
+                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${result.dataCount}</td>
+                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${result.tmCount}</td>
+                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${result.partNoList}</td>
+                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${result.earliestDate}</td>
+                 </tr>
+               `);
+               
+               tableBody.innerHTML = tableRows.join('');
+               
+               // 결과 개수 업데이트
+               const resultCount = document.getElementById('resultCount');
+               if (resultCount) {
+                 resultCount.textContent = `Found ${results.length} pallets`;
+               }
+             }
+             
+             // Analysis 요약 업데이트
+             function updateAnalysisSummary(results) {
+               console.log('📊 Updating Analysis summary...');
+               
+               const summary8 = document.getElementById('summary8');
+               const summary7 = document.getElementById('summary7');
+               
+               if (summary8) {
+                 const count8Plus = results.filter(r => r.tmCount >= 8).length;
+                 summary8.innerHTML = `<div class="text-2xl font-bold text-blue-600">${count8Plus}</div><div class="text-sm text-gray-500">팔레트</div>`;
+               }
+               
+               if (summary7) {
+                 const countUnder8 = results.filter(r => r.tmCount < 8).length;
+                 summary7.innerHTML = `<div class="text-2xl font-bold text-orange-600">${countUnder8}</div><div class="text-sm text-gray-500">팔레트</div>`;
+               }
+             }
+             
+             // Analysis Excel 내보내기
+             function exportAnalysisData() {
+               console.log('📊 Exporting Analysis data...');
+               
+               if (!window.lastAnalysisResults || window.lastAnalysisResults.length === 0) {
+                 alert('내보낼 데이터가 없습니다. 먼저 분석을 실행해주세요.');
+                 return;
+               }
+               
+               // Excel 내보내기 로직
+               const workbook = new ExcelJS.Workbook();
+               const worksheet = workbook.addWorksheet('Analysis Results');
+               
+               // 헤더 추가
+               worksheet.addRow(['Pallet No', 'Rack No', 'Data Count', 'TM Count', 'Part No List', 'Earliest Date']);
+               
+               // 데이터 추가
+               window.lastAnalysisResults.forEach(result => {
+                 worksheet.addRow([
+                   result.palletNo || '',
+                   result.rackNo || '',
+                   result.dataCount || 0,
+                   result.tmCount || 0,
+                   result.partNoList || '',
+                   result.earliestDate || ''
+                 ]);
+               });
+               
+               // 파일 다운로드
+               workbook.xlsx.writeBuffer().then(buffer => {
+                 const blob = new Blob([buffer], { 
+                   type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+                 });
+                 const url = window.URL.createObjectURL(blob);
+                 const link = document.createElement('a');
+                 link.href = url;
+                 link.download = `analysis_results_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                 document.body.appendChild(link);
+                 link.click();
+                 document.body.removeChild(link);
+                 window.URL.revokeObjectURL(url);
+               });
+             }
+             
+             // 테이블 정렬
+             function sortTable(column) {
+               console.log(`🔍 Sorting by column: ${column}`);
+               
+               if (window.currentSortColumn === column) {
+                 window.currentSortDirection = window.currentSortDirection === 'asc' ? 'desc' : 'asc';
+               } else {
+                 window.currentSortColumn = column;
+                 window.currentSortDirection = 'asc';
+               }
+               
+               const results = [...window.lastAnalysisResults];
+               results.sort((a, b) => {
+                 let aVal = a[column] || '';
+                 let bVal = b[column] || '';
+                 
+                 if (['dataCount', 'tmCount'].includes(column)) {
+                   aVal = parseFloat(aVal) || 0;
+                   bVal = parseFloat(bVal) || 0;
+                 } else {
+                   aVal = String(aVal).toLowerCase();
+                   bVal = String(bVal).toLowerCase();
+                 }
+                 
+                 if (aVal < bVal) return window.currentSortDirection === 'asc' ? -1 : 1;
+                 if (aVal > bVal) return window.currentSortDirection === 'asc' ? 1 : -1;
+                 return 0;
+               });
+               
+               displayAnalysisResults(results);
+               updateSortIcons(column);
+             }
+             
+             // 정렬 아이콘 업데이트
+             function updateSortIcons(activeColumn) {
+               const columns = ['palletNo', 'rackNo', 'dataCount', 'tmCount', 'partNoList', 'earliestDate'];
+               columns.forEach(col => {
+                 const icon = document.getElementById(`sort-${col}`);
+                 if (icon) {
+                   if (col === activeColumn) {
+                     icon.textContent = window.currentSortDirection === 'asc' ? '↑' : '↓';
+                   } else {
+                     icon.textContent = '↕';
+                   }
+                 }
+               });
              }
 
              // 파일 업로드 처리 함수
