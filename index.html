@@ -395,19 +395,19 @@
                      <!-- Summary Cards -->
                      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                          <div class="bg-white rounded-lg shadow-sm border p-6">
-                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Total Pallets</h3>
+                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Total TM</h3>
                              <div id="packagingTotalPallets" class="text-gray-600">
                                  Please load data...
                              </div>
                          </div>
                          <div class="bg-white rounded-lg shadow-sm border p-6">
-                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Before Packaging</h3>
+                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Before Packaging TM</h3>
                              <div id="packagingBeforePallets" class="text-gray-600">
                                  Please load data...
                              </div>
                          </div>
                          <div class="bg-white rounded-lg shadow-sm border p-6">
-                             <h3 class="text-lg font-semibold text-gray-900 mb-4">After Packaging</h3>
+                             <h3 class="text-lg font-semibold text-gray-900 mb-4">After Packaging TM</h3>
                              <div id="packagingAfterPallets" class="text-gray-600">
                                  Please load data...
                              </div>
@@ -1382,22 +1382,28 @@
                const packagingRatePercent = totalCount > 0 ? Math.round((afterCount / totalCount) * 100) : 0;
                
                if (totalPallets) {
-                 totalPallets.innerHTML = `<div class="text-2xl font-bold text-blue-600">${totalCount}</div><div class="text-sm text-gray-500">팔레트</div><div class="text-xs text-gray-400">TM: ${totalTmCount}개</div>`;
+                 totalPallets.innerHTML = `<div class="text-2xl font-bold text-blue-600">${totalTmCount}</div><div class="text-sm text-gray-500">EA</div><div class="text-xs text-gray-400">팔레트: ${totalCount}개</div>`;
                }
                
                if (beforePallets) {
-                 beforePallets.innerHTML = `<div class="text-2xl font-bold text-yellow-600">${beforeCount}</div><div class="text-sm text-gray-500">팔레트</div>`;
+                 const beforeTmCount = Object.values(locationGroups).reduce((sum, group) => {
+                   return sum + group.pallets.filter(p => p.packagingStatus === 'Before Packaging' && p.holdWhether !== 'Y').reduce((pSum, p) => pSum + p.tmCount, 0);
+                 }, 0);
+                 beforePallets.innerHTML = `<div class="text-2xl font-bold text-yellow-600">${beforeTmCount}</div><div class="text-sm text-gray-500">EA</div><div class="text-xs text-gray-400">팔레트: ${beforeCount}개</div>`;
                }
                
                if (afterPallets) {
-                 afterPallets.innerHTML = `<div class="text-2xl font-bold text-green-600">${afterCount}</div><div class="text-sm text-gray-500">팔레트</div>`;
+                 const afterTmCount = Object.values(locationGroups).reduce((sum, group) => {
+                   return sum + group.pallets.filter(p => p.packagingStatus === 'After Packaging' && p.holdWhether !== 'Y').reduce((pSum, p) => pSum + p.tmCount, 0);
+                 }, 0);
+                 afterPallets.innerHTML = `<div class="text-2xl font-bold text-green-600">${afterTmCount}</div><div class="text-sm text-gray-500">EA</div><div class="text-xs text-gray-400">팔레트: ${afterCount}개</div>`;
                }
                
                if (packagingRate) {
                  packagingRate.innerHTML = `<div class="text-2xl font-bold text-purple-600">${packagingRatePercent}%</div><div class="text-sm text-gray-500">포장률</div>`;
                }
                
-               console.log(`📊 Packaging summary: ${totalCount} pallets, ${totalTmCount} TMs (Hold Whether 'Y' excluded)`);
+               console.log(`📊 Packaging summary: ${totalCount} pallets, ${totalTmCount} TMs (EA) - Hold Whether 'Y' excluded`);
              }
              
              // Packaging Excel 내보내기
