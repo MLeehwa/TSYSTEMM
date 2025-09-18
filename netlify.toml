@@ -5,6 +5,13 @@
 [build.environment]
   NODE_VERSION = "18"
 
+# Ensure index.html is served as the main page
+[[redirects]]
+  from = "/"
+  to = "/index.html"
+  status = 200
+
+# Handle SPA routing - redirect all routes to index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"
