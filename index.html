@@ -618,7 +618,10 @@
                  { pallet_no: 'PAL002', rack_no: 'F101-02', part_no: '3T33', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
                  { pallet_no: 'PAL003', rack_no: 'F100-01', part_no: '3T24', hold_whether: 'N', location: 'F100', upload_time: new Date().toISOString() },
                  { pallet_no: 'PAL004', rack_no: 'F101-03', part_no: '3T34', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
-                 { pallet_no: 'PAL005', rack_no: 'F100-02', part_no: '3T35', hold_whether: 'N', location: 'F100', upload_time: new Date().toISOString() }
+                 { pallet_no: 'PAL005', rack_no: 'F100-02', part_no: '3T35', hold_whether: 'N', location: 'F100', upload_time: new Date().toISOString() },
+                 { pallet_no: 'PAL006', rack_no: 'F101-04', part_no: '3T36', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
+                 { pallet_no: 'PAL007', rack_no: 'F100-03', part_no: '3T37', hold_whether: 'N', location: 'F100', upload_time: new Date().toISOString() },
+                 { pallet_no: 'PAL008', rack_no: 'F101-05', part_no: '3T38', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() }
                ];
                
                window.allData = sampleData;
@@ -643,6 +646,22 @@
                    partNoStatus.textContent = `${partNos.length} part numbers loaded`;
                  }
                }
+               
+               // Location 필터 옵션 채우기
+               const locationFilter = document.getElementById('locationFilter');
+               if (locationFilter) {
+                 const locations = [...new Set(window.allData.map(item => item.location))].filter(Boolean);
+                 locationFilter.innerHTML = '<option value="">All</option>' + 
+                   locations.map(loc => `<option value="${loc}">${loc}</option>`).join('');
+               }
+               
+               // Hold Whether 필터 옵션 채우기
+               const holdWhetherFilter = document.getElementById('holdWhetherFilter');
+               if (holdWhetherFilter) {
+                 const holdValues = [...new Set(window.allData.map(item => item.hold_whether))].filter(Boolean);
+                 holdWhetherFilter.innerHTML = '<option value="">All</option>' + 
+                   holdValues.map(hold => `<option value="${hold}">${hold}</option>`).join('');
+               }
              }
              
              // Analysis 필터 적용
@@ -655,21 +674,26 @@
                const palletQuantity = document.getElementById('palletQuantityInput')?.value || '20';
                
                console.log('Filter conditions:', { location, partNo, holdWhether, palletQuantity });
+               console.log('Original data count:', window.allData.length);
                
                // 필터 적용 로직
                let filtered = [...window.allData];
                
                if (location) {
                  filtered = filtered.filter(item => item.location === location);
+                 console.log('After location filter:', filtered.length);
                }
                if (partNo) {
                  filtered = filtered.filter(item => item.part_no === partNo);
+                 console.log('After partNo filter:', filtered.length);
                }
                if (holdWhether) {
                  filtered = filtered.filter(item => item.hold_whether === holdWhether);
+                 console.log('After holdWhether filter:', filtered.length);
                }
                
                window.filteredData = filtered;
+               console.log('Final filtered data:', filtered.length, 'records');
                performAnalysis();
                
                // 상태 업데이트
@@ -704,25 +728,25 @@
                const data = window.filteredData || [];
                console.log('Analysis data:', data.length, 'records');
                
-               // Part No별로 그룹화하여 분석
-               const partGroups = {};
+               // Pallet No별로 그룹화하여 분석 (Part No별이 아닌 Pallet별)
+               const palletGroups = {};
                data.forEach(item => {
-                 const partNo = item.part_no || 'Unknown';
-                 if (!partGroups[partNo]) {
-                   partGroups[partNo] = {
-                     palletNo: item.pallet_no || 'N/A',
+                 const palletNo = item.pallet_no || 'Unknown';
+                 if (!palletGroups[palletNo]) {
+                   palletGroups[palletNo] = {
+                     palletNo: palletNo,
                      rackNo: item.rack_no || 'N/A',
                      dataCount: 0,
                      tmCount: 0,
-                     partNoList: partNo,
+                     partNoList: item.part_no || 'N/A',
                      earliestDate: item.upload_time ? new Date(item.upload_time).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)
                    };
                  }
-                 partGroups[partNo].dataCount++;
-                 partGroups[partNo].tmCount += 8; // 1개 팔레트 = 8개 TM
+                 palletGroups[palletNo].dataCount++;
+                 palletGroups[palletNo].tmCount += 8; // 1개 팔레트 = 8개 TM
                });
                
-               const results = Object.values(partGroups);
+               const results = Object.values(palletGroups);
                window.lastAnalysisResults = results;
                displayAnalysisResults(results);
                updateAnalysisSummary(results);
@@ -986,6 +1010,22 @@
                    partNoStatus.textContent = `${partNos.length} part numbers loaded`;
                  }
                }
+               
+               // Location 필터 옵션 채우기
+               const locationFilter = document.getElementById('packagingLocationFilter');
+               if (locationFilter) {
+                 const locations = [...new Set(window.packagingAllData.map(item => item.location))].filter(Boolean);
+                 locationFilter.innerHTML = '<option value="">All</option>' + 
+                   locations.map(loc => `<option value="${loc}">${loc}</option>`).join('');
+               }
+               
+               // Hold Whether 필터 옵션 채우기
+               const holdWhetherFilter = document.getElementById('packagingHoldWhetherFilter');
+               if (holdWhetherFilter) {
+                 const holdValues = [...new Set(window.packagingAllData.map(item => item.hold_whether))].filter(Boolean);
+                 holdWhetherFilter.innerHTML = '<option value="">All</option>' + 
+                   holdValues.map(hold => `<option value="${hold}">${hold}</option>`).join('');
+               }
              }
              
              // Packaging 필터 적용
@@ -998,21 +1038,26 @@
                const palletQuantity = document.getElementById('packagingPalletQuantityInput')?.value || '20';
                
                console.log('Packaging filter conditions:', { location, partNo, holdWhether, palletQuantity });
+               console.log('Original packaging data count:', window.packagingAllData.length);
                
                // 필터 적용 로직
                let filtered = [...window.packagingAllData];
                
                if (location) {
                  filtered = filtered.filter(item => item.location === location);
+                 console.log('After location filter:', filtered.length);
                }
                if (partNo) {
                  filtered = filtered.filter(item => item.part_no === partNo);
+                 console.log('After partNo filter:', filtered.length);
                }
                if (holdWhether) {
                  filtered = filtered.filter(item => item.hold_whether === holdWhether);
+                 console.log('After holdWhether filter:', filtered.length);
                }
                
                window.packagingFilteredData = filtered;
+               console.log('Final packaging filtered data:', filtered.length, 'records');
                performPackagingAnalysis();
                
                // 상태 업데이트
@@ -1060,6 +1105,11 @@
                      packagingType: determinePackagingType(item.part_no),
                      optimization: calculateOptimization(item.part_no, item.location)
                    };
+                 } else {
+                   // 같은 팔레트에 여러 Part No가 있는 경우 처리
+                   if (item.part_no && !palletGroups[palletNo].partNo.includes(item.part_no)) {
+                     palletGroups[palletNo].partNo += ', ' + item.part_no;
+                   }
                  }
                });
                
