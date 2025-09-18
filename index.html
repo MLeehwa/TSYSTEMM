@@ -168,23 +168,43 @@
                  .then(html => {
                    document.getElementById('mainContent').innerHTML = html;
                    
-                   // 페이지별 초기화 함수 호출
-                   if (path.includes('analysis-new.html')) {
-                     // Analysis 페이지 초기화
-                     if (typeof initAnalysis === 'function') {
-                       initAnalysis();
+                   // 페이지별 초기화 함수 호출 (약간의 지연 후)
+                   setTimeout(() => {
+                     if (path.includes('analysis-new.html')) {
+                       // Analysis 페이지 초기화
+                       console.log('🔍 Checking for initAnalysis function...');
+                       if (typeof window.initAnalysis === 'function') {
+                         console.log('✅ Calling initAnalysis...');
+                         window.initAnalysis();
+                       } else {
+                         console.log('⚠️ initAnalysis function not found, trying alternative...');
+                         // 대안: 직접 이벤트 리스너 설정
+                         setupAnalysisPage();
+                       }
+                     } else if (path.includes('packaging-analysis-fixed.html')) {
+                       // Packaging Analysis 페이지 초기화
+                       console.log('🔍 Checking for initPackagingAnalysis function...');
+                       if (typeof window.initPackagingAnalysis === 'function') {
+                         console.log('✅ Calling initPackagingAnalysis...');
+                         window.initPackagingAnalysis();
+                       } else {
+                         console.log('⚠️ initPackagingAnalysis function not found, trying alternative...');
+                         // 대안: 직접 이벤트 리스너 설정
+                         setupPackagingPage();
+                       }
+                     } else if (path.includes('management.html')) {
+                       // Truck Management 페이지 초기화
+                       console.log('🔍 Checking for initTruckManagement function...');
+                       if (typeof window.initTruckManagement === 'function') {
+                         console.log('✅ Calling initTruckManagement...');
+                         window.initTruckManagement();
+                       } else {
+                         console.log('⚠️ initTruckManagement function not found, trying alternative...');
+                         // 대안: 직접 이벤트 리스너 설정
+                         setupTruckManagementPage();
+                       }
                      }
-                   } else if (path.includes('packaging-analysis-fixed.html')) {
-                     // Packaging Analysis 페이지 초기화
-                     if (typeof initPackagingAnalysis === 'function') {
-                       initPackagingAnalysis();
-                     }
-                   } else if (path.includes('management.html')) {
-                     // Truck Management 페이지 초기화
-                     if (typeof initTruckManagement === 'function') {
-                       initTruckManagement();
-                     }
-                   }
+                   }, 100); // 100ms 지연
                  })
                  .catch(error => {
                    console.error('Error loading page:', error);
@@ -198,12 +218,138 @@
                  });
              }
 
-    // STATUS 페이지를 새 탭에서 열기
-    function openStatusInNewTab() {
-      // 로컬과 동일하게 작동하도록 상대 경로 사용
-      const statusUrl = './pages/truck/status.html';
-      window.open(statusUrl, '_blank');
-    }
+             // 페이지별 대안 초기화 함수들
+             function setupAnalysisPage() {
+               console.log('🔧 Setting up Analysis page manually...');
+               
+               // 새로고침 버튼 이벤트 리스너
+               const refreshBtn = document.getElementById('refreshDataBtn');
+               if (refreshBtn) {
+                 refreshBtn.onclick = function() {
+                   console.log('🔄 Analysis refresh button clicked');
+                   // Analysis 페이지의 새로고침 로직 실행
+                   if (typeof window.loadAnalysisData === 'function') {
+                     window.loadAnalysisData();
+                   } else {
+                     console.log('⚠️ loadAnalysisData function not found');
+                   }
+                 };
+                 console.log('✅ Analysis refresh button listener added');
+               }
+               
+               // 필터 적용 버튼 이벤트 리스너
+               const applyBtn = document.getElementById('applyFilterBtn');
+               if (applyBtn) {
+                 applyBtn.onclick = function() {
+                   console.log('🔍 Analysis filter apply button clicked');
+                   if (typeof window.applyAnalysisFilter === 'function') {
+                     window.applyAnalysisFilter();
+                   } else {
+                     console.log('⚠️ applyAnalysisFilter function not found');
+                   }
+                 };
+                 console.log('✅ Analysis filter apply button listener added');
+               }
+               
+               // Excel 내보내기 버튼 이벤트 리스너
+               const exportBtn = document.getElementById('exportExcelBtn');
+               if (exportBtn) {
+                 exportBtn.onclick = function() {
+                   console.log('📊 Analysis export button clicked');
+                   if (typeof window.exportAnalysisData === 'function') {
+                     window.exportAnalysisData();
+                   } else {
+                     console.log('⚠️ exportAnalysisData function not found');
+                   }
+                 };
+                 console.log('✅ Analysis export button listener added');
+               }
+             }
+             
+             function setupPackagingPage() {
+               console.log('🔧 Setting up Packaging page manually...');
+               
+               // 새로고침 버튼 이벤트 리스너
+               const refreshBtn = document.getElementById('refreshDataBtn');
+               if (refreshBtn) {
+                 refreshBtn.onclick = function() {
+                   console.log('🔄 Packaging refresh button clicked');
+                   if (typeof window.loadPackagingData === 'function') {
+                     window.loadPackagingData();
+                   } else {
+                     console.log('⚠️ loadPackagingData function not found');
+                   }
+                 };
+                 console.log('✅ Packaging refresh button listener added');
+               }
+               
+               // Excel 내보내기 버튼 이벤트 리스너
+               const exportBtn = document.getElementById('exportExcelBtn');
+               if (exportBtn) {
+                 exportBtn.onclick = function() {
+                   console.log('📦 Packaging export button clicked');
+                   if (typeof window.exportPackagingData === 'function') {
+                     window.exportPackagingData();
+                   } else {
+                     console.log('⚠️ exportPackagingData function not found');
+                   }
+                 };
+                 console.log('✅ Packaging export button listener added');
+               }
+               
+               // 부족 수량 계산 버튼 이벤트 리스너
+               const calculateBtn = document.getElementById('calculateShortageBtn');
+               if (calculateBtn) {
+                 calculateBtn.onclick = function() {
+                   console.log('📊 Packaging shortage calculation button clicked');
+                   if (typeof window.calculateShortage === 'function') {
+                     window.calculateShortage();
+                   } else {
+                     console.log('⚠️ calculateShortage function not found');
+                   }
+                 };
+                 console.log('✅ Packaging shortage calculation button listener added');
+               }
+               
+               // 트럭 추가 버튼 이벤트 리스너
+               const addRowBtn = document.getElementById('addShipmentRowBtn');
+               if (addRowBtn) {
+                 addRowBtn.onclick = function() {
+                   console.log('➕ Packaging add shipment row button clicked');
+                   if (typeof window.addShipmentRow === 'function') {
+                     window.addShipmentRow();
+                   } else {
+                     console.log('⚠️ addShipmentRow function not found');
+                   }
+                 };
+                 console.log('✅ Packaging add shipment row button listener added');
+               }
+             }
+             
+             function setupTruckManagementPage() {
+               console.log('🔧 Setting up Truck Management page manually...');
+               
+               // 트럭 추가 버튼 이벤트 리스너
+               const addBtn = document.querySelector('button[onclick="openTruckModal()"]');
+               if (addBtn) {
+                 addBtn.onclick = function() {
+                   console.log('🚛 Truck add button clicked');
+                   if (typeof window.openTruckModal === 'function') {
+                     window.openTruckModal();
+                   } else {
+                     console.log('⚠️ openTruckModal function not found');
+                   }
+                 };
+                 console.log('✅ Truck add button listener added');
+               }
+             }
+
+             // STATUS 페이지를 새 탭에서 열기
+             function openStatusInNewTab() {
+               // 로컬과 동일하게 작동하도록 상대 경로 사용
+               const statusUrl = './pages/truck/status.html';
+               window.open(statusUrl, '_blank');
+             }
 
     console.log('✅ TM System loaded successfully');
   </script>
