@@ -348,10 +348,11 @@
                      <!-- Header -->
                      <div class="mb-8">
                          <h2 class="text-2xl font-bold text-gray-900 mb-2">Packaging Analysis</h2>
-                         <p class="text-gray-600">Location-based packaging analysis with RACK NO pattern recognition</p>
+                         <p class="text-gray-600">Location-based packaging analysis with RACK NO pattern recognition (Hold Whether 'N' only)</p>
                          <div class="mt-2 text-sm text-gray-500">
                              <p><strong>Before Packaging:</strong> LHSAB, LHSBA, LHSAA, LHSBB</p>
                              <p><strong>After Packaging:</strong> LHSAC, LHSAD, LHSBC, LHSBD</p>
+                             <p class="text-blue-600"><strong>Note:</strong> Only records with Hold Whether = 'N' are included in analysis</p>
                          </div>
                      </div>
 
@@ -1219,9 +1220,19 @@
                const data = window.packagingFilteredData || [];
                console.log('Packaging data:', data.length, 'records');
                
-               // Location별로 그룹화하여 포장 전/후 분석
+               // Location별로 그룹화하여 포장 전/후 분석 (Hold Whether 'N'만)
                const locationGroups = {};
+               let totalRecords = data.length;
+               let filteredRecords = 0;
+               
                data.forEach(item => {
+                 // Hold Whether가 'N'인 것만 처리
+                 if (item.hold_whether !== 'N') {
+                   return;
+                 }
+                 
+                 filteredRecords++;
+                 
                  const location = item.location || 'Unknown';
                  if (!locationGroups[location]) {
                    locationGroups[location] = {
@@ -1248,14 +1259,9 @@
                    packagingStatus = 'After Packaging';
                    locationGroups[location].afterPackaging++;
                  } else {
-                   // 기타 RACK NO는 Hold Whether로 판단
-                   if (item.hold_whether === 'N') {
-                     packagingStatus = 'After Packaging';
-                     locationGroups[location].afterPackaging++;
-                   } else {
-                     packagingStatus = 'Before Packaging';
-                     locationGroups[location].beforePackaging++;
-                   }
+                   // 기타 RACK NO는 Hold Whether 'N'이므로 After Packaging
+                   packagingStatus = 'After Packaging';
+                   locationGroups[location].afterPackaging++;
                  }
                  
                  // 팔레트 정보 저장
@@ -1274,6 +1280,8 @@
                Object.values(locationGroups).forEach(group => {
                  results.push(...group.pallets);
                });
+               
+               console.log(`📊 Packaging analysis completed: ${totalRecords} total records, ${filteredRecords} Hold Whether 'N' records processed`);
                
                window.packagingLastResults = results;
                displayPackagingResults(results);
@@ -1354,7 +1362,9 @@
                // 데이터 정보 업데이트
                const dataInfo = document.getElementById('packagingDataInfo');
                if (dataInfo) {
-                 dataInfo.textContent = `총 ${window.packagingAllData.length}개 레코드 중 ${results.length}개 표시`;
+                 const totalData = window.packagingAllData.length;
+                 const holdNCount = window.packagingAllData.filter(item => item.hold_whether === 'N').length;
+                 dataInfo.textContent = `총 ${totalData}개 레코드 중 Hold Whether 'N': ${holdNCount}개, 표시: ${results.length}개`;
                }
              }
              
