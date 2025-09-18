@@ -1078,14 +1078,14 @@
                const partNos = ['3T24', '3T33', '3T34', '3T35', '3T36', '3T37', '3T38', '3T39', '3T40'];
                const rackPrefixes = ['LHSAB', 'LHSBA', 'LHSAA', 'LHSBB', 'LHSAC', 'LHSAD', 'LHSBC', 'LHSBD'];
                
-               // 50개의 샘플 데이터 생성
+               // 50개의 샘플 데이터 생성 (일부는 Hold Whether 'Y'로 설정)
                for (let i = 1; i <= 50; i++) {
                  const location = 'F101'; // 기본값 F101
                  const partNo = partNos[Math.floor(Math.random() * partNos.length)];
-                 const holdWhether = 'N'; // 기본값 N
+                 const holdWhether = Math.random() < 0.2 ? 'Y' : 'N'; // 20% 확률로 'Y'
                  const rackPrefix = rackPrefixes[Math.floor(Math.random() * rackPrefixes.length)];
                  const rackSuffix = String(Math.floor(Math.random() * 20) + 1).padStart(2, '0');
-                 
+
                  sampleData.push({
                    pallet_no: `PAL${String(i).padStart(3, '0')}`,
                    rack_no: `${rackPrefix}${rackSuffix}`,
@@ -1232,14 +1232,16 @@
                    locationGroups[location].afterPackaging++;
                  }
                  
-                 // 팔레트 정보 저장
+                 // 팔레트 정보 저장 (Hold Whether 'Y'는 TM COUNT에서 제외)
+                 const tmCount = item.hold_whether === 'Y' ? 0 : 8;
                  locationGroups[location].pallets.push({
                    palletNo: item.pallet_no || 'N/A',
                    rackNo: item.rack_no || 'N/A',
                    partNo: item.part_no || 'N/A',
-                   tmCount: 8,
+                   tmCount: tmCount,
                    packagingStatus: packagingStatus,
-                   location: location
+                   location: location,
+                   holdWhether: item.hold_whether
                  });
                });
                
@@ -1301,7 +1303,10 @@
                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${result.palletNo}</td>
                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${result.rackNo}</td>
                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${result.partNo}</td>
-                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${result.tmCount}</td>
+                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                     <span class="${result.holdWhether === 'Y' ? 'text-red-500 line-through' : 'text-gray-900'}">${result.tmCount}</span>
+                     ${result.holdWhether === 'Y' ? '<span class="text-xs text-red-500 ml-1">(HOLD)</span>' : ''}
+                   </td>
                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                      <span class="px-2 py-1 text-xs font-medium rounded-full ${
                        result.packagingStatus === 'After Packaging' ? 'bg-green-100 text-green-800' :
@@ -1349,17 +1354,25 @@
                let totalCount = 0;
                let beforeCount = 0;
                let afterCount = 0;
+               let totalTmCount = 0; // Hold Whether 'Y' 제외한 TM COUNT
                
                Object.values(locationGroups).forEach(group => {
                  totalCount += group.totalPallets;
                  beforeCount += group.beforePackaging;
                  afterCount += group.afterPackaging;
+                 
+                 // TM COUNT 계산 (Hold Whether 'Y' 제외)
+                 group.pallets.forEach(pallet => {
+                   if (pallet.holdWhether !== 'Y') {
+                     totalTmCount += pallet.tmCount;
+                   }
+                 });
                });
                
                const packagingRatePercent = totalCount > 0 ? Math.round((afterCount / totalCount) * 100) : 0;
                
                if (totalPallets) {
-                 totalPallets.innerHTML = `<div class="text-2xl font-bold text-blue-600">${totalCount}</div><div class="text-sm text-gray-500">팔레트</div>`;
+                 totalPallets.innerHTML = `<div class="text-2xl font-bold text-blue-600">${totalCount}</div><div class="text-sm text-gray-500">팔레트</div><div class="text-xs text-gray-400">TM: ${totalTmCount}개</div>`;
                }
                
                if (beforePallets) {
@@ -1373,6 +1386,8 @@
                if (packagingRate) {
                  packagingRate.innerHTML = `<div class="text-2xl font-bold text-purple-600">${packagingRatePercent}%</div><div class="text-sm text-gray-500">포장률</div>`;
                }
+               
+               console.log(`📊 Packaging summary: ${totalCount} pallets, ${totalTmCount} TMs (Hold Whether 'Y' excluded)`);
              }
              
              // Packaging Excel 내보내기
