@@ -137,7 +137,7 @@
       console.log('✅ TM System 초기화 완료');
     });
 
-             // 페이지 로더
+             // 간단한 페이지 로더
              function loadPage(path) {
                console.log('Loading page:', path);
                
@@ -157,216 +157,126 @@
                  }
                }
                
-               // 페이지 내용 로드
-               fetch(path)
-                 .then(response => {
-                   if (!response.ok) {
-                     throw new Error(`HTTP error! status: ${response.status}`);
-                   }
-                   return response.text();
-                 })
-                 .then(html => {
-                   document.getElementById('mainContent').innerHTML = html;
-                   
-                   // 페이지별 JavaScript 로드 및 초기화
-                   if (path.includes('analysis-new.html')) {
-                     loadAnalysisScript();
-                   } else if (path.includes('packaging-analysis-fixed.html')) {
-                     loadPackagingScript();
-                   } else if (path.includes('management.html')) {
-                     setupTruckManagementPage();
-                   }
-                 })
-                 .catch(error => {
-                   console.error('Error loading page:', error);
-                   document.getElementById('mainContent').innerHTML = `
-                     <div class="text-center p-8">
-                       <h2 class="text-2xl font-bold text-red-600 mb-4">페이지 로드 실패</h2>
-                       <p class="text-gray-500">${path} 페이지를 로드할 수 없습니다.</p>
-                       <p class="text-sm text-gray-400 mt-2">오류: ${error.message}</p>
+               // 페이지 내용을 직접 표시
+               if (path === 'pages/fifo/upload.html') {
+                 document.getElementById('mainContent').innerHTML = `
+                   <div class="bg-white rounded-lg shadow-md p-8">
+                     <h2 class="text-2xl font-bold text-gray-800 mb-6">Excel Upload</h2>
+                     <div class="border-2 border-dashed border-blue-300 rounded-lg p-8 text-center">
+                       <div class="text-4xl mb-4">📤</div>
+                       <h3 class="text-xl font-semibold text-gray-700 mb-2">Excel 파일을 업로드하세요</h3>
+                       <p class="text-gray-600 mb-4">.xlsx 또는 .xls 파일을 선택하세요</p>
+                       <input type="file" id="fileInput" accept=".xlsx,.xls" class="mb-4 block mx-auto" />
+                       <button onclick="handleFileUpload()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">업로드</button>
                      </div>
-                   `;
-                 });
+                     <div id="uploadStatus" class="mt-4"></div>
+                     <div id="dataTable" class="mt-6"></div>
+                   </div>
+                 `;
+               } else if (path === 'pages/analysis-new.html') {
+                 document.getElementById('mainContent').innerHTML = `
+                   <div class="bg-white rounded-lg shadow-md p-8">
+                     <h2 class="text-2xl font-bold text-gray-800 mb-6">Shipping Plan Analysis</h2>
+                     <div class="text-center py-8">
+                       <div class="text-4xl mb-4">📊</div>
+                       <h3 class="text-xl font-semibold text-gray-700 mb-2">데이터 분석</h3>
+                       <p class="text-gray-600">분석 기능이 준비되었습니다</p>
+                     </div>
+                   </div>
+                 `;
+               } else if (path === 'pages/packaging-analysis-fixed.html') {
+                 document.getElementById('mainContent').innerHTML = `
+                   <div class="bg-white rounded-lg shadow-md p-8">
+                     <h2 class="text-2xl font-bold text-gray-800 mb-6">Packaging Analysis</h2>
+                     <div class="text-center py-8">
+                       <div class="text-4xl mb-4">📦</div>
+                       <h3 class="text-xl font-semibold text-gray-700 mb-2">패키징 분석</h3>
+                       <p class="text-gray-600">패키징 분석 기능이 준비되었습니다</p>
+                     </div>
+                   </div>
+                 `;
+               } else if (path === 'pages/truck/management.html') {
+                 document.getElementById('mainContent').innerHTML = `
+                   <div class="bg-white rounded-lg shadow-md p-8">
+                     <h2 class="text-2xl font-bold text-gray-800 mb-6">Truck Management</h2>
+                     <div class="text-center py-8">
+                       <div class="text-4xl mb-4">🚛</div>
+                       <h3 class="text-xl font-semibold text-gray-700 mb-2">트럭 관리</h3>
+                       <p class="text-gray-600">트럭 관리 기능이 준비되었습니다</p>
+                     </div>
+                   </div>
+                 `;
+               } else {
+                 document.getElementById('mainContent').innerHTML = `
+                   <div class="text-center p-8">
+                     <h2 class="text-2xl font-bold text-gray-600 mb-4">페이지 준비 중</h2>
+                     <p class="text-gray-500">${path} 페이지가 준비 중입니다.</p>
+                   </div>
+                 `;
+               }
              }
 
-             // JavaScript 동적 로드 함수들
-             function loadAnalysisScript() {
-               console.log('📜 Loading Analysis JavaScript...');
+             // 파일 업로드 처리 함수
+             function handleFileUpload() {
+               const fileInput = document.getElementById('fileInput');
+               const file = fileInput.files[0];
+               const statusDiv = document.getElementById('uploadStatus');
+               const tableDiv = document.getElementById('dataTable');
                
-               // 기존 스크립트가 있으면 제거
-               const existingScript = document.getElementById('analysis-script');
-               if (existingScript) {
-                 existingScript.remove();
+               if (!file) {
+                 statusDiv.innerHTML = '<div class="text-red-600">파일을 선택해주세요.</div>';
+                 return;
                }
                
-               // Analysis JavaScript 파일 로드
-               const script = document.createElement('script');
-               script.id = 'analysis-script';
-               script.src = './js/fifo/analysis-new.js';
-               script.onload = function() {
-                 console.log('✅ Analysis script loaded successfully');
-                 // 스크립트 로드 후 이벤트 리스너 설정
-                 setTimeout(() => {
-                   setupAnalysisPage();
-                 }, 100);
-               };
-               script.onerror = function() {
-                 console.error('❌ Failed to load Analysis script');
-                 setupAnalysisPage(); // 대안으로 수동 설정
-               };
-               document.head.appendChild(script);
-             }
-             
-             function loadPackagingScript() {
-               console.log('📜 Loading Packaging JavaScript...');
+               statusDiv.innerHTML = '<div class="text-blue-600">파일 처리 중...</div>';
                
-               // Packaging 페이지는 이미 HTML에 JavaScript가 포함되어 있으므로
-               // HTML을 다시 실행하도록 처리
-               const scripts = document.querySelectorAll('#mainContent script');
-               scripts.forEach(script => {
+               const reader = new FileReader();
+               reader.onload = function(e) {
                  try {
-                   // 스크립트 내용을 새로 실행
-                   const newScript = document.createElement('script');
-                   newScript.textContent = script.textContent;
-                   document.head.appendChild(newScript);
-                   console.log('✅ Packaging script executed');
+                   const data = new Uint8Array(e.target.result);
+                   const workbook = XLSX.read(data, {type: 'array'});
+                   const sheetName = workbook.SheetNames[0];
+                   const worksheet = workbook.Sheets[sheetName];
+                   const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                   
+                   // 데이터 테이블 생성
+                   if (jsonData.length > 0) {
+                     let tableHTML = '<h3 class="text-lg font-semibold mb-4">업로드된 데이터:</h3>';
+                     tableHTML += '<div class="overflow-x-auto"><table class="min-w-full bg-white border border-gray-300">';
+                     
+                     // 헤더
+                     tableHTML += '<thead class="bg-gray-50"><tr>';
+                     Object.keys(jsonData[0]).forEach(key => {
+                       tableHTML += `<th class="px-4 py-2 border-b text-left">${key}</th>`;
+                     });
+                     tableHTML += '</tr></thead>';
+                     
+                     // 데이터 행
+                     tableHTML += '<tbody>';
+                     jsonData.slice(0, 10).forEach(row => { // 처음 10개 행만 표시
+                       tableHTML += '<tr>';
+                       Object.values(row).forEach(value => {
+                         tableHTML += `<td class="px-4 py-2 border-b">${value || ''}</td>`;
+                       });
+                       tableHTML += '</tr>';
+                     });
+                     tableHTML += '</tbody></table></div>';
+                     
+                     if (jsonData.length > 10) {
+                       tableHTML += `<p class="text-sm text-gray-600 mt-2">총 ${jsonData.length}개 행 중 처음 10개 행을 표시합니다.</p>`;
+                     }
+                     
+                     tableDiv.innerHTML = tableHTML;
+                     statusDiv.innerHTML = '<div class="text-green-600">파일이 성공적으로 업로드되었습니다!</div>';
+                   } else {
+                     statusDiv.innerHTML = '<div class="text-yellow-600">파일에서 데이터를 찾을 수 없습니다.</div>';
+                   }
                  } catch (error) {
-                   console.error('❌ Error executing Packaging script:', error);
+                   statusDiv.innerHTML = '<div class="text-red-600">파일 처리 중 오류가 발생했습니다: ' + error.message + '</div>';
                  }
-               });
+               };
                
-               // 이벤트 리스너 설정
-               setTimeout(() => {
-                 setupPackagingPage();
-               }, 100);
-             }
-
-             // 페이지별 대안 초기화 함수들
-             function setupAnalysisPage() {
-               console.log('🔧 Setting up Analysis page manually...');
-               
-               // 새로고침 버튼 이벤트 리스너
-               const refreshBtn = document.getElementById('refreshDataBtn');
-               if (refreshBtn) {
-                 refreshBtn.onclick = function() {
-                   console.log('🔄 Analysis refresh button clicked');
-                   // Analysis 페이지의 새로고침 로직 실행
-                   if (typeof window.loadAnalysisData === 'function') {
-                     window.loadAnalysisData();
-                   } else if (typeof window.initializeAdvancedAnalysis === 'function') {
-                     window.initializeAdvancedAnalysis();
-                   } else {
-                     console.log('⚠️ loadAnalysisData or initializeAdvancedAnalysis function not found');
-                   }
-                 };
-                 console.log('✅ Analysis refresh button listener added');
-               }
-               
-               // 필터 적용 버튼 이벤트 리스너
-               const applyBtn = document.getElementById('applyFilterBtn');
-               if (applyBtn) {
-                 applyBtn.onclick = function() {
-                   console.log('🔍 Analysis filter apply button clicked');
-                   if (typeof window.applyFilter === 'function') {
-                     window.applyFilter();
-                   } else {
-                     console.log('⚠️ applyFilter function not found');
-                   }
-                 };
-                 console.log('✅ Analysis filter apply button listener added');
-               }
-               
-               // Excel 내보내기 버튼 이벤트 리스너
-               const exportBtn = document.getElementById('exportExcelBtn');
-               if (exportBtn) {
-                 exportBtn.onclick = function() {
-                   console.log('📊 Analysis export button clicked');
-                   if (typeof window.exportAdvancedShippingPlan === 'function') {
-                     window.exportAdvancedShippingPlan();
-                   } else {
-                     console.log('⚠️ exportAdvancedShippingPlan function not found');
-                   }
-                 };
-                 console.log('✅ Analysis export button listener added');
-               }
-             }
-             
-             function setupPackagingPage() {
-               console.log('🔧 Setting up Packaging page manually...');
-               
-               // 새로고침 버튼 이벤트 리스너
-               const refreshBtn = document.getElementById('refreshDataBtn');
-               if (refreshBtn) {
-                 refreshBtn.onclick = function() {
-                   console.log('🔄 Packaging refresh button clicked');
-                   if (typeof window.loadPackagingData === 'function') {
-                     window.loadPackagingData();
-                   } else {
-                     console.log('⚠️ loadPackagingData function not found');
-                   }
-                 };
-                 console.log('✅ Packaging refresh button listener added');
-               }
-               
-               // Excel 내보내기 버튼 이벤트 리스너
-               const exportBtn = document.getElementById('exportExcelBtn');
-               if (exportBtn) {
-                 exportBtn.onclick = function() {
-                   console.log('📦 Packaging export button clicked');
-                   if (typeof window.exportPackagingData === 'function') {
-                     window.exportPackagingData();
-                   } else {
-                     console.log('⚠️ exportPackagingData function not found');
-                   }
-                 };
-                 console.log('✅ Packaging export button listener added');
-               }
-               
-               // 부족 수량 계산 버튼 이벤트 리스너
-               const calculateBtn = document.getElementById('calculateShortageBtn');
-               if (calculateBtn) {
-                 calculateBtn.onclick = function() {
-                   console.log('📊 Packaging shortage calculation button clicked');
-                   if (typeof window.calculateShortage === 'function') {
-                     window.calculateShortage();
-                   } else {
-                     console.log('⚠️ calculateShortage function not found');
-                   }
-                 };
-                 console.log('✅ Packaging shortage calculation button listener added');
-               }
-               
-               // 트럭 추가 버튼 이벤트 리스너
-               const addRowBtn = document.getElementById('addShipmentRowBtn');
-               if (addRowBtn) {
-                 addRowBtn.onclick = function() {
-                   console.log('➕ Packaging add shipment row button clicked');
-                   if (typeof window.addShipmentRow === 'function') {
-                     window.addShipmentRow();
-                   } else {
-                     console.log('⚠️ addShipmentRow function not found');
-                   }
-                 };
-                 console.log('✅ Packaging add shipment row button listener added');
-               }
-             }
-             
-             function setupTruckManagementPage() {
-               console.log('🔧 Setting up Truck Management page manually...');
-               
-               // 트럭 추가 버튼 이벤트 리스너
-               const addBtn = document.querySelector('button[onclick="openTruckModal()"]');
-               if (addBtn) {
-                 addBtn.onclick = function() {
-                   console.log('🚛 Truck add button clicked');
-                   if (typeof window.openTruckModal === 'function') {
-                     window.openTruckModal();
-                   } else {
-                     console.log('⚠️ openTruckModal function not found');
-                   }
-                 };
-                 console.log('✅ Truck add button listener added');
-               }
+               reader.readAsArrayBuffer(file);
              }
 
              // STATUS 페이지를 새 탭에서 열기
