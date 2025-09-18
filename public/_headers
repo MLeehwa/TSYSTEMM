@@ -1,8 +1,38 @@
-# JavaScript files
-/js/*
+# JavaScript files - exact path matching
+/js/core/utils.js
   Content-Type: application/javascript; charset=utf-8
 
-# CSS files  
+/js/supabase-config.js
+  Content-Type: application/javascript; charset=utf-8
+
+/js/navigation.js
+  Content-Type: application/javascript; charset=utf-8
+
+/js/core/database.js
+  Content-Type: application/javascript; charset=utf-8
+
+/js/core/system-manager.js
+  Content-Type: application/javascript; charset=utf-8
+
+/js/core/supabase-config.js
+  Content-Type: application/javascript; charset=utf-8
+
+/js/fifo/analysis-new.js
+  Content-Type: application/javascript; charset=utf-8
+
+/js/list.js
+  Content-Type: application/javascript; charset=utf-8
+
+/js/packaging/packaging-analysis.js
+  Content-Type: application/javascript; charset=utf-8
+
+/js/truck/management.js
+  Content-Type: application/javascript; charset=utf-8
+
+/js/truck/status.js
+  Content-Type: application/javascript; charset=utf-8
+
+# CSS files
 /css/*
   Content-Type: text/css; charset=utf-8
 
@@ -10,7 +40,7 @@
 /pages/*
   Content-Type: text/html; charset=utf-8
 
-# Security headers for all files
+# Security headers
 /*
   X-Frame-Options: DENY
   X-XSS-Protection: 1; mode=block
