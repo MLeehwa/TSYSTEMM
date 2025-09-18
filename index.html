@@ -348,11 +348,11 @@
                      <!-- Header -->
                      <div class="mb-8">
                          <h2 class="text-2xl font-bold text-gray-900 mb-2">Packaging Analysis</h2>
-                         <p class="text-gray-600">Location-based packaging analysis with RACK NO pattern recognition (Hold Whether 'N' only)</p>
+                         <p class="text-gray-600">Location-based packaging analysis with RACK NO pattern recognition (Hold Whether 'N' + RACK NO required)</p>
                          <div class="mt-2 text-sm text-gray-500">
                              <p><strong>Before Packaging:</strong> LHSAB, LHSBA, LHSAA, LHSBB</p>
                              <p><strong>After Packaging:</strong> LHSAC, LHSAD, LHSBC, LHSBD</p>
-                             <p class="text-blue-600"><strong>Note:</strong> Only records with Hold Whether = 'N' are included in analysis</p>
+                             <p class="text-blue-600"><strong>Note:</strong> Only records with Hold Whether = 'N' and valid RACK NO are included in analysis</p>
                          </div>
                      </div>
 
@@ -387,7 +387,7 @@
                                  </button>
                              </div>
                              <div class="col-span-3 mt-2">
-                                 <p id="packagingFilterStatus" class="text-xs text-gray-500">Fixed filters: Location=F101, Hold Whether=N (Part No only searchable)</p>
+                                 <p id="packagingFilterStatus" class="text-xs text-gray-500">Fixed filters: Location=F101, Hold Whether=N, RACK NO required (Part No only searchable)</p>
                              </div>
                          </div>
                      </div>
@@ -1078,17 +1078,25 @@
                const partNos = ['3T24', '3T33', '3T34', '3T35', '3T36', '3T37', '3T38', '3T39', '3T40'];
                const rackPrefixes = ['LHSAB', 'LHSBA', 'LHSAA', 'LHSBB', 'LHSAC', 'LHSAD', 'LHSBC', 'LHSBD'];
                
-               // 50개의 샘플 데이터 생성 (일부는 Hold Whether 'Y'로 설정)
+               // 50개의 샘플 데이터 생성 (일부는 Hold Whether 'Y', 일부는 RACK NO 없음)
                for (let i = 1; i <= 50; i++) {
                  const location = 'F101'; // 기본값 F101
                  const partNo = partNos[Math.floor(Math.random() * partNos.length)];
                  const holdWhether = Math.random() < 0.2 ? 'Y' : 'N'; // 20% 확률로 'Y'
-                 const rackPrefix = rackPrefixes[Math.floor(Math.random() * rackPrefixes.length)];
-                 const rackSuffix = String(Math.floor(Math.random() * 20) + 1).padStart(2, '0');
+                 
+                 // RACK NO가 없는 레코드 추가 (10% 확률)
+                 let rackNo = '';
+                 if (Math.random() < 0.1) {
+                   rackNo = ''; // RACK NO 없음
+                 } else {
+                   const rackPrefix = rackPrefixes[Math.floor(Math.random() * rackPrefixes.length)];
+                   const rackSuffix = String(Math.floor(Math.random() * 20) + 1).padStart(2, '0');
+                   rackNo = `${rackPrefix}${rackSuffix}`;
+                 }
 
                  sampleData.push({
                    pallet_no: `PAL${String(i).padStart(3, '0')}`,
-                   rack_no: `${rackPrefix}${rackSuffix}`,
+                   rack_no: rackNo,
                    part_no: partNo,
                    hold_whether: holdWhether,
                    location: location,
@@ -1154,9 +1162,9 @@
                const status = document.getElementById('packagingFilterStatus');
                if (status) {
                  if (partNo) {
-                   status.textContent = `Fixed: F101, N | Applied: Part No=${partNo} | ${filtered.length}개 레코드`;
+                   status.textContent = `Fixed: F101, N, RACK NO | Applied: Part No=${partNo} | ${filtered.length}개 레코드`;
                  } else {
-                   status.textContent = `Fixed filters: Location=F101, Hold Whether=N (Part No only searchable) | ${filtered.length}개 레코드`;
+                   status.textContent = `Fixed filters: Location=F101, Hold Whether=N, RACK NO required (Part No only searchable) | ${filtered.length}개 레코드`;
                  }
                }
              }
@@ -1177,7 +1185,7 @@
                
                const status = document.getElementById('packagingFilterStatus');
                if (status) {
-                 status.textContent = `Fixed filters: Location=F101, Hold Whether=N (Part No only searchable) | ${filtered.length}개 레코드`;
+                 status.textContent = `Fixed filters: Location=F101, Hold Whether=N, RACK NO required (Part No only searchable) | ${filtered.length}개 레코드`;
                }
              }
              
@@ -1194,8 +1202,8 @@
                let filteredRecords = 0;
                
                data.forEach(item => {
-                 // Hold Whether가 'N'인 것만 처리
-                 if (item.hold_whether !== 'N') {
+                 // Hold Whether가 'N'이고 RACK NO가 있는 것만 처리
+                 if (item.hold_whether !== 'N' || !item.rack_no || item.rack_no.trim() === '') {
                    return;
                  }
                  
@@ -1251,7 +1259,7 @@
                  results.push(...group.pallets);
                });
                
-               console.log(`📊 Packaging analysis completed: ${totalRecords} total records, ${filteredRecords} Hold Whether 'N' records processed`);
+               console.log(`📊 Packaging analysis completed: ${totalRecords} total records, ${filteredRecords} valid records (Hold Whether 'N' + RACK NO exists) processed`);
                
                window.packagingLastResults = results;
                displayPackagingResults(results);
@@ -1336,8 +1344,10 @@
                const dataInfo = document.getElementById('packagingDataInfo');
                if (dataInfo) {
                  const totalData = window.packagingAllData.length;
-                 const holdNCount = window.packagingAllData.filter(item => item.hold_whether === 'N').length;
-                 dataInfo.textContent = `총 ${totalData}개 레코드 중 Hold Whether 'N': ${holdNCount}개, 표시: ${results.length}개`;
+                 const validCount = window.packagingAllData.filter(item => 
+                   item.hold_whether === 'N' && item.rack_no && item.rack_no.trim() !== ''
+                 ).length;
+                 dataInfo.textContent = `총 ${totalData}개 레코드 중 유효한 레코드 (Hold Whether 'N' + RACK NO): ${validCount}개, 표시: ${results.length}개`;
                }
              }
              
