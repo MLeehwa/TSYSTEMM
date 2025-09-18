@@ -230,8 +230,10 @@
                    // Analysis 페이지의 새로고침 로직 실행
                    if (typeof window.loadAnalysisData === 'function') {
                      window.loadAnalysisData();
+                   } else if (typeof window.initializeAdvancedAnalysis === 'function') {
+                     window.initializeAdvancedAnalysis();
                    } else {
-                     console.log('⚠️ loadAnalysisData function not found');
+                     console.log('⚠️ loadAnalysisData or initializeAdvancedAnalysis function not found');
                    }
                  };
                  console.log('✅ Analysis refresh button listener added');
@@ -242,10 +244,10 @@
                if (applyBtn) {
                  applyBtn.onclick = function() {
                    console.log('🔍 Analysis filter apply button clicked');
-                   if (typeof window.applyAnalysisFilter === 'function') {
-                     window.applyAnalysisFilter();
+                   if (typeof window.applyFilter === 'function') {
+                     window.applyFilter();
                    } else {
-                     console.log('⚠️ applyAnalysisFilter function not found');
+                     console.log('⚠️ applyFilter function not found');
                    }
                  };
                  console.log('✅ Analysis filter apply button listener added');
@@ -256,10 +258,10 @@
                if (exportBtn) {
                  exportBtn.onclick = function() {
                    console.log('📊 Analysis export button clicked');
-                   if (typeof window.exportAnalysisData === 'function') {
-                     window.exportAnalysisData();
+                   if (typeof window.exportAdvancedShippingPlan === 'function') {
+                     window.exportAdvancedShippingPlan();
                    } else {
-                     console.log('⚠️ exportAnalysisData function not found');
+                     console.log('⚠️ exportAdvancedShippingPlan function not found');
                    }
                  };
                  console.log('✅ Analysis export button listener added');
