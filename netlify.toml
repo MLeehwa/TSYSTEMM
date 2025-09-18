@@ -1,9 +1,25 @@
 [build]
-  publish = "."
+  publish = "public"
   command = "echo 'No build step required for static site'"
 
 [build.environment]
   NODE_VERSION = "18"
+
+# Serve static files directly (JS, CSS, etc.)
+[[redirects]]
+  from = "/js/*"
+  to = "/js/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/css/*"
+  to = "/css/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/pages/*"
+  to = "/pages/:splat"
+  status = 200
 
 # Ensure index.html is served as the main page
 [[redirects]]
@@ -11,7 +27,7 @@
   to = "/index.html"
   status = 200
 
-# Handle SPA routing - redirect all routes to index.html
+# Handle SPA routing - redirect all other routes to index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"

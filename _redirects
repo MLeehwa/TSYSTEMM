@@ -1,2 +1,7 @@
-# Redirect all routes to index.html for SPA
-/*    /index.html   200
+# Serve static files directly
+/js/*    /js/:splat    200
+/css/*   /css/:splat   200
+/pages/* /pages/:splat 200
+
+# Redirect all other routes to index.html for SPA
+/*       /index.html   200

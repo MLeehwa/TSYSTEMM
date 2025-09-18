@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIFO Upload - TM System</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- Inline CSS -->
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f8f9fa;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 2.5rem;
+        }
+        
+        .header p {
+            color: #7f8c8d;
+            margin: 10px 0 0 0;
+            font-size: 1.1rem;
+        }
+        
+        .upload-section {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            border: 2px dashed #3498db;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-section:hover {
+            border-color: #2980b9;
+            background-color: #f8f9fa;
+        }
+        
+        .upload-section.drag-over {
+            border-color: #27ae60;
+            background-color: #e8f5e8;
+        }
+        
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: #3498db;
+        }
+        
+        .upload-text {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .upload-subtext {
+            font-size: 1rem;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .upload-btn {
+            background: #3498db;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .upload-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-disabled {
+            background: #bdc3c7 !important;
+            cursor: not-allowed !important;
+            transform: none !important;
+        }
+        
+        /* 진행률 표시 스타일 */
+        .progress-container {
+            display: none;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .progress-container.show {
+            display: block;
+        }
+        
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .progress-title {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 1.1rem;
+        }
+        
+        .progress-percentage {
+            color: #3498db;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+        
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .progress-status {
+            margin-top: 10px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        .progress-details {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+            text-align: left;
+        }
+        
+        .progress-detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .progress-detail-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .progress-detail-label {
+            color: #6c757d;
+            font-weight: 500;
+        }
+        
+        .progress-detail-value {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .upload-success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        
+        .upload-error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        
+        .file-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e8;
+            border-radius: 8px;
+            border: 1px solid #27ae60;
+        }
+        
+        .file-name {
+            font-weight: bold;
+            color: #27ae60;
+        }
+        
+        .file-size {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        .status-message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .bg-blue-100 {
+            background-color: #dbeafe;
+        }
+        
+        .bg-green-100 {
+            background-color: #dcfce7;
+        }
+        
+        .bg-red-100 {
+            background-color: #fee2e2;
+        }
+        
+        .bg-yellow-100 {
+            background-color: #fef3c7;
+        }
+        
+        .border-blue-400 {
+            border: 1px solid #60a5fa;
+        }
+        
+        .border-green-400 {
+            border: 1px solid #4ade80;
+        }
+        
+        .border-red-400 {
+            border: 1px solid #f87171;
+        }
+        
+        .border-yellow-400 {
+            border: 1px solid #facc15;
+        }
+        
+        .text-blue-700 {
+            color: #1d4ed8;
+        }
+        
+        .text-green-700 {
+            color: #15803d;
+        }
+        
+        .text-red-700 {
+            color: #b91c1c;
+        }
+        
+        .text-yellow-700 {
+            color: #a16207;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📤 FIFO Upload System</h1>
+            <p>Upload Excel files to manage FIFO data</p>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="upload-section" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Select a file or drag it here</div>
+            <div class="upload-subtext">Supported formats: .xlsx, .xls</div>
+            
+            <!-- Hidden file input -->
+            <input 
+                type="file" 
+                id="excelFile" 
+                accept=".xlsx,.xls" 
+                class="file-input"
+                onchange="handleFileChange(event)"
+            />
+            
+            <!-- File selection button -->
+            <button 
+                type="button"
+                id="selectFileBtn"
+                class="upload-btn"
+                style="margin-right: 15px;"
+                onclick="selectFile()"
+            >
+                📁 Select File
+            </button>
+            
+            <!-- Upload button -->
+            <button 
+                type="button"
+                id="uploadBtn"
+                class="upload-btn"
+                disabled
+                onclick="uploadFile()"
+            >
+                🚀 Upload
+            </button>
+            
+            <!-- Progress Container -->
+            <div id="progressContainer" class="progress-container">
+                <div class="progress-header">
+                    <div class="progress-title">📊 Upload Progress</div>
+                    <div class="progress-percentage" id="progressPercentage">0%</div>
+                </div>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                
+                <div class="progress-status" id="progressStatus">Preparing upload...</div>
+                
+                <div class="progress-details">
+                    <div class="progress-detail-row">
+                        <span class="progress-detail-label">File:</span>
+                        <span class="progress-detail-value" id="progressFileName">-</span>
+                    </div>
+                    <div class="progress-detail-row">
+                        <span class="progress-detail-label">Rows Processed:</span>
+                        <span class="progress-detail-value" id="progressRowsProcessed">0</span>
+                    </div>
+                    <div class="progress-detail-row">
+                        <span class="progress-detail-label">Rows Uploaded:</span>
+                        <span class="progress-detail-value" id="progressRowsUploaded">0</span>
+                    </div>
+                    <div class="progress-detail-row">
+                        <span class="progress-detail-label">Status:</span>
+                        <span class="progress-detail-value" id="progressDetailStatus">Initializing...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- File info display -->
+            <div id="fileInfo" class="file-info" style="display: none;">
+                <div class="file-name" id="fileName"></div>
+                <div class="file-size" id="fileSize"></div>
+        </div>
+
+            <!-- Status message -->
+            <div id="statusMessage" class="status-message" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        let selectedFile = null;
+        
+        // 파일 선택 처리
+        function handleFileChange(event) {
+            const file = event.target.files[0];
+            if (file) {
+                console.log('📁 File selected:', file.name);
+                selectedFile = file;
+                
+                // 파일 정보 표시
+                displayFileInfo(file);
+                
+                // 업로드 버튼 활성화
+                enableUploadButton();
+            }
+        }
+        
+        // 파일 정보 표시
+        function displayFileInfo(file) {
+            const fileInfo = document.getElementById('fileInfo');
+            const fileName = document.getElementById('fileName');
+            const fileSize = document.getElementById('fileSize');
+            
+            if (fileInfo && fileName && fileSize) {
+                fileName.textContent = file.name;
+                fileSize.textContent = `Size: ${(file.size / 1024).toFixed(2)} KB`;
+                fileInfo.style.display = 'block';
+            }
+        }
+        
+        // 업로드 버튼 활성화
+        function enableUploadButton() {
+            const uploadBtn = document.getElementById('uploadBtn');
+            if (uploadBtn) {
+                uploadBtn.disabled = false;
+                uploadBtn.classList.remove('btn-disabled');
+            }
+        }
+        
+        // 업로드 버튼 비활성화
+        function disableUploadButton() {
+            const uploadBtn = document.getElementById('uploadBtn');
+            if (uploadBtn) {
+                uploadBtn.disabled = true;
+                uploadBtn.classList.add('btn-disabled');
+            }
+        }
+        
+        // 파일 선택 버튼 클릭 처리
+        function selectFile() {
+            const fileInput = document.getElementById('excelFile');
+            if (fileInput) {
+                fileInput.click();
+            }
+        }
+        
+        // 업로드 버튼 클릭 처리
+        function uploadFile() {
+            if (!selectedFile) {
+                alert('Please select a file first.');
+                return;
+            }
+            
+            console.log('🚀 Starting upload for:', selectedFile.name);
+            
+            // 진행률 표시 시작
+            showProgress();
+            
+            // 실제 파일 업로드 실행
+            processFileUpload(selectedFile);
+        }
+        
+        // 실제 파일 업로드 처리
+        async function processFileUpload(file) {
+            try {
+                // 1단계: 파일 읽기
+                updateProgress(1, 'Reading Excel file...', file.name);
+                const data = await readExcelFile(file);
+                
+                if (!data || data.length === 0) {
+                    throw new Error('No data found in file');
+                }
+                
+                console.log(`📁 File read successfully: ${data.length} rows found`);
+                
+                // 2단계: 데이터 검증
+                updateProgress(2, 'Validating data...', file.name, data.length);
+                const validatedData = validateData(data);
+                
+                if (!validatedData || validatedData.length === 0) {
+                    throw new Error('No valid data after validation');
+                }
+                
+                console.log(`✅ Data validation completed: ${validatedData.length} valid rows`);
+                
+                // 3단계: 기존 데이터 삭제
+                updateProgress(3, 'Deleting existing data...', file.name, validatedData.length);
+                
+                // 4단계: 새 데이터 추가
+                updateProgress(4, 'Adding new data to database...', file.name, validatedData.length);
+                const result = await addDataToDatabase(validatedData, file.name);
+                
+                if (!result || typeof result.length !== 'number') {
+                    throw new Error('Invalid result from database operation');
+                }
+                
+                // 5단계: 완료
+                updateProgress(5, 'Upload completed successfully!', file.name, validatedData.length, result.length);
+                
+                console.log(`🎉 Upload completed: ${result.length} records uploaded successfully`);
+                
+                // 🆕 업로드된 데이터 샘플 확인
+                if (result.length > 0) {
+                    console.log('📊 Sample uploaded data:', result.slice(0, 3));
+                    console.log('🔍 Checking key fields:');
+                    result.slice(0, 3).forEach((record, index) => {
+                        console.log(`Record ${index + 1}:`, {
+                            pallet_no: record.pallet_no,
+                            part_no: record.part_no,
+                            hold_whether: record.hold_whether,
+                            rack_no: record.rack_no,
+                            location: record.location,
+                            tm_no: record.tm_no
+                        });
+                    });
+                }
+                
+                // 3초 후 진행률 숨기기
+                setTimeout(() => {
+                    hideProgress();
+                    resetFileSelection();
+                }, 3000);
+                
+            } catch (error) {
+                console.error('❌ Upload failed:', error);
+                updateProgress(0, 'Upload failed: ' + error.message, file.name);
+                
+                // 3초 후 진행률 숨기기
+                setTimeout(() => {
+                    hideProgress();
+                }, 3000);
+            }
+        }
+        
+        // Excel 파일 읽기
+        function readExcelFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        
+                        console.log(`📊 Raw Excel data: ${jsonData.length} total rows`);
+                        
+                        // 5행부터 데이터 시작 (인덱스 4부터, 0부터 시작하므로)
+                        const startRow = 4; // 5행부터 시작
+                        const dataRows = jsonData.slice(startRow).filter(row => 
+                            row && row.length > 0 && row.some(cell => cell !== undefined && cell !== '')
+                        );
+                        
+                        console.log(`📋 Data rows from row 5: ${dataRows.length} rows`);
+                        
+                        if (dataRows.length === 0) {
+                            reject(new Error('No data found starting from row 5'));
+                            return;
+                        }
+                        
+                        // 첫 몇 행 로깅 (디버깅용)
+                        console.log('🔍 First few data rows:');
+                        dataRows.slice(0, 3).forEach((row, index) => {
+                            console.log(`Row ${startRow + index + 1}:`, row);
+                        });
+                        
+                        resolve(dataRows);
+                    } catch (error) {
+                        console.error('❌ Excel parsing error:', error);
+                        reject(new Error(`Excel parsing failed: ${error.message}`));
+                    }
+                };
+                
+                reader.onerror = () => reject(new Error('File reading failed'));
+                reader.readAsArrayBuffer(file);
+            });
+        }
+        
+        // 데이터 검증
+        function validateData(data) {
+            if (!data || !Array.isArray(data)) {
+                console.error('❌ Invalid data input to validateData:', data);
+                return [];
+            }
+            
+            const validatedData = [];
+            let skippedRows = 0;
+            let truncatedRows = 0;
+            
+            console.log(`🔍 Starting validation of ${data.length} rows...`);
+            
+            data.forEach((row, index) => {
+                try {
+                    if (!row || !Array.isArray(row)) {
+                        console.warn(`Row ${index + 1}: Invalid row format`, row);
+                        skippedRows++;
+                        return;
+                    }
+                    
+                    // Excel 실제 컬럼 구조에 맞게 매핑
+                    // A: Plant, B: PALLET NO, C: Location, D: Rack No, E: TM No, F: Part No, G: Part name, H: Hold Whether, I: Hold Date, J: Prod Date
+                    if (row.length < 10) { // 최소 10개 컬럼 필요 (J열까지)
+                        console.warn(`Row ${index + 1}: Insufficient columns (${row.length} columns, need at least 10)`, row);
+                        skippedRows++;
+                        return;
+                    }
+                    
+                    // Excel 컬럼을 데이터베이스 테이블 구조에 맞게 매핑
+                    // Plant는 제외하고 필요한 데이터만 추출
+                    const rowData = {
+                        pallet_no: String(row[1] || '').trim().substring(0, 100),      // B열 (인덱스1) - PALLET NO
+                        location: String(row[2] || '').trim().substring(0, 100),        // C열 (인덱스2) - Location
+                        rack_no: String(row[3] || '').trim().substring(0, 100),         // D열 (인덱스3) - Rack No
+                        tm_no: String(row[4] || '').trim().substring(0, 100),           // E열 (인덱스4) - TM No
+                        part_no: String(row[5] || '').trim().substring(0, 100),         // F열 (인덱스5) - Part No
+                        hold_whether: String(row[7] || 'N').trim().substring(0, 10),    // H열 (인덱스7) - Hold Whether
+                        prod_date: String(row[9] || '').trim().substring(0, 50)         // J열 (인덱스9) - Prod Date
+                    };
+                    
+                    // 🆕 디버깅을 위한 상세 로깅 추가
+                    if (index < 5) { // 처음 5행만 로깅 (너무 많은 로그 방지)
+                        console.log(`Row ${index + 1} detailed mapping:`, {
+                            originalRow: row,
+                            mappedData: rowData,
+                            'A-Plant': row[0],
+                            'B-Pallet': row[1],
+                            'C-Location': row[2], 
+                            'D-RackNo': row[3],
+                            'E-TMNo': row[4],
+                            'F-PartNo': row[5],
+                            'G-PartName': row[6],
+                            'H-HoldWhether': row[7],
+                            'I-HoldDate': row[8],
+                            'J-ProdDate': row[9]
+                        });
+                    }
+                    
+                    // 필수 필드 검증 (pallet_no와 tm_no는 필수)
+                    if (rowData.pallet_no && rowData.tm_no) {
+                        // 데이터 길이 제한 확인 및 로깅
+                        const originalPallet = String(row[1] || '').trim();
+                        const originalTM = String(row[4] || '').trim();
+                        const originalPartNo = String(row[5] || '').trim();
+                        const originalHoldWhether = String(row[7] || '').trim();
+                        
+                        if (originalPallet.length > 100 || originalTM.length > 100) {
+                            truncatedRows++;
+                            console.warn(`Row ${index + 1}: Data truncated - Pallet: "${originalPallet}" -> "${rowData.pallet_no}", TM: "${originalTM}" -> "${rowData.tm_no}"`);
+                        }
+                        
+                        // 🆕 Part No와 Hold Whether 필드 검증 로깅
+                        if (index < 5) {
+                            console.log(`Row ${index + 1} validation:`, {
+                                pallet_no: rowData.pallet_no,
+                                part_no: rowData.part_no,
+                                hold_whether: rowData.hold_whether,
+                                rack_no: rowData.rack_no,
+                                'Original Part No': originalPartNo,
+                                'Original Hold Whether': originalHoldWhether
+                            });
+                        }
+                        
+                        validatedData.push(rowData);
+                    } else {
+                        skippedRows++;
+                        console.warn(`Row ${index + 1} skipped: missing required fields (pallet_no: "${rowData.pallet_no}", tm_no: "${rowData.tm_no}")`);
+                    }
+                } catch (rowError) {
+                    console.error(`❌ Error processing row ${index + 1}:`, rowError, row);
+                    skippedRows++;
+                }
+            });
+            
+            console.log(`✅ Data validation completed: ${validatedData.length} valid rows, ${skippedRows} skipped, ${truncatedRows} truncated`);
+            
+            if (validatedData.length === 0) {
+                console.error('❌ No valid data found after validation!');
+            }
+            
+            return validatedData;
+        }
+        
+        // 데이터베이스에 데이터 추가 (기존 데이터 삭제 후 새로 추가)
+        async function addDataToDatabase(data, fileName) {
+            try {
+                // 입력 데이터 유효성 검사
+                if (!data || !Array.isArray(data) || data.length === 0) {
+                    throw new Error(`Invalid data: ${data ? 'not an array' : 'null/undefined'}`);
+                }
+                
+                console.log(`📊 Preparing to insert ${data.length} records...`);
+                
+                // Supabase 클라이언트 확인
+                if (!window.sb && !window.supabase) {
+                    throw new Error('Database connection not available');
+                }
+                
+                const supabase = window.sb || window.supabase;
+                
+                // 1단계: 기존 데이터 모두 삭제
+                console.log('🗑️ Deleting existing data...');
+                const { error: deleteError } = await supabase
+                    .from('vwtm_list_data')
+                    .delete()
+                    .neq('id', 0); // 모든 데이터 삭제 (id가 0이 아닌 모든 행)
+                
+                if (deleteError) {
+                    console.error('❌ Database delete error:', deleteError);
+                    throw new Error(`Delete error: ${deleteError.message}`);
+                }
+                
+                console.log('✅ Existing data deleted successfully');
+                
+                // 2단계: 새 데이터 추가 (배치 처리로 나누어 처리)
+                console.log('📝 Adding new data...');
+                
+                // 데이터를 1000개씩 나누어 처리 (더 큰 배치로 속도 향상)
+                const batchSize = 1000;
+                const batches = [];
+                
+                for (let i = 0; i < data.length; i += batchSize) {
+                    batches.push(data.slice(i, i + batchSize));
+                }
+                
+                console.log(`📦 Processing ${batches.length} batches of up to ${batchSize} records each`);
+                
+                let totalInserted = 0;
+                let failedBatches = [];
+                
+                for (let i = 0; i < batches.length; i++) {
+                    const batch = batches[i];
+                    console.log(`📤 Inserting batch ${i + 1}/${batches.length} (${batch.length} records)...`);
+                    
+                    // 진행률 업데이트 (배치별)
+                    const batchProgress = 3 + (i / batches.length); // 3단계(삭제완료) ~ 4단계(추가완료)
+                    updateProgress(batchProgress, `Processing batch ${i + 1}/${batches.length}...`, fileName, data.length, totalInserted);
+                    
+                    try {
+                        const { data: result, error: insertError } = await supabase
+                            .from('vwtm_list_data')
+                            .insert(batch);
+                        
+                        if (insertError) {
+                            console.error(`❌ Batch ${i + 1} insert error:`, insertError);
+                            failedBatches.push({ batchIndex: i, error: insertError, data: batch });
+                            continue; // 실패한 배치는 건너뛰고 계속 진행
+                        }
+                        
+                        if (result) {
+                            totalInserted += result.length;
+                            console.log(`✅ Batch ${i + 1} completed: ${result.length} records inserted`);
+                        }
+                    } catch (batchError) {
+                        console.error(`❌ Batch ${i + 1} unexpected error:`, batchError);
+                        failedBatches.push({ batchIndex: i, error: batchError, data: batch });
+                    }
+                }
+                
+                // 실패한 배치가 있는 경우 로깅
+                if (failedBatches.length > 0) {
+                    console.warn(`⚠️ ${failedBatches.length} batches failed out of ${batches.length} total batches`);
+                    failedBatches.forEach(failed => {
+                        console.warn(`Failed batch ${failed.batchIndex + 1}:`, failed.error);
+                    });
+                }
+                
+                console.log(`✅ Successfully added ${totalInserted} total records to database`);
+                return { length: totalInserted, failedBatches: failedBatches.length };
+                
+            } catch (error) {
+                console.error('❌ Database operation failed:', error);
+                throw error;
+            }
+        }
+        
+        // 진행률 업데이트
+        function updateProgress(step, message, fileName, processedRows = 0, uploadedRows = 0) {
+            // step이 0-5 범위를 벗어나면 조정
+            const adjustedStep = Math.max(0, Math.min(5, step));
+            const progress = (adjustedStep / 5) * 100;
+            
+            // 진행률 바 업데이트 (애니메이션 최적화)
+            const progressFill = document.getElementById('progressFill');
+            const progressPercentage = document.getElementById('progressPercentage');
+            const progressStatus = document.getElementById('progressStatus');
+            const progressFileName = document.getElementById('progressFileName');
+            const progressRowsProcessed = document.getElementById('progressRowsProcessed');
+            const progressRowsUploaded = document.getElementById('progressRowsUploaded');
+            const progressDetailStatus = document.getElementById('progressDetailStatus');
+            
+            // requestAnimationFrame을 사용하여 부드러운 애니메이션
+            requestAnimationFrame(() => {
+                if (progressFill) progressFill.style.width = progress + '%';
+                if (progressPercentage) progressPercentage.textContent = Math.round(progress) + '%';
+                if (progressStatus) progressStatus.textContent = message;
+                if (progressFileName) progressFileName.textContent = fileName;
+                if (progressRowsProcessed) progressRowsProcessed.textContent = processedRows;
+                if (progressRowsUploaded) progressRowsUploaded.textContent = uploadedRows;
+                if (progressDetailStatus) progressDetailStatus.textContent = message;
+            });
+        }
+        
+        // 진행률 표시
+        function showProgress() {
+            const progressContainer = document.getElementById('progressContainer');
+            if (progressContainer) {
+                progressContainer.style.display = 'block';
+            }
+        }
+        
+        // 진행률 숨기기
+        function hideProgress() {
+            const progressContainer = document.getElementById('progressContainer');
+            if (progressContainer) {
+                progressContainer.style.display = 'none';
+            }
+        }
+        
+        // 파일 선택 초기화
+        function resetFileSelection() {
+            selectedFile = null;
+            
+            // 파일 정보 숨기기
+            const fileInfo = document.getElementById('fileInfo');
+            if (fileInfo) {
+                fileInfo.style.display = 'none';
+            }
+            
+            // 업로드 버튼 비활성화
+            disableUploadButton();
+            
+            // 파일 입력 필드 초기화
+            const fileInput = document.getElementById('excelFile');
+            if (fileInput) {
+                fileInput.value = '';
+            }
+        }
+        
+        // 페이지 로드 시 초기 상태 설정
+        document.addEventListener('DOMContentLoaded', function() {
+            disableUploadButton();
+        });
+        
+        // 전역 함수로 노출 (index.html에서 접근 가능하도록)
+        window.handleFileChange = handleFileChange;
+        window.selectFile = selectFile;
+        window.uploadFile = uploadFile;
+        window.displayFileInfo = displayFileInfo;
+        window.enableUploadButton = enableUploadButton;
+        window.disableUploadButton = disableUploadButton;
+        window.showProgress = showProgress;
+        window.hideProgress = hideProgress;
+        window.resetFileSelection = resetFileSelection;
+        window.processFileUpload = processFileUpload;
+        window.readExcelFile = readExcelFile;
+        window.validateData = validateData;
+        window.addDataToDatabase = addDataToDatabase;
+        window.updateProgress = updateProgress;
+        
+        console.log('✅ FIFO Upload functions loaded and exposed globally');
+    </script>
+</body>
+</html>
