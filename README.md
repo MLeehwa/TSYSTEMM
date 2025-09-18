@@ -1,146 +1,131 @@
-# LEEHWA VW TM System
+# NEW VW TM System
 
-A comprehensive Truck Management and FIFO (First In, First Out) system for LEEHWA VW operations.
+이 폴더는 기존 TM System을 새로운 아키텍처로 재구성한 버전입니다.
 
-## 🚀 Features
+## 🚀 주요 기능
 
 ### FIFO Management
-- **Excel Upload**: Upload Excel files for data management
-- **Data Analysis**: Analyze shipping plans and packaging data
-- **Real-time Monitoring**: Track pallet locations and status
+- **Excel Upload**: Excel 파일을 통한 데이터 업로드
+- **Data List**: 업로드된 데이터 조회 및 필터링
+- **Shipping Plan Analysis**: 배송 계획 분석 및 Excel 내보내기
 
 ### Truck Management
-- **Live Status Display**: Real-time truck status monitoring
-- **Excel-style Data Entry**: Intuitive data input with Handsontable
-- **Fleet Management**: Comprehensive truck fleet operations
+- **Live Status Display**: 실시간 트럭 상태 모니터링
+- **Truck Management**: Excel 스타일 데이터 입력 모달
 
-## 🛠️ Technology Stack
+## 🛠️ 설치 및 설정
 
-- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
-- **Database**: Supabase (PostgreSQL)
-- **Libraries**: 
-  - ExcelJS for Excel operations
-  - XLSX.js for file processing
-  - Handsontable for data entry
-  - Tailwind CSS for styling
+### 1. 데이터베이스 설정
 
-## 📁 Project Structure
+Supabase에서 다음 SQL 스크립트를 실행하세요:
 
-```
-├── index.html              # Main dashboard
-├── css/                    # Stylesheets
-├── js/                     # JavaScript modules
-│   ├── core/              # Core system modules
-│   ├── fifo/              # FIFO management
-│   └── truck/             # Truck management
-├── pages/                  # Individual pages
-│   ├── fifo/              # FIFO pages
-│   └── truck/             # Truck pages
-├── database_setup.sql     # Database schema
-└── README.md              # This file
+```sql
+-- database_setup.sql 파일의 내용을 Supabase SQL Editor에서 실행
 ```
 
-## 🚀 Quick Start
+이 스크립트는 다음 테이블들을 생성합니다:
+- `vwtm_list_data`: FIFO 데이터 저장
+- `vwtm_truck_management`: 트럭 관리 데이터
+- `vwtm_daily_summary`: 일별 집계
+- `vwtm_monthly_summary`: 월별 집계
 
-### 1. Database Setup
+### 2. 환경 설정
 
-1. Create a Supabase project at [supabase.com](https://supabase.com)
-2. Run the SQL script in `database_setup.sql` in the Supabase SQL Editor
-3. Update the Supabase configuration in `js/core/supabase-config.js`
-
-### 2. Local Development
-
-1. Clone this repository
-2. Open `index.html` in a web browser
-3. Configure your Supabase credentials
-
-### 3. Production Deployment
-
-This project is designed to be deployed on Netlify:
-
-1. Push your code to GitHub
-2. Connect your GitHub repository to Netlify
-3. Deploy automatically
-
-## 📊 Database Schema
-
-### Main Tables
-
-- **vwtm_list_data**: FIFO data storage
-- **vwtm_truck_management**: Truck management data
-- **vwtm_daily_summary**: Daily aggregations
-- **vwtm_monthly_summary**: Monthly aggregations
-
-## 🔧 Configuration
-
-### Supabase Setup
-
-1. Get your Supabase URL and anon key
-2. Update `js/core/supabase-config.js`:
+`js/supabase-config.js` 파일에서 Supabase 연결 정보를 확인하세요:
 
 ```javascript
 const SUPABASE_URL = 'your-supabase-url';
 const SUPABASE_ANON_KEY = 'your-supabase-anon-key';
 ```
 
-### Environment Variables
+### 3. 라이브러리 의존성
 
-For production deployment, set these environment variables in Netlify:
+다음 라이브러리들이 자동으로 로드됩니다:
+- **ExcelJS**: Truck Management용 Excel 내보내기
+- **XLSX.js**: FIFO Upload용 Excel 읽기
+- **Handsontable**: Excel 스타일 데이터 입력
+- **Supabase**: 데이터베이스 연결
 
-- `SUPABASE_URL`: Your Supabase project URL
-- `SUPABASE_ANON_KEY`: Your Supabase anonymous key
+## 📁 파일 구조
 
-## 📱 Usage
+```
+NEW/
+├── index.html              # 메인 페이지
+├── css/
+│   └── main.css           # 메인 스타일시트
+├── js/
+│   ├── core/              # 핵심 모듈
+│   │   ├── database.js    # 데이터베이스 관리
+│   │   ├── navigation.js  # 페이지 네비게이션
+│   │   ├── system-manager.js # 시스템 관리
+│   │   ├── supabase-config.js # Supabase 설정
+│   │   └── utils.js       # 유틸리티 함수
+│   ├── fifo/              # FIFO 관리
+│   │   └── upload.js      # Excel 업로드
+│   ├── truck/             # 트럭 관리
+│   │   ├── management.js  # 트럭 관리 시스템
+│   │   └── status.js      # 트럭 상태 표시
+│   ├── list.js            # 데이터 리스트
+│   └── analysis-new.js    # 분석 시스템
+├── pages/                 # 페이지 HTML 파일들
+│   ├── fifo/
+│   │   ├── upload.html    # FIFO 업로드 페이지
+│   │   └── list.html      # 데이터 리스트 페이지
+│   ├── truck/
+│   │   ├── management.html # 트럭 관리 페이지
+│   │   └── status.html    # 트럭 상태 페이지
+│   └── analysis-new.html  # 분석 페이지
+└── database_setup.sql     # 데이터베이스 설정 스크립트
+```
 
-### FIFO Management
-1. Navigate to "Excel Upload" to upload data files
-2. Use "Shipping Plan Analysis" to analyze data
-3. Export results to Excel format
+## 🔧 사용법
 
-### Truck Management
-1. Go to "Truck Management" for data entry
-2. Use "Live Status Display" for real-time monitoring
-3. Track truck status and delivery information
+### FIFO 업로드
+1. "Excel Upload" 메뉴 선택
+2. Excel 파일 선택 (`.xlsx`, `.xls` 형식)
+3. 파일 업로드 버튼 클릭
+4. 업로드 완료 확인
 
-## 🔒 Security
+### 트럭 관리
+1. "Truck Management" 메뉴 선택
+2. "Open Excel-Style Entry Form" 버튼 클릭
+3. 모달에서 데이터 입력
+4. 자동 저장 또는 "Save All" 버튼으로 저장
 
-- Row Level Security (RLS) enabled on all tables
-- Anonymous access configured for public operations
-- Data validation and constraints in place
+### 데이터 분석
+1. "Shipping Plan Analysis" 메뉴 선택
+2. 분석 실행
+3. Excel 내보내기로 결과 다운로드
 
-## 🐛 Troubleshooting
+## ⚠️ 주의사항
 
-### Common Issues
+- **Destination 제약조건**: Truck Management에서 destination은 다음 값만 허용됩니다:
+  - `VW US`
+  - `VW MX` 
+  - `KMX`
+  - `VX US`
 
-1. **Database Connection**: Verify Supabase credentials
-2. **File Upload**: Check file format (Excel .xlsx/.xls)
-3. **Data Validation**: Ensure required fields are filled
+- **Status 제약조건**: 다음 상태만 허용됩니다:
+  - `Scheduled`
+  - `On Site`
+  - `Shipped`
+  - `Delayed`
+  - `Cancelled`
 
-### Browser Compatibility
+## 🐛 문제 해결
 
-- Chrome 80+
-- Firefox 75+
-- Safari 13+
-- Edge 80+
+### 업로드 오류
+- XLSX 라이브러리가 로드되지 않은 경우: 페이지 새로고침
+- 데이터베이스 연결 오류: Supabase 설정 확인
 
-## 📞 Support
+### 트럭 관리 오류
+- Handsontable 초기화 실패: 페이지 새로고침
+- 데이터베이스 제약조건 위반: Destination과 Status 값 확인
 
-For technical support or questions:
-1. Check the browser console for error messages
-2. Verify database connection status
-3. Ensure all required fields are properly filled
+## 📞 지원
 
-## 📄 License
-
-This project is proprietary software for LEEHWA VW operations.
-
-## 🔄 Version History
-
-- **v1.0.0**: Initial release with FIFO and Truck Management
-- **v1.1.0**: Added real-time status monitoring
-- **v1.2.0**: Enhanced Excel operations and data analysis
-
----
-
-**LEEHWA VW TM System** - Efficient FIFO Management and Truck Status Monitoring
-# TSYSTEMM
+문제가 발생하면 다음을 확인하세요:
+1. 브라우저 콘솔의 오류 메시지
+2. 데이터베이스 연결 상태
+3. 필수 필드 입력 여부
+4. 데이터 형식 및 제약조건 준수 여부
