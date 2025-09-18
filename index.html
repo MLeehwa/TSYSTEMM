@@ -340,15 +340,175 @@
                  }, 100);
                } else if (path === 'pages/packaging-analysis-fixed.html') {
                  document.getElementById('mainContent').innerHTML = `
-                   <div class="bg-white rounded-lg shadow-md p-8">
-                     <h2 class="text-2xl font-bold text-gray-800 mb-6">Packaging Analysis</h2>
-                     <div class="text-center py-8">
-                       <div class="text-4xl mb-4">📦</div>
-                       <h3 class="text-xl font-semibold text-gray-700 mb-2">패키징 분석</h3>
-                       <p class="text-gray-600">패키징 분석 기능이 준비되었습니다</p>
+                   <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                     <!-- Header -->
+                     <div class="mb-8">
+                         <h2 class="text-2xl font-bold text-gray-900 mb-2">Packaging Analysis</h2>
+                         <p class="text-gray-600">Advanced packaging analysis with pallet optimization</p>
+                     </div>
+
+                     <!-- Filter Panel -->
+                     <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+                         <h3 class="text-lg font-semibold text-gray-900 mb-4">Search Filters</h3>
+                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                             <div>
+                                 <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                                 <select id="packagingLocationFilter" 
+                                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                     <option value="">All</option>
+                                     <option value="F100">F100</option>
+                                     <option value="F101" selected>F101</option>
+                                 </select>
+                             </div>
+                             <div>
+                                 <label class="block text-sm font-medium text-gray-700 mb-2">Part No</label>
+                                 <select id="packagingPartNoFilter" 
+                                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                     <option value="">All</option>
+                                     <option value="" disabled>Loading...</option>
+                                 </select>
+                                 <p id="packagingPartNoStatus" class="text-xs text-gray-500 mt-1">Loading part numbers...</p>
+                             </div>
+                             <div>
+                                 <label class="block text-sm font-medium text-gray-700 mb-2">Hold Whether</label>
+                                 <select id="packagingHoldWhetherFilter" 
+                                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                     <option value="">All</option>
+                                     <option value="Y">Y</option>
+                                     <option value="N" selected>N</option>
+                                 </select>
+                             </div>
+                             <div>
+                                 <label class="block text-sm font-medium text-gray-700 mb-2">팔렛 수량</label>
+                                 <input type="number" id="packagingPalletQuantityInput" 
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        placeholder="20" value="20" min="1" max="100">
+                                 <p class="text-xs text-gray-500 mt-1">출하할 팔렛 수량 (1팔렛 = 8개 TM)</p>
+                             </div>
+                             <div class="flex items-end space-x-2">
+                                 <button id="packagingApplyFilterBtn" 
+                                         class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                     Apply Filter
+                                 </button>
+                                 <button id="packagingResetFilterBtn" 
+                                         class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                                     Reset
+                                 </button>
+                             </div>
+                             <div class="col-span-4 mt-2">
+                                 <p id="packagingFilterStatus" class="text-xs text-gray-500">No filters applied</p>
+                             </div>
+                         </div>
+                     </div>
+
+                     <!-- Summary Cards -->
+                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                         <div class="bg-white rounded-lg shadow-sm border p-6">
+                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Total Pallets</h3>
+                             <div id="packagingTotalPallets" class="text-gray-600">
+                                 Please load data...
+                             </div>
+                         </div>
+                         <div class="bg-white rounded-lg shadow-sm border p-6">
+                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Optimized Pallets</h3>
+                             <div id="packagingOptimizedPallets" class="text-gray-600">
+                                 Please load data...
+                             </div>
+                         </div>
+                         <div class="bg-white rounded-lg shadow-sm border p-6">
+                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Efficiency</h3>
+                             <div id="packagingEfficiency" class="text-gray-600">
+                                 Please load data...
+                             </div>
+                         </div>
+                     </div>
+
+                     <!-- Data Table -->
+                     <div class="bg-white rounded-lg shadow-sm border">
+                         <div class="px-6 py-4 border-b border-gray-200">
+                             <div class="flex justify-between items-center">
+                                 <div>
+                                     <h3 class="text-lg font-semibold text-gray-900">Packaging Analysis Results</h3>
+                                     <p id="packagingResultCount" class="text-sm text-gray-500 mt-1">데이터 로딩 중...</p>
+                                 </div>
+                                 <div class="flex items-center space-x-4">
+                                     <div class="flex space-x-2">
+                                         <button id="packagingExportExcelBtn" 
+                                                 class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                                             📊 Export to Excel
+                                         </button>
+                                         <button id="packagingRefreshDataBtn" 
+                                                 class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                             🔄 Refresh Data
+                                         </button>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                         
+                         <div class="overflow-x-auto">
+                             <table class="min-w-full divide-y divide-gray-200">
+                                 <thead class="bg-gray-50">
+                                     <tr>
+                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('palletNo')">
+                                             Pallet No
+                                             <span id="packaging-sort-palletNo" class="ml-1">↕</span>
+                                         </th>
+                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('rackNo')">
+                                             Rack No
+                                             <span id="packaging-sort-rackNo" class="ml-1">↕</span>
+                                         </th>
+                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('partNo')">
+                                             Part No
+                                             <span id="packaging-sort-partNo" class="ml-1">↕</span>
+                                         </th>
+                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('tmCount')">
+                                             TM Count
+                                             <span id="packaging-sort-tmCount" class="ml-1">↕</span>
+                                         </th>
+                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('packagingType')">
+                                             Packaging Type
+                                             <span id="packaging-sort-packagingType" class="ml-1">↕</span>
+                                         </th>
+                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('optimization')">
+                                             Optimization
+                                             <span id="packaging-sort-optimization" class="ml-1">↕</span>
+                                         </th>
+                                     </tr>
+                                 </thead>
+                                 <tbody id="packagingResultsTable" class="bg-white divide-y divide-gray-200">
+                                     <tr>
+                                         <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                                             데이터를 로딩 중입니다... 잠시만 기다려주세요.
+                                         </td>
+                                     </tr>
+                                 </tbody>
+                             </table>
+                         </div>
+                     </div>
+
+                     <!-- Loading State -->
+                     <div id="packagingLoadingState" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                         <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                             <div class="mt-3 text-center">
+                                 <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+                                     <svg class="animate-spin h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                     </svg>
+                                 </div>
+                                 <h3 class="text-lg font-medium text-gray-900 mt-4">Processing...</h3>
+                                 <p class="text-sm text-gray-500 mt-2">Please wait while we analyze the packaging data...</p>
+                             </div>
+                         </div>
                      </div>
                    </div>
                  `;
+                 
+                 // Packaging 페이지 초기화
+                 setTimeout(() => {
+                   initializePackagingPage();
+                 }, 100);
                } else if (path === 'pages/truck/management.html') {
                  document.getElementById('mainContent').innerHTML = `
                    <div class="bg-white rounded-lg shadow-md p-8">
@@ -703,6 +863,396 @@
                  if (icon) {
                    if (col === activeColumn) {
                      icon.textContent = window.currentSortDirection === 'asc' ? '↑' : '↓';
+                   } else {
+                     icon.textContent = '↕';
+                   }
+                 }
+               });
+             }
+
+             // Packaging 페이지 초기화
+             function initializePackagingPage() {
+               console.log('🔧 Initializing Packaging page...');
+               
+               // 전역 변수 초기화
+               window.packagingAllData = [];
+               window.packagingFilteredData = [];
+               window.packagingCurrentSortColumn = 'palletNo';
+               window.packagingCurrentSortDirection = 'asc';
+               window.packagingLastResults = [];
+               
+               // 이벤트 리스너 설정
+               const refreshBtn = document.getElementById('packagingRefreshDataBtn');
+               if (refreshBtn) {
+                 refreshBtn.onclick = loadPackagingData;
+               }
+               
+               const applyBtn = document.getElementById('packagingApplyFilterBtn');
+               if (applyBtn) {
+                 applyBtn.onclick = applyPackagingFilter;
+               }
+               
+               const resetBtn = document.getElementById('packagingResetFilterBtn');
+               if (resetBtn) {
+                 resetBtn.onclick = resetPackagingFilter;
+               }
+               
+               const exportBtn = document.getElementById('packagingExportExcelBtn');
+               if (exportBtn) {
+                 exportBtn.onclick = exportPackagingData;
+               }
+               
+               // 초기 데이터 로드
+               loadPackagingData();
+             }
+             
+             // Packaging 데이터 로드
+             function loadPackagingData() {
+               console.log('🔄 Loading Packaging data...');
+               
+               // 로딩 상태 표시
+               const loadingState = document.getElementById('packagingLoadingState');
+               if (loadingState) {
+                 loadingState.classList.remove('hidden');
+               }
+               
+               // Supabase에서 데이터 로드
+               if (window.sb) {
+                 window.sb.from('vwtm_list_data')
+                   .select('*')
+                   .limit(1000)
+                   .then(({ data, error }) => {
+                     if (error) {
+                       console.error('❌ Database error:', error);
+                       showPackagingSampleData();
+                     } else {
+                       console.log('✅ Packaging data loaded:', data.length, 'records');
+                       window.packagingAllData = data || [];
+                       window.packagingFilteredData = [...window.packagingAllData];
+                       populatePackagingFilterOptions();
+                       performPackagingAnalysis();
+                     }
+                     
+                     // 로딩 상태 숨기기
+                     if (loadingState) {
+                       loadingState.classList.add('hidden');
+                     }
+                   });
+               } else {
+                 console.log('⚠️ Supabase not available, using sample data');
+                 showPackagingSampleData();
+                 
+                 // 로딩 상태 숨기기
+                 if (loadingState) {
+                   loadingState.classList.add('hidden');
+                 }
+               }
+             }
+             
+             // Packaging 샘플 데이터 표시
+             function showPackagingSampleData() {
+               console.log('📦 Showing Packaging sample data...');
+               
+               const sampleData = [
+                 { pallet_no: 'PAL001', rack_no: 'F101-01', part_no: '3T24', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
+                 { pallet_no: 'PAL002', rack_no: 'F101-02', part_no: '3T33', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
+                 { pallet_no: 'PAL003', rack_no: 'F100-01', part_no: '3T24', hold_whether: 'N', location: 'F100', upload_time: new Date().toISOString() },
+                 { pallet_no: 'PAL004', rack_no: 'F101-03', part_no: '3T34', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
+                 { pallet_no: 'PAL005', rack_no: 'F100-02', part_no: '3T35', hold_whether: 'N', location: 'F100', upload_time: new Date().toISOString() },
+                 { pallet_no: 'PAL006', rack_no: 'F101-04', part_no: '3T36', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
+                 { pallet_no: 'PAL007', rack_no: 'F100-03', part_no: '3T37', hold_whether: 'N', location: 'F100', upload_time: new Date().toISOString() },
+                 { pallet_no: 'PAL008', rack_no: 'F101-05', part_no: '3T38', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() }
+               ];
+               
+               window.packagingAllData = sampleData;
+               window.packagingFilteredData = [...sampleData];
+               populatePackagingFilterOptions();
+               performPackagingAnalysis();
+             }
+             
+             // Packaging 필터 옵션 채우기
+             function populatePackagingFilterOptions() {
+               console.log('🔧 Populating Packaging filter options...');
+               
+               // Part No 필터 옵션 채우기
+               const partNoFilter = document.getElementById('packagingPartNoFilter');
+               if (partNoFilter) {
+                 const partNos = [...new Set(window.packagingAllData.map(item => item.part_no))].filter(Boolean);
+                 partNoFilter.innerHTML = '<option value="">All</option>' + 
+                   partNos.map(part => `<option value="${part}">${part}</option>`).join('');
+                 
+                 const partNoStatus = document.getElementById('packagingPartNoStatus');
+                 if (partNoStatus) {
+                   partNoStatus.textContent = `${partNos.length} part numbers loaded`;
+                 }
+               }
+             }
+             
+             // Packaging 필터 적용
+             function applyPackagingFilter() {
+               console.log('🔍 Applying Packaging filter...');
+               
+               const location = document.getElementById('packagingLocationFilter')?.value || '';
+               const partNo = document.getElementById('packagingPartNoFilter')?.value || '';
+               const holdWhether = document.getElementById('packagingHoldWhetherFilter')?.value || '';
+               const palletQuantity = document.getElementById('packagingPalletQuantityInput')?.value || '20';
+               
+               console.log('Packaging filter conditions:', { location, partNo, holdWhether, palletQuantity });
+               
+               // 필터 적용 로직
+               let filtered = [...window.packagingAllData];
+               
+               if (location) {
+                 filtered = filtered.filter(item => item.location === location);
+               }
+               if (partNo) {
+                 filtered = filtered.filter(item => item.part_no === partNo);
+               }
+               if (holdWhether) {
+                 filtered = filtered.filter(item => item.hold_whether === holdWhether);
+               }
+               
+               window.packagingFilteredData = filtered;
+               performPackagingAnalysis();
+               
+               // 상태 업데이트
+               const status = document.getElementById('packagingFilterStatus');
+               if (status) {
+                 status.textContent = `필터 적용됨: ${filtered.length}개 레코드`;
+               }
+             }
+             
+             // Packaging 필터 초기화
+             function resetPackagingFilter() {
+               console.log('🔄 Resetting Packaging filter...');
+               
+               document.getElementById('packagingLocationFilter').value = '';
+               document.getElementById('packagingPartNoFilter').value = '';
+               document.getElementById('packagingHoldWhetherFilter').value = '';
+               document.getElementById('packagingPalletQuantityInput').value = '20';
+               
+               window.packagingFilteredData = [...window.packagingAllData];
+               performPackagingAnalysis();
+               
+               const status = document.getElementById('packagingFilterStatus');
+               if (status) {
+                 status.textContent = 'No filters applied';
+               }
+             }
+             
+             // Packaging 분석 수행
+             function performPackagingAnalysis() {
+               console.log('📦 Performing Packaging analysis...');
+               
+               const data = window.packagingFilteredData || [];
+               console.log('Packaging data:', data.length, 'records');
+               
+               // 팔레트별로 그룹화하여 분석
+               const palletGroups = {};
+               data.forEach(item => {
+                 const palletNo = item.pallet_no || 'Unknown';
+                 if (!palletGroups[palletNo]) {
+                   palletGroups[palletNo] = {
+                     palletNo: palletNo,
+                     rackNo: item.rack_no || 'N/A',
+                     partNo: item.part_no || 'N/A',
+                     tmCount: 8, // 1개 팔레트 = 8개 TM
+                     packagingType: determinePackagingType(item.part_no),
+                     optimization: calculateOptimization(item.part_no, item.location)
+                   };
+                 }
+               });
+               
+               const results = Object.values(palletGroups);
+               window.packagingLastResults = results;
+               displayPackagingResults(results);
+               updatePackagingSummary(results);
+             }
+             
+             // 패키징 타입 결정
+             function determinePackagingType(partNo) {
+               if (!partNo) return 'Standard';
+               
+               // Part No에 따른 패키징 타입 결정 로직
+               if (partNo.includes('3T2')) return 'High Priority';
+               if (partNo.includes('3T3')) return 'Standard';
+               if (partNo.includes('3T4')) return 'Bulk';
+               return 'Standard';
+             }
+             
+             // 최적화 점수 계산
+             function calculateOptimization(partNo, location) {
+               if (!partNo || !location) return 'N/A';
+               
+               // 간단한 최적화 점수 계산
+               let score = 0;
+               if (location === 'F101') score += 10; // F101은 더 효율적
+               if (partNo.includes('3T2')) score += 15; // 고우선순위 부품
+               if (partNo.includes('3T3')) score += 10; // 표준 부품
+               if (partNo.includes('3T4')) score += 5; // 벌크 부품
+               
+               if (score >= 20) return 'Excellent';
+               if (score >= 15) return 'Good';
+               if (score >= 10) return 'Fair';
+               return 'Poor';
+             }
+             
+             // Packaging 결과 표시
+             function displayPackagingResults(results) {
+               console.log('📋 Displaying Packaging results...');
+               
+               const tableBody = document.getElementById('packagingResultsTable');
+               if (!tableBody) return;
+               
+               if (results.length === 0) {
+                 tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">분석 결과가 없습니다.</td></tr>';
+                 return;
+               }
+               
+               const tableRows = results.map(result => `
+                 <tr class="hover:bg-gray-50">
+                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${result.palletNo}</td>
+                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${result.rackNo}</td>
+                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${result.partNo}</td>
+                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${result.tmCount}</td>
+                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                     <span class="px-2 py-1 text-xs font-medium rounded-full ${
+                       result.packagingType === 'High Priority' ? 'bg-red-100 text-red-800' :
+                       result.packagingType === 'Standard' ? 'bg-blue-100 text-blue-800' :
+                       result.packagingType === 'Bulk' ? 'bg-green-100 text-green-800' :
+                       'bg-gray-100 text-gray-800'
+                     }">${result.packagingType}</span>
+                   </td>
+                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                     <span class="px-2 py-1 text-xs font-medium rounded-full ${
+                       result.optimization === 'Excellent' ? 'bg-green-100 text-green-800' :
+                       result.optimization === 'Good' ? 'bg-blue-100 text-blue-800' :
+                       result.optimization === 'Fair' ? 'bg-yellow-100 text-yellow-800' :
+                       'bg-red-100 text-red-800'
+                     }">${result.optimization}</span>
+                   </td>
+                 </tr>
+               `);
+               
+               tableBody.innerHTML = tableRows.join('');
+               
+               // 결과 개수 업데이트
+               const resultCount = document.getElementById('packagingResultCount');
+               if (resultCount) {
+                 resultCount.textContent = `Found ${results.length} pallets`;
+               }
+             }
+             
+             // Packaging 요약 업데이트
+             function updatePackagingSummary(results) {
+               console.log('📊 Updating Packaging summary...');
+               
+               const totalPallets = document.getElementById('packagingTotalPallets');
+               const optimizedPallets = document.getElementById('packagingOptimizedPallets');
+               const efficiency = document.getElementById('packagingEfficiency');
+               
+               if (totalPallets) {
+                 totalPallets.innerHTML = `<div class="text-2xl font-bold text-blue-600">${results.length}</div><div class="text-sm text-gray-500">팔레트</div>`;
+               }
+               
+               if (optimizedPallets) {
+                 const optimizedCount = results.filter(r => r.optimization === 'Excellent' || r.optimization === 'Good').length;
+                 optimizedPallets.innerHTML = `<div class="text-2xl font-bold text-green-600">${optimizedCount}</div><div class="text-sm text-gray-500">팔레트</div>`;
+               }
+               
+               if (efficiency) {
+                 const total = results.length;
+                 const optimized = results.filter(r => r.optimization === 'Excellent' || r.optimization === 'Good').length;
+                 const efficiencyPercent = total > 0 ? Math.round((optimized / total) * 100) : 0;
+                 efficiency.innerHTML = `<div class="text-2xl font-bold text-purple-600">${efficiencyPercent}%</div><div class="text-sm text-gray-500">효율성</div>`;
+               }
+             }
+             
+             // Packaging Excel 내보내기
+             function exportPackagingData() {
+               console.log('📊 Exporting Packaging data...');
+               
+               if (!window.packagingLastResults || window.packagingLastResults.length === 0) {
+                 alert('내보낼 데이터가 없습니다. 먼저 분석을 실행해주세요.');
+                 return;
+               }
+               
+               // Excel 내보내기 로직
+               const workbook = new ExcelJS.Workbook();
+               const worksheet = workbook.addWorksheet('Packaging Analysis Results');
+               
+               // 헤더 추가
+               worksheet.addRow(['Pallet No', 'Rack No', 'Part No', 'TM Count', 'Packaging Type', 'Optimization']);
+               
+               // 데이터 추가
+               window.packagingLastResults.forEach(result => {
+                 worksheet.addRow([
+                   result.palletNo || '',
+                   result.rackNo || '',
+                   result.partNo || '',
+                   result.tmCount || 0,
+                   result.packagingType || '',
+                   result.optimization || ''
+                 ]);
+               });
+               
+               // 파일 다운로드
+               workbook.xlsx.writeBuffer().then(buffer => {
+                 const blob = new Blob([buffer], { 
+                   type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+                 });
+                 const url = window.URL.createObjectURL(blob);
+                 const link = document.createElement('a');
+                 link.href = url;
+                 link.download = `packaging_analysis_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                 document.body.appendChild(link);
+                 link.click();
+                 document.body.removeChild(link);
+                 window.URL.revokeObjectURL(url);
+               });
+             }
+             
+             // Packaging 테이블 정렬
+             function sortPackagingTable(column) {
+               console.log(`🔍 Sorting Packaging table by column: ${column}`);
+               
+               if (window.packagingCurrentSortColumn === column) {
+                 window.packagingCurrentSortDirection = window.packagingCurrentSortDirection === 'asc' ? 'desc' : 'asc';
+               } else {
+                 window.packagingCurrentSortColumn = column;
+                 window.packagingCurrentSortDirection = 'asc';
+               }
+               
+               const results = [...window.packagingLastResults];
+               results.sort((a, b) => {
+                 let aVal = a[column] || '';
+                 let bVal = b[column] || '';
+                 
+                 if (['tmCount'].includes(column)) {
+                   aVal = parseFloat(aVal) || 0;
+                   bVal = parseFloat(bVal) || 0;
+                 } else {
+                   aVal = String(aVal).toLowerCase();
+                   bVal = String(bVal).toLowerCase();
+                 }
+                 
+                 if (aVal < bVal) return window.packagingCurrentSortDirection === 'asc' ? -1 : 1;
+                 if (aVal > bVal) return window.packagingCurrentSortDirection === 'asc' ? 1 : -1;
+                 return 0;
+               });
+               
+               displayPackagingResults(results);
+               updatePackagingSortIcons(column);
+             }
+             
+             // Packaging 정렬 아이콘 업데이트
+             function updatePackagingSortIcons(activeColumn) {
+               const columns = ['palletNo', 'rackNo', 'partNo', 'tmCount', 'packagingType', 'optimization'];
+               columns.forEach(col => {
+                 const icon = document.getElementById(`packaging-sort-${col}`);
+                 if (icon) {
+                   if (col === activeColumn) {
+                     icon.textContent = window.packagingCurrentSortDirection === 'asc' ? '↑' : '↓';
                    } else {
                      icon.textContent = '↕';
                    }
