@@ -276,6 +276,9 @@
                          </div>
                          
                          <div class="overflow-x-auto">
+                             <div class="mb-4 text-sm text-gray-600">
+                                 <span id="analysisDataInfo">데이터 로딩 중...</span>
+                             </div>
                              <table class="min-w-full divide-y divide-gray-200">
                                  <thead class="bg-gray-50">
                                      <tr>
@@ -453,6 +456,9 @@
                          </div>
                          
                          <div class="overflow-x-auto">
+                             <div class="mb-4 text-sm text-gray-600">
+                                 <span id="packagingDataInfo">데이터 로딩 중...</span>
+                             </div>
                              <table class="min-w-full divide-y divide-gray-200">
                                  <thead class="bg-gray-50">
                                      <tr>
@@ -586,13 +592,13 @@
                if (window.sb) {
                  window.sb.from('vwtm_list_data')
                    .select('*')
-                   .limit(1000)
                    .then(({ data, error }) => {
                      if (error) {
                        console.error('❌ Database error:', error);
                        showAnalysisSampleData();
                      } else {
                        console.log('✅ Analysis data loaded:', data.length, 'records');
+                       console.log('Sample data:', data.slice(0, 3));
                        window.allData = data || [];
                        window.filteredData = [...window.allData];
                        populateAnalysisFilterOptions();
@@ -619,16 +625,27 @@
              function showAnalysisSampleData() {
                console.log('📊 Showing Analysis sample data...');
                
-               const sampleData = [
-                 { pallet_no: 'PAL001', rack_no: 'F101-01', part_no: '3T24', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
-                 { pallet_no: 'PAL002', rack_no: 'F101-02', part_no: '3T33', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
-                 { pallet_no: 'PAL003', rack_no: 'F100-01', part_no: '3T24', hold_whether: 'N', location: 'F100', upload_time: new Date().toISOString() },
-                 { pallet_no: 'PAL004', rack_no: 'F101-03', part_no: '3T34', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
-                 { pallet_no: 'PAL005', rack_no: 'F100-02', part_no: '3T35', hold_whether: 'N', location: 'F100', upload_time: new Date().toISOString() },
-                 { pallet_no: 'PAL006', rack_no: 'F101-04', part_no: '3T36', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
-                 { pallet_no: 'PAL007', rack_no: 'F100-03', part_no: '3T37', hold_whether: 'N', location: 'F100', upload_time: new Date().toISOString() },
-                 { pallet_no: 'PAL008', rack_no: 'F101-05', part_no: '3T38', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() }
-               ];
+               // 더 많은 샘플 데이터 생성
+               const sampleData = [];
+               const locations = ['F100', 'F101'];
+               const partNos = ['3T24', '3T33', '3T34', '3T35', '3T36', '3T37', '3T38', '3T39', '3T40'];
+               const holdValues = ['N', 'Y'];
+               
+               // 50개의 샘플 데이터 생성
+               for (let i = 1; i <= 50; i++) {
+                 const location = locations[Math.floor(Math.random() * locations.length)];
+                 const partNo = partNos[Math.floor(Math.random() * partNos.length)];
+                 const holdWhether = holdValues[Math.floor(Math.random() * holdValues.length)];
+                 
+                 sampleData.push({
+                   pallet_no: `PAL${String(i).padStart(3, '0')}`,
+                   rack_no: `${location}-${String(Math.floor(Math.random() * 20) + 1).padStart(2, '0')}`,
+                   part_no: partNo,
+                   hold_whether: holdWhether,
+                   location: location,
+                   upload_time: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString()
+                 });
+               }
                
                window.allData = sampleData;
                window.filteredData = [...sampleData];
@@ -789,6 +806,12 @@
                const resultCount = document.getElementById('resultCount');
                if (resultCount) {
                  resultCount.textContent = `Found ${results.length} pallets`;
+               }
+               
+               // 데이터 정보 업데이트
+               const dataInfo = document.getElementById('analysisDataInfo');
+               if (dataInfo) {
+                 dataInfo.textContent = `총 ${window.allData.length}개 레코드 중 ${results.length}개 표시`;
                }
              }
              
@@ -952,13 +975,13 @@
                if (window.sb) {
                  window.sb.from('vwtm_list_data')
                    .select('*')
-                   .limit(1000)
                    .then(({ data, error }) => {
                      if (error) {
                        console.error('❌ Database error:', error);
                        showPackagingSampleData();
                      } else {
                        console.log('✅ Packaging data loaded:', data.length, 'records');
+                       console.log('Sample packaging data:', data.slice(0, 3));
                        window.packagingAllData = data || [];
                        window.packagingFilteredData = [...window.packagingAllData];
                        populatePackagingFilterOptions();
@@ -985,16 +1008,27 @@
              function showPackagingSampleData() {
                console.log('📦 Showing Packaging sample data...');
                
-               const sampleData = [
-                 { pallet_no: 'PAL001', rack_no: 'F101-01', part_no: '3T24', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
-                 { pallet_no: 'PAL002', rack_no: 'F101-02', part_no: '3T33', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
-                 { pallet_no: 'PAL003', rack_no: 'F100-01', part_no: '3T24', hold_whether: 'N', location: 'F100', upload_time: new Date().toISOString() },
-                 { pallet_no: 'PAL004', rack_no: 'F101-03', part_no: '3T34', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
-                 { pallet_no: 'PAL005', rack_no: 'F100-02', part_no: '3T35', hold_whether: 'N', location: 'F100', upload_time: new Date().toISOString() },
-                 { pallet_no: 'PAL006', rack_no: 'F101-04', part_no: '3T36', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() },
-                 { pallet_no: 'PAL007', rack_no: 'F100-03', part_no: '3T37', hold_whether: 'N', location: 'F100', upload_time: new Date().toISOString() },
-                 { pallet_no: 'PAL008', rack_no: 'F101-05', part_no: '3T38', hold_whether: 'N', location: 'F101', upload_time: new Date().toISOString() }
-               ];
+               // 더 많은 샘플 데이터 생성
+               const sampleData = [];
+               const locations = ['F100', 'F101'];
+               const partNos = ['3T24', '3T33', '3T34', '3T35', '3T36', '3T37', '3T38', '3T39', '3T40'];
+               const holdValues = ['N', 'Y'];
+               
+               // 50개의 샘플 데이터 생성
+               for (let i = 1; i <= 50; i++) {
+                 const location = locations[Math.floor(Math.random() * locations.length)];
+                 const partNo = partNos[Math.floor(Math.random() * partNos.length)];
+                 const holdWhether = holdValues[Math.floor(Math.random() * holdValues.length)];
+                 
+                 sampleData.push({
+                   pallet_no: `PAL${String(i).padStart(3, '0')}`,
+                   rack_no: `${location}-${String(Math.floor(Math.random() * 20) + 1).padStart(2, '0')}`,
+                   part_no: partNo,
+                   hold_whether: holdWhether,
+                   location: location,
+                   upload_time: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString()
+                 });
+               }
                
                window.packagingAllData = sampleData;
                window.packagingFilteredData = [...sampleData];
@@ -1216,6 +1250,12 @@
                const resultCount = document.getElementById('packagingResultCount');
                if (resultCount) {
                  resultCount.textContent = `Found ${results.length} pallets`;
+               }
+               
+               // 데이터 정보 업데이트
+               const dataInfo = document.getElementById('packagingDataInfo');
+               if (dataInfo) {
+                 dataInfo.textContent = `총 ${window.packagingAllData.length}개 레코드 중 ${results.length}개 표시`;
                }
              }
              
