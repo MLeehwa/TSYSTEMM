@@ -348,7 +348,11 @@
                      <!-- Header -->
                      <div class="mb-8">
                          <h2 class="text-2xl font-bold text-gray-900 mb-2">Packaging Analysis</h2>
-                         <p class="text-gray-600">Advanced packaging analysis with pallet optimization</p>
+                         <p class="text-gray-600">Location-based packaging analysis with RACK NO pattern recognition</p>
+                         <div class="mt-2 text-sm text-gray-500">
+                             <p><strong>Before Packaging:</strong> LHSAB, LHSBA, LHSAA, LHSBB</p>
+                             <p><strong>After Packaging:</strong> LHSAC, LHSAD, LHSBC, LHSBD</p>
+                         </div>
                      </div>
 
                      <!-- Filter Panel -->
@@ -359,9 +363,9 @@
                                  <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
                                  <select id="packagingLocationFilter" 
                                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                     <option value="">All</option>
-                                     <option value="F100">F100</option>
                                      <option value="F101" selected>F101</option>
+                                     <option value="F100">F100</option>
+                                     <option value="">All</option>
                                  </select>
                              </div>
                              <div>
@@ -377,9 +381,9 @@
                                  <label class="block text-sm font-medium text-gray-700 mb-2">Hold Whether</label>
                                  <select id="packagingHoldWhetherFilter" 
                                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                     <option value="">All</option>
-                                     <option value="Y">Y</option>
                                      <option value="N" selected>N</option>
+                                     <option value="Y">Y</option>
+                                     <option value="">All</option>
                                  </select>
                              </div>
                              <div>
@@ -400,7 +404,7 @@
                                  </button>
                              </div>
                              <div class="col-span-4 mt-2">
-                                 <p id="packagingFilterStatus" class="text-xs text-gray-500">No filters applied</p>
+                                 <p id="packagingFilterStatus" class="text-xs text-gray-500">Default filters: F101, N</p>
                              </div>
                          </div>
                      </div>
@@ -1088,19 +1092,20 @@
                
                // 더 많은 샘플 데이터 생성
                const sampleData = [];
-               const locations = ['F100', 'F101'];
                const partNos = ['3T24', '3T33', '3T34', '3T35', '3T36', '3T37', '3T38', '3T39', '3T40'];
-               const holdValues = ['N', 'Y'];
+               const rackPrefixes = ['LHSAB', 'LHSBA', 'LHSAA', 'LHSBB', 'LHSAC', 'LHSAD', 'LHSBC', 'LHSBD'];
                
                // 50개의 샘플 데이터 생성
                for (let i = 1; i <= 50; i++) {
-                 const location = locations[Math.floor(Math.random() * locations.length)];
+                 const location = 'F101'; // 기본값 F101
                  const partNo = partNos[Math.floor(Math.random() * partNos.length)];
-                 const holdWhether = holdValues[Math.floor(Math.random() * holdValues.length)];
+                 const holdWhether = 'N'; // 기본값 N
+                 const rackPrefix = rackPrefixes[Math.floor(Math.random() * rackPrefixes.length)];
+                 const rackSuffix = String(Math.floor(Math.random() * 20) + 1).padStart(2, '0');
                  
                  sampleData.push({
                    pallet_no: `PAL${String(i).padStart(3, '0')}`,
-                   rack_no: `${location}-${String(Math.floor(Math.random() * 20) + 1).padStart(2, '0')}`,
+                   rack_no: `${rackPrefix}${rackSuffix}`,
                    part_no: partNo,
                    hold_whether: holdWhether,
                    location: location,
@@ -1193,9 +1198,9 @@
              function resetPackagingFilter() {
                console.log('🔄 Resetting Packaging filter...');
                
-               document.getElementById('packagingLocationFilter').value = '';
+               document.getElementById('packagingLocationFilter').value = 'F101';
                document.getElementById('packagingPartNoFilter').value = '';
-               document.getElementById('packagingHoldWhetherFilter').value = '';
+               document.getElementById('packagingHoldWhetherFilter').value = 'N';
                document.getElementById('packagingPalletQuantityInput').value = '20';
                
                window.packagingFilteredData = [...window.packagingAllData];
@@ -1203,7 +1208,7 @@
                
                const status = document.getElementById('packagingFilterStatus');
                if (status) {
-                 status.textContent = 'No filters applied';
+                 status.textContent = 'Default filters applied (F101, N)';
                }
              }
              
@@ -1230,11 +1235,27 @@
                  
                  locationGroups[location].totalPallets++;
                  
-                 // Hold Whether에 따라 포장 전/후 구분
-                 if (item.hold_whether === 'N') {
+                 // RACK NO에 따라 포장 전/후 구분
+                 const rackNo = item.rack_no || '';
+                 let packagingStatus = 'Unknown';
+                 
+                 if (rackNo.startsWith('LHSAB') || rackNo.startsWith('LHSBA') || 
+                     rackNo.startsWith('LHSAA') || rackNo.startsWith('LHSBB')) {
+                   packagingStatus = 'Before Packaging';
+                   locationGroups[location].beforePackaging++;
+                 } else if (rackNo.startsWith('LHSAC') || rackNo.startsWith('LHSAD') || 
+                           rackNo.startsWith('LHSBC') || rackNo.startsWith('LHSBD')) {
+                   packagingStatus = 'After Packaging';
                    locationGroups[location].afterPackaging++;
                  } else {
-                   locationGroups[location].beforePackaging++;
+                   // 기타 RACK NO는 Hold Whether로 판단
+                   if (item.hold_whether === 'N') {
+                     packagingStatus = 'After Packaging';
+                     locationGroups[location].afterPackaging++;
+                   } else {
+                     packagingStatus = 'Before Packaging';
+                     locationGroups[location].beforePackaging++;
+                   }
                  }
                  
                  // 팔레트 정보 저장
@@ -1243,7 +1264,7 @@
                    rackNo: item.rack_no || 'N/A',
                    partNo: item.part_no || 'N/A',
                    tmCount: 8,
-                   packagingStatus: item.hold_whether === 'N' ? 'After Packaging' : 'Before Packaging',
+                   packagingStatus: packagingStatus,
                    location: location
                  });
                });
