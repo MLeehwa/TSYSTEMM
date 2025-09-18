@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connection Test - NEW Architecture</title>
+    
+    <!-- Core Libraries -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/main.css">
+    
+    <!-- Core System Scripts -->
+    <script src="js/core/supabase-config.js"></script>
+</head>
+<body>
+    <div class="main-container">
+        <div class="main-content">
+            <div class="content-header">
+                <h1 class="page-title">Connection Test</h1>
+            </div>
+            
+            <div class="content-body">
+                <div class="test-container">
+                    <h2>🔗 Supabase Connection Test</h2>
+                    <p>Test the connection to Supabase and diagnose any issues.</p>
+                    
+                    <!-- Connection Status -->
+                    <div class="connection-status">
+                        <h3>Connection Status</h3>
+                        <div class="status-grid">
+                            <div class="status-item">
+                                <label>Supabase Library:</label>
+                                <span id="libraryStatus">Checking...</span>
+                            </div>
+                            <div class="status-item">
+                                <label>Client Initialization:</label>
+                                <span id="clientStatus">Checking...</span>
+                            </div>
+                            <div class="status-item">
+                                <label>Database Connection:</label>
+                                <span id="dbStatus">Checking...</span>
+                            </div>
+                            <div class="status-item">
+                                <label>Offline Mode:</label>
+                                <span id="offlineStatus">Checking...</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Test Actions -->
+                    <div class="test-actions">
+                        <h3>Test Actions</h3>
+                        <div class="button-group">
+                            <button id="testConnection" class="btn btn-primary">Test Connection</button>
+                            <button id="retryConnection" class="btn btn-warning">Retry Connection</button>
+                            <button id="enableOffline" class="btn btn-info">Enable Offline Mode</button>
+                            <button id="checkStatus" class="btn btn-success">Check Status</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Test Results -->
+                    <div class="test-results">
+                        <h3>Test Results</h3>
+                        <div id="testOutput" class="output-area">
+                            <p>Click "Test Connection" to start testing...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Manual Test -->
+                    <div class="manual-test">
+                        <h3>Manual Database Test</h3>
+                        <p>Test a simple database query:</p>
+                        <button id="testQuery" class="btn btn-secondary">Test Database Query</button>
+                        <div id="queryResult" class="query-result"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 페이지 로드 시 초기 상태 확인
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔍 Connection test page loaded');
+            updateAllStatuses();
+            
+            // 이벤트 리스너 설정
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('testConnection').addEventListener('click', testConnection);
+            document.getElementById('retryConnection').addEventListener('click', retryConnection);
+            document.getElementById('enableOffline').addEventListener('click', enableOffline);
+            document.getElementById('checkStatus').addEventListener('click', checkStatus);
+            document.getElementById('testQuery').addEventListener('click', testQuery);
+        }
+
+        async function testConnection() {
+            const output = document.getElementById('testOutput');
+            output.innerHTML = '<p>🔄 Testing connection...</p>';
+            
+            try {
+                // Supabase 라이브러리 확인
+                if (typeof window.supabase === 'undefined') {
+                    output.innerHTML = '<p>❌ Supabase library not loaded</p>';
+                    return;
+                }
+                
+                output.innerHTML += '<p>✅ Supabase library loaded</p>';
+                
+                // 클라이언트 초기화 확인
+                if (window.initializeSupabase) {
+                    const initialized = window.initializeSupabase();
+                    output.innerHTML += `<p>${initialized ? '✅' : '❌'} Client initialization: ${initialized ? 'Success' : 'Failed'}</p>`;
+                }
+                
+                // 연결 테스트
+                if (window.checkSupabaseConnection) {
+                    const connected = await window.checkSupabaseConnection();
+                    output.innerHTML += `<p>${connected ? '✅' : '❌'} Database connection: ${connected ? 'Success' : 'Failed'}</p>`;
+                }
+                
+                // 상태 업데이트
+                updateAllStatuses();
+                
+            } catch (error) {
+                output.innerHTML += `<p>❌ Test failed: ${error.message}</p>`;
+                console.error('Test failed:', error);
+            }
+        }
+
+        async function retryConnection() {
+            const output = document.getElementById('testOutput');
+            output.innerHTML = '<p>🔄 Attempting to reconnect...</p>';
+            
+            try {
+                if (window.attemptReconnection) {
+                    const reconnected = await window.attemptReconnection();
+                    output.innerHTML += `<p>${reconnected ? '✅' : '❌'} Reconnection: ${reconnected ? 'Success' : 'Failed'}</p>`;
+                } else {
+                    output.innerHTML += '<p>❌ Reconnection function not available</p>';
+                }
+                
+                updateAllStatuses();
+                
+            } catch (error) {
+                output.innerHTML += `<p>❌ Reconnection failed: ${error.message}</p>`;
+            }
+        }
+
+        function enableOffline() {
+            const output = document.getElementById('testOutput');
+            
+            if (window.enableOfflineMode) {
+                window.enableOfflineMode();
+                output.innerHTML = '<p>⚠️ Offline mode enabled</p>';
+                updateAllStatuses();
+            } else {
+                output.innerHTML = '<p>❌ Offline mode function not available</p>';
+            }
+        }
+
+        function checkStatus() {
+            const output = document.getElementById('testOutput');
+            
+            if (window.getConnectionStatus) {
+                const status = window.getConnectionStatus();
+                output.innerHTML = `
+                    <h4>Connection Status:</h4>
+                    <ul>
+                        <li>Connected: ${status.isConnected ? 'Yes' : 'No'}</li>
+                        <li>Offline: ${status.isOffline ? 'Yes' : 'No'}</li>
+                        <li>Pending Uploads: ${status.pendingUploads}</li>
+                        <li>Last Sync: ${status.lastSyncTime || 'Never'}</li>
+                    </ul>
+                `;
+            } else {
+                output.innerHTML = '<p>❌ Status function not available</p>';
+            }
+        }
+
+        async function testQuery() {
+            const resultDiv = document.getElementById('queryResult');
+            resultDiv.innerHTML = '<p>🔄 Testing database query...</p>';
+            
+            try {
+                if (window.supabase && typeof window.supabase.from === 'function') {
+                    const { data, error } = await window.supabase
+                        .from('vwtm_list_data')
+                        .select('count', { count: 'exact', head: true })
+                        .limit(1);
+                    
+                    if (error) {
+                        resultDiv.innerHTML = `<p>❌ Query failed: ${error.message}</p>`;
+                    } else {
+                        resultDiv.innerHTML = `<p>✅ Query successful: ${data ? 'Data received' : 'No data'}</p>`;
+                    }
+                } else {
+                    resultDiv.innerHTML = '<p>❌ Supabase client not available</p>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p>❌ Query error: ${error.message}</p>`;
+            }
+        }
+
+        function updateAllStatuses() {
+            // Supabase 라이브러리 상태
+            const libraryStatus = document.getElementById('libraryStatus');
+            libraryStatus.textContent = typeof window.supabase !== 'undefined' ? '✅ Loaded' : '❌ Not loaded';
+            
+            // 클라이언트 상태
+            const clientStatus = document.getElementById('clientStatus');
+            clientStatus.textContent = window.supabase && typeof window.supabase.from === 'function' ? '✅ Initialized' : '❌ Not initialized';
+            
+            // 데이터베이스 연결 상태
+            const dbStatus = document.getElementById('dbStatus');
+            if (window.getConnectionStatus) {
+                const status = window.getConnectionStatus();
+                dbStatus.textContent = status.isConnected ? '✅ Connected' : '❌ Disconnected';
+            } else {
+                dbStatus.textContent = '❓ Unknown';
+            }
+            
+            // 오프라인 모드 상태
+            const offlineStatus = document.getElementById('offlineStatus');
+            if (window.getConnectionStatus) {
+                const status = window.getConnectionStatus();
+                offlineStatus.textContent = status.isOffline ? '⚠️ Enabled' : '✅ Disabled';
+            } else {
+                offlineStatus.textContent = '❓ Unknown';
+            }
+        }
+    </script>
+
+    <style>
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .test-container h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .connection-status, .test-actions, .test-results, .manual-test {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .status-item label {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .output-area {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            min-height: 100px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+
+        .query-result {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            min-height: 50px;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #5a6268;
+        }
+    </style>
+</body>
+</html>
