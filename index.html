@@ -2239,7 +2239,7 @@
                  if (a.part_number !== b.part_number) {
                    return a.part_number.localeCompare(b.part_number);
                  }
-                 return a.id - b.id;
+                 return (a.sequence_number || 0) - (b.sequence_number || 0);
                });
                
                const sortedData = [...sortedValidItems, ...invalidItems];
@@ -2274,7 +2274,7 @@
                  tableHTML += `
                    <tr class="${rowClass}" data-index="${sortedData.indexOf(item)}">
                      <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                       ${item.id < 0 ? `NEW (${Math.abs(item.id)})` : item.id}
+                       ${item.sequence_number || 'NEW'}
                      </td>
                      <td class="px-3 py-2 whitespace-nowrap">
                        <select class="px-2 py-1 text-sm border border-gray-300 rounded" onchange="updateScheduleData(${sortedData.indexOf(item)}, 'part_number', this.value)">
@@ -2335,52 +2335,33 @@
              }
 
              // Admin 스케줄 데이터 로드 (Supabase + Mock)
-             async function loadAdminScheduleData() {
-               try {
-                 if (window.supabase && typeof window.supabase.from === 'function') {
-                   const { data, error } = await window.supabase
-                     .from('packaging_schedule')
-                     .select('*')
-                     .eq('date', window.adminSelectedDate)
-                     .order('id', { ascending: true });
-                   
-                   if (error) throw error;
-                   window.adminScheduleData = data || [];
-                   console.log('✅ Admin schedule data loaded from Supabase');
-                 } else {
-                   console.log('⚠️ Supabase not available, using mock data');
-                   loadAdminMockData();
-                 }
-                 
-                 renderAdminTable();
-                 updateAdminStatistics();
-               } catch (error) {
-                 console.error('Error loading admin schedule data:', error);
-                 console.log('🔄 Falling back to mock data...');
-                 loadAdminMockData();
-                 renderAdminTable();
-                 updateAdminStatistics();
-               }
-             }
+            async function loadAdminScheduleData() {
+              try {
+                if (!window.supabase || typeof window.supabase.from !== 'function') {
+                  throw new Error('Supabase not available');
+                }
+                
+                const { data, error } = await window.supabase
+                  .from('packaging_schedule')
+                  .select('*')
+                  .eq('date', window.adminSelectedDate)
+                  .order('sequence_number', { ascending: true });
+                
+                if (error) throw error;
+                window.adminScheduleData = data || [];
+                console.log('✅ Admin schedule data loaded from Supabase:', window.adminScheduleData);
+                
+                renderAdminTable();
+                updateAdminStatistics();
+              } catch (error) {
+                console.error('Error loading admin schedule data:', error);
+                alert('데이터를 불러올 수 없습니다. Supabase 연결을 확인해주세요.');
+                window.adminScheduleData = [];
+                renderAdminTable();
+                updateAdminStatistics();
+              }
+            }
 
-             // Admin Mock 데이터 로드
-             function loadAdminMockData() {
-               window.adminScheduleData = [
-                 { id: 1, part_number: '24', start_time: '09:00', end_time: '10:00', note: '', gap_reason: '', date: window.adminSelectedDate },
-                 { id: 2, part_number: '24', start_time: '10:00', end_time: '11:00', note: '', gap_reason: '', date: window.adminSelectedDate },
-                 { id: 3, part_number: '24', start_time: '11:00', end_time: '12:00', note: '', gap_reason: '', date: window.adminSelectedDate },
-                 { id: 4, part_number: '33', start_time: '13:00', end_time: '14:00', note: '', gap_reason: '', date: window.adminSelectedDate },
-                 { id: 5, part_number: '33', start_time: '14:00', end_time: '15:00', note: '', gap_reason: '', date: window.adminSelectedDate },
-                 { id: 6, part_number: '34', start_time: '15:00', end_time: '16:00', note: '', gap_reason: '', date: window.adminSelectedDate },
-                 { id: 7, part_number: '34', start_time: '16:00', end_time: '17:00', note: '', gap_reason: '', date: window.adminSelectedDate },
-                 { id: 8, part_number: '35', start_time: '17:00', end_time: '18:00', note: '', gap_reason: '', date: window.adminSelectedDate },
-                 { id: 9, part_number: '79', start_time: '18:00', end_time: '19:00', note: '', gap_reason: '', date: window.adminSelectedDate },
-                 { id: 10, part_number: '80', start_time: '19:00', end_time: '20:00', note: '', gap_reason: '', date: window.adminSelectedDate }
-               ];
-               
-               renderAdminTable();
-               updateAdminStatistics();
-             }
 
              // 상태 자동 계산
              function calculateStatus(item) {
@@ -2504,23 +2485,24 @@
              }
 
              // Admin 함수들
-             function addNewRow() {
-               console.log('🔄 Adding new row...');
-               console.log('Current data before adding:', window.adminScheduleData);
-               
-               // 임시 ID 생성 (음수로 시작해서 고유성 보장)
-               const tempId = -(Date.now() % 1000000); // 현재 시간 기반 임시 ID
-               
-               const newRow = {
-                 id: tempId, // 임시 ID
-                 part_number: '',
-                 start_time: '',
-                 end_time: '',
-                 note: '',
-                 gap_reason: '',
-                 date: window.adminSelectedDate,
-                 isNew: true // 새로 추가된 행임을 표시
-               };
+            function addNewRow() {
+              console.log('🔄 Adding new row...');
+              console.log('Current data before adding:', window.adminScheduleData);
+              
+              // 다음 시퀀스 번호 생성
+              const maxSeq = Math.max(0, ...window.adminScheduleData.map(item => item.sequence_number || 0));
+              const nextSequenceNumber = maxSeq + 1;
+              
+              const newRow = {
+                date: window.adminSelectedDate,
+                sequence_number: nextSequenceNumber,
+                part_number: '',
+                start_time: '',
+                end_time: '',
+                note: '',
+                gap_reason: '',
+                isNew: true // 새로 추가된 행임을 표시
+              };
                
                window.adminScheduleData.push(newRow);
                console.log('New row added:', newRow);
@@ -2537,58 +2519,60 @@
                }, 1000); // 1초 후 자동 저장
              }
 
-             // 자동 저장 함수 (알림 없이 조용히 저장)
-             async function autoSaveSchedule() {
-               try {
-                 // 파트가 선택된 항목만 필터링
-                 const validData = window.adminScheduleData.filter(item => 
-                   item.part_number && item.part_number.trim() !== ''
-                 );
-                 
-                 if (validData.length === 0) {
-                   console.log('⚠️ No valid data to save');
-                   return;
-                 }
-                 
-                 if (window.supabase && typeof window.supabase.from === 'function') {
-                   // 기존 데이터 삭제
-                   const { error: deleteError } = await window.supabase
-                     .from('packaging_schedule')
-                     .delete()
-                     .eq('date', window.adminSelectedDate);
-                   
-                   if (deleteError) throw deleteError;
-                   
-                   // 새 데이터 삽입
-                   const { data: insertedData, error: insertError } = await window.supabase
-                     .from('packaging_schedule')
-                     .insert(validData.map(item => ({
-                       date: window.adminSelectedDate,
-                       part_number: item.part_number,
-                       start_time: item.start_time || null,
-                       end_time: item.end_time || null,
-                       status: item.status || 'waiting',
-                       note: item.note || '',
-                       gap_reason: item.gap_reason || ''
-                     })))
-                     .select();
-                   
-                   if (insertError) throw insertError;
-                   
-                   // 저장된 데이터로 로컬 데이터 업데이트
-                   if (insertedData && insertedData.length > 0) {
-                     window.adminScheduleData = insertedData;
-                     console.log('✅ Auto-saved successfully:', window.adminScheduleData);
-                   }
-                 } else {
-                   console.log('⚠️ Supabase not available, auto-save skipped');
-                 }
-                 
-                 updateAdminStatistics();
-               } catch (error) {
-                 console.error('Error auto-saving schedule:', error);
-               }
-             }
+            // 자동 저장 함수 (알림 없이 조용히 저장)
+            async function autoSaveSchedule() {
+              try {
+                // 파트가 선택된 항목만 필터링
+                const validData = window.adminScheduleData.filter(item => 
+                  item.part_number && item.part_number.trim() !== ''
+                );
+                
+                if (validData.length === 0) {
+                  console.log('⚠️ No valid data to save');
+                  return;
+                }
+                
+                if (!window.supabase || typeof window.supabase.from !== 'function') {
+                  console.log('⚠️ Supabase not available, auto-save skipped');
+                  return;
+                }
+                
+                // 기존 데이터 삭제
+                const { error: deleteError } = await window.supabase
+                  .from('packaging_schedule')
+                  .delete()
+                  .eq('date', window.adminSelectedDate);
+                
+                if (deleteError) throw deleteError;
+                
+                // 새 데이터 삽입 (sequence_number 포함)
+                const { data: insertedData, error: insertError } = await window.supabase
+                  .from('packaging_schedule')
+                  .insert(validData.map(item => ({
+                    date: item.date || window.adminSelectedDate,
+                    sequence_number: item.sequence_number,
+                    part_number: item.part_number,
+                    start_time: item.start_time || null,
+                    end_time: item.end_time || null,
+                    status: item.status || 'waiting',
+                    note: item.note || '',
+                    gap_reason: item.gap_reason || ''
+                  })))
+                  .select();
+                
+                if (insertError) throw insertError;
+                
+                // 저장된 데이터로 로컬 데이터 업데이트
+                if (insertedData && insertedData.length > 0) {
+                  window.adminScheduleData = insertedData;
+                  console.log('✅ Auto-saved successfully:', window.adminScheduleData);
+                }
+                
+                updateAdminStatistics();
+              } catch (error) {
+                console.error('Error auto-saving schedule:', error);
+              }
+            }
 
              async function saveSchedule() {
                // 파트가 선택된 항목만 필터링
@@ -2602,46 +2586,44 @@
                }
                
                try {
-                 if (window.supabase && typeof window.supabase.from === 'function') {
-                   // 기존 데이터 삭제
-                   const { error: deleteError } = await window.supabase
-                     .from('packaging_schedule')
-                     .delete()
-                     .eq('date', window.adminSelectedDate);
-                   
-                   if (deleteError) throw deleteError;
-                   
-                   // 새 데이터 삽입
-                   const { data: insertedData, error: insertError } = await window.supabase
-                     .from('packaging_schedule')
-                     .insert(validData.map(item => ({
-                       date: window.adminSelectedDate,
-                       part_number: item.part_number,
-                       start_time: item.start_time || null,
-                       end_time: item.end_time || null,
-                       status: item.status || 'waiting',
-                       note: item.note || '',
-                       gap_reason: item.gap_reason || ''
-                     })))
-                     .select();
-                   
-                   if (insertError) throw insertError;
-                   
-                   // 저장된 데이터로 로컬 데이터 업데이트
-                   if (insertedData && insertedData.length > 0) {
-                     window.adminScheduleData = insertedData;
-                     console.log('✅ Local data updated with new IDs:', window.adminScheduleData);
-                   }
-                   
-                   console.log('✅ Schedule saved to Supabase');
-                   alert(`스케줄이 성공적으로 저장되었습니다. (${validData.length}개 항목)`);
-                 } else {
-                   console.log('⚠️ Supabase not available, saving locally only');
-                   alert(`스케줄이 로컬에 저장되었습니다. (${validData.length}개 항목)`);
+                 if (!window.supabase || typeof window.supabase.from !== 'function') {
+                   throw new Error('Supabase not available');
                  }
                  
+                 // 기존 데이터 삭제
+                 const { error: deleteError } = await window.supabase
+                   .from('packaging_schedule')
+                   .delete()
+                   .eq('date', window.adminSelectedDate);
+                 
+                 if (deleteError) throw deleteError;
+                 
+                 // 새 데이터 삽입 (sequence_number 포함)
+                 const { data: insertedData, error: insertError } = await window.supabase
+                   .from('packaging_schedule')
+                   .insert(validData.map(item => ({
+                     date: item.date || window.adminSelectedDate,
+                     sequence_number: item.sequence_number,
+                     part_number: item.part_number,
+                     start_time: item.start_time || null,
+                     end_time: item.end_time || null,
+                     status: item.status || 'waiting',
+                     note: item.note || '',
+                     gap_reason: item.gap_reason || ''
+                   })))
+                   .select();
+                 
+                 if (insertError) throw insertError;
+                 
+                 // 저장된 데이터로 로컬 데이터 업데이트
+                 if (insertedData && insertedData.length > 0) {
+                   window.adminScheduleData = insertedData;
+                   console.log('✅ Local data updated with saved data:', window.adminScheduleData);
+                 }
+                 
+                 console.log('✅ Schedule saved to Supabase');
+                 alert(`스케줄이 성공적으로 저장되었습니다. (${validData.length}개 항목)`);
                  updateAdminStatistics();
-                 console.log('Schedule saved:', window.adminScheduleData);
                } catch (error) {
                  console.error('Error saving schedule:', error);
                  alert('스케줄 저장 중 오류가 발생했습니다: ' + error.message);
