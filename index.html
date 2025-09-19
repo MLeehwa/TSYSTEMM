@@ -8,8 +8,53 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.6/dist/umd/supabase.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/handsontable@13.0.0/dist/handsontable.full.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable@13.0.0/dist/handsontable.full.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/handsontable@latest/dist/handsontable.full.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable@latest/dist/handsontable.full.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+    
+    .digital-clock {
+      font-family: 'Orbitron', monospace;
+      font-weight: 900;
+    }
+    
+    .timer-display {
+      font-family: 'Orbitron', monospace;
+      font-weight: 700;
+    }
+    
+    .pulse {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .5; }
+    }
+    
+    .progress-bar {
+      background: linear-gradient(90deg, #10b981, #059669);
+      transition: width 0.3s ease;
+    }
+    
+    .status-active {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      border: 2px solid #10b981;
+    }
+    
+    .status-waiting {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: white;
+      border: 2px solid #f59e0b;
+    }
+    
+    .status-completed {
+      background: linear-gradient(135deg, #6b7280, #4b5563);
+      color: white;
+      border: 2px solid #6b7280;
+    }
+  </style>
 </head>
 <body class="bg-gray-50">
   <div class="flex h-screen">
@@ -54,6 +99,26 @@
                 <li><button onclick="loadPage('pages/truck/management.html')" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
                   <span class="text-lg mr-3">🚛</span>
                   Truck Management
+                </button></li>
+              </ul>
+            </li>
+            
+            <li class="pt-4">
+              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-4">
+                Packaging Schedule
+              </div>
+              <ul class="space-y-1 ml-2">
+                <li><button onclick="loadPage('pages/schedule/display.html')" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
+                  <span class="text-lg mr-3">📺</span>
+                  Live Display
+                </button></li>
+                <li><button onclick="loadPage('pages/schedule/admin.html')" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
+                  <span class="text-lg mr-3">⚙️</span>
+                  Admin Schedule
+                </button></li>
+                <li><button onclick="loadPage('pages/schedule/supervisor.html')" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
+                  <span class="text-lg mr-3">👨‍💼</span>
+                  Supervisor Control
                 </button></li>
               </ul>
             </li>
@@ -126,9 +191,9 @@
       if (typeof supabase !== 'undefined') {
         try {
           sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        window.sb = sb;
-          window.supabase = supabase; // 전역 접근을 위해
-        console.log('✅ Supabase 클라이언트 생성 완료');
+          window.sb = sb;
+          window.supabase = sb; // 클라이언트 인스턴스를 전역에 할당
+          console.log('✅ Supabase 클라이언트 생성 완료');
         } catch (error) {
           console.error('❌ Supabase 클라이언트 생성 실패:', error);
         }
@@ -158,6 +223,12 @@
                    pageTitle.textContent = 'Packaging Analysis';
                  } else if (path.includes('management.html')) {
                    pageTitle.textContent = 'Truck Management';
+                 } else if (path.includes('schedule/display.html')) {
+                   pageTitle.textContent = 'Packaging Schedule - Live Display';
+                 } else if (path.includes('schedule/admin.html')) {
+                   pageTitle.textContent = 'Packaging Schedule - Admin';
+                 } else if (path.includes('schedule/supervisor.html')) {
+                   pageTitle.textContent = 'Packaging Schedule - Supervisor';
                  } else {
                    pageTitle.textContent = 'TM System';
                  }
@@ -520,6 +591,311 @@
                      </div>
                    </div>
                  `;
+              } else if (path === 'pages/schedule/display.html') {
+                // Live Display 페이지 - 인라인으로 구현
+                document.getElementById('mainContent').innerHTML = `
+                  <div class="h-screen p-4 bg-gray-900 text-white overflow-hidden">
+                    <!-- Header -->
+                    <div class="text-center mb-4">
+                      <h2 class="text-3xl font-semibold text-blue-300 mb-1">PACKAGING SCHEDULE STATUS</h2>
+                    </div>
+
+                    <!-- Current Status Card -->
+                    <div class="bg-gray-800 rounded-xl shadow-xl p-6 mb-4">
+                      <div class="text-center">
+                        <h3 class="text-3xl font-bold mb-6 text-green-300">CURRENT PROGRESS</h3>
+                        <div class="grid grid-cols-3 gap-6">
+                          <!-- Current NO -->
+                          <div class="bg-gray-700 rounded-lg p-6 border-2 border-gray-600 flex items-center justify-center">
+                            <div class="text-8xl font-bold text-yellow-300" id="currentId">-</div>
+                          </div>
+                          
+                          <!-- Current Part -->
+                          <div class="bg-gray-700 rounded-lg p-6 border-2 border-gray-600 flex items-center justify-center">
+                            <div class="text-8xl font-bold text-blue-300" id="currentPart">-</div>
+                          </div>
+                          
+                          <!-- Elapsed Time -->
+                          <div class="bg-gray-700 rounded-lg p-6 border-2 border-gray-600 flex items-center justify-center">
+                            <div class="text-8xl font-bold text-red-300 timer-display" id="elapsedTime">00:00:00</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Today's Schedule -->
+                    <div class="bg-gray-800 rounded-xl shadow-xl p-4 border border-gray-600 flex-1 overflow-hidden">
+                      <h3 class="text-xl font-bold mb-3 text-center text-blue-300">TODAY'S SCHEDULE</h3>
+                      <div class="h-full overflow-y-auto" id="scheduleList">
+                        <!-- Schedule items will be populated here -->
+                      </div>
+                    </div>
+                  </div>
+                `;
+                
+                // Live Display 페이지 초기화
+                console.log('📺 Live Display page HTML loaded, scheduling initialization...');
+                setTimeout(() => {
+                  console.log('⏰ Live Display page initialization timeout triggered');
+                  initializeDisplayPage();
+                }, 100);
+               } else if (path === 'pages/schedule/admin.html') {
+                 // Admin 페이지 - 인라인으로 구현
+                 document.getElementById('mainContent').innerHTML = `
+                   <div class="h-screen flex flex-col p-4">
+                     <!-- Header -->
+                     <div class="bg-white rounded-lg shadow-sm border p-4 mb-4">
+                       <div class="flex justify-between items-center">
+                         <div>
+                           <h1 class="text-2xl font-bold text-gray-900">포장 스케줄 관리</h1>
+                           <p class="text-gray-600 text-sm">Packaging Schedule Administration</p>
+                         </div>
+                         <div class="flex space-x-2">
+                           <button onclick="refreshData()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+                             🔄 새로고침
+                           </button>
+                         </div>
+                       </div>
+                     </div>
+
+                     <!-- Date Selector and Statistics -->
+                     <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
+                       <!-- Date Selector -->
+                       <div class="bg-white rounded-lg shadow-sm border p-4">
+                         <div class="space-y-2">
+                           <label class="text-sm font-semibold text-gray-700">날짜 선택</label>
+                           <div class="flex space-x-2">
+                             <input type="date" id="dateSelector" class="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1" onchange="loadScheduleForDate()">
+                             <button onclick="loadTodaySchedule()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-semibold">
+                               오늘
+                             </button>
+                           </div>
+                         </div>
+                       </div>
+
+                       <!-- Statistics Cards -->
+                       <div class="bg-white rounded-lg shadow-sm border p-4">
+                         <div class="text-2xl font-bold text-blue-600" id="totalRounds">0</div>
+                         <div class="text-sm text-gray-600">총 차수</div>
+                       </div>
+                       <div class="bg-white rounded-lg shadow-sm border p-4">
+                         <div class="text-2xl font-bold text-green-600" id="completedRounds">0</div>
+                         <div class="text-sm text-gray-600">완료된 차수</div>
+                       </div>
+                       <div class="bg-white rounded-lg shadow-sm border p-4">
+                         <div class="text-2xl font-bold text-yellow-600" id="activeRounds">0</div>
+                         <div class="text-sm text-gray-600">진행 중인 차수</div>
+                       </div>
+                     </div>
+
+                     <!-- Schedule Management -->
+                     <div class="bg-white rounded-lg shadow-sm border flex-1 flex flex-col">
+                       <div class="p-4 border-b border-gray-200">
+                         <div class="flex justify-between items-center">
+                           <div>
+                             <h2 class="text-xl font-bold text-gray-900">스케줄 편집 테이블</h2>
+                             <p class="text-gray-600 text-sm">차수별 파트 스케줄을 관리하세요</p>
+                           </div>
+                           <div class="flex space-x-2">
+                             <button onclick="addNewRow()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-semibold">
+                               + 행 추가
+                             </button>
+                             <button onclick="saveSchedule()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-semibold">
+                               💾 저장
+                             </button>
+                             <button onclick="loadScheduleToTable()" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg text-sm font-semibold">
+                               🔄 새로고침
+                             </button>
+                           </div>
+                         </div>
+                       </div>
+                       
+                       <div class="flex-1 p-4">
+                         <div id="scheduleTable" class="h-full border border-gray-300 rounded-lg">
+                           <div class="flex items-center justify-center h-full text-gray-500">
+                             <div class="text-center">
+                               <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                               <p>테이블 로딩 중...</p>
+                             </div>
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+
+                     <!-- 시간 수정 모달 -->
+                     <div id="timeEditModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+                       <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+                         <h3 class="text-xl font-bold text-gray-900 mb-4">시간 수정</h3>
+                         <div class="space-y-4">
+                           <div>
+                             <label class="block text-sm font-medium text-gray-700 mb-2">시작 시간</label>
+                             <input type="time" id="editStartTime" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                           </div>
+                           <div>
+                             <label class="block text-sm font-medium text-gray-700 mb-2">종료 시간</label>
+                             <input type="time" id="editEndTime" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                           </div>
+                         </div>
+                         <div class="flex justify-end space-x-2 mt-6">
+                           <button onclick="closeTimeEditModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800">취소</button>
+                           <button onclick="saveTimeEdit()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">저장</button>
+                         </div>
+                       </div>
+                     </div>
+
+                     <!-- Hidden schedule container for compatibility -->
+                     <div id="scheduleContainer" style="display: none;"></div>
+                   </div>
+                 `;
+                 
+                 // Admin 페이지 초기화 (DOM이 완전히 로드된 후 실행)
+                 console.log('📋 Admin page HTML loaded, scheduling initialization...');
+                 setTimeout(() => {
+                   console.log('⏰ Admin page initialization timeout triggered');
+                   initializeAdminPage();
+                 }, 100);
+               } else if (path === 'pages/schedule/supervisor.html') {
+                 // Supervisor 페이지 - 인라인으로 구현
+                 document.getElementById('mainContent').innerHTML = `
+                   <div class="h-screen flex flex-col p-2 bg-gray-50">
+                     <!-- Header -->
+                     <div class="bg-white rounded-lg shadow-sm border p-3 mb-2">
+                       <div class="flex justify-between items-center">
+                         <div>
+                           <h1 class="text-xl font-bold text-gray-900" id="supervisorTitle">Packaging Work Management</h1>
+                           <p class="text-gray-600 text-sm" id="supervisorSubtitle">Supervisor Control Panel</p>
+                         </div>
+                         <div class="flex items-center space-x-3">
+                           <!-- Language Selector -->
+                           <div class="flex space-x-1">
+                             <button onclick="setSupervisorLanguage('en')" id="langEn" class="px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800 border border-blue-300">EN</button>
+                             <button onclick="setSupervisorLanguage('es')" id="langEs" class="px-2 py-1 text-xs font-semibold rounded bg-gray-100 text-gray-600 border border-gray-300">ES</button>
+                           </div>
+                           <div class="text-right">
+                             <div class="text-xs text-gray-500" id="currentTimeLabel">Current Time</div>
+                             <div class="text-lg font-bold text-blue-600" id="currentTime">00:00:00</div>
+                           </div>
+                           <button onclick="refreshSupervisorData()" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm font-semibold">
+                             🔄
+                           </button>
+                         </div>
+                       </div>
+                     </div>
+
+                     <!-- Current Status -->
+                     <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 mb-2">
+                       <div class="bg-white rounded-lg shadow-sm border p-3">
+                         <div class="text-xs text-gray-600 mb-1" id="todayDateLabel">Today's Date</div>
+                         <div class="text-lg font-bold text-blue-600" id="todayDate">-</div>
+                       </div>
+                       <div class="bg-white rounded-lg shadow-sm border p-3">
+                         <div class="text-xs text-gray-600 mb-1" id="currentIdLabel">Current ID</div>
+                         <div class="text-lg font-bold text-blue-600" id="currentRound">-</div>
+                       </div>
+                       <div class="bg-white rounded-lg shadow-sm border p-3">
+                         <div class="text-xs text-gray-600 mb-1" id="currentPartLabel">Current Part</div>
+                         <div class="text-lg font-bold text-green-600" id="currentPart">-</div>
+                       </div>
+                       <div class="bg-white rounded-lg shadow-sm border p-3">
+                         <div class="text-xs text-gray-600 mb-1" id="elapsedTimeLabel">Elapsed Time</div>
+                         <div class="text-lg font-bold text-red-600 timer-display" id="elapsedTime">00:00:00</div>
+                       </div>
+                     </div>
+
+                     <!-- Main Content -->
+                     <div class="flex-1 flex flex-col">
+                       <!-- ID Selection -->
+                       <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-md border-2 border-blue-200 p-4 mb-2">
+                         <h2 class="text-lg font-bold text-blue-800 mb-3 flex items-center" id="idSelectionTitle">
+                           <span class="mr-2">🎯</span>
+                           Task ID Selection
+                         </h2>
+                         <div class="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-9 gap-2" id="idSelector">
+                           <!-- ID buttons will be populated here -->
+                         </div>
+                       </div>
+
+                       <!-- Selected Task Control -->
+                       <div class="bg-white rounded-lg shadow-sm border p-4 mb-2" id="taskControl" style="display: none;">
+                         <h2 class="text-lg font-bold text-gray-900 mb-3" id="taskControlTitle">Selected Task Control</h2>
+                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <!-- Task Info -->
+                           <div class="space-y-3">
+                             <div class="bg-gray-50 rounded-lg p-3">
+                               <div class="text-sm text-gray-600 mb-1" id="selectedIdLabel">Selected ID</div>
+                               <div class="text-xl font-bold text-blue-600" id="selectedId">-</div>
+                             </div>
+                             <div class="bg-gray-50 rounded-lg p-3">
+                               <div class="text-sm text-gray-600 mb-1" id="selectedPartLabel">Part Number</div>
+                               <div class="text-xl font-bold text-green-600" id="selectedPart">-</div>
+                             </div>
+                             <div class="bg-gray-50 rounded-lg p-3">
+                               <div class="text-sm text-gray-600 mb-1" id="currentStatusLabel">Current Status</div>
+                               <div class="text-xl font-bold" id="selectedStatus">-</div>
+                             </div>
+                           </div>
+                           
+                           <!-- Control Buttons -->
+                           <div class="space-y-3">
+                             <div class="bg-gray-50 rounded-lg p-3">
+                               <div class="text-sm text-gray-600 mb-2" id="workControlLabel">Work Control</div>
+                               <div class="space-y-2">
+                                 <button id="startWorkBtn" onclick="startSelectedWork()" 
+                                         class="w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-lg transition-all disabled:bg-gray-300 disabled:cursor-not-allowed">
+                                   <span id="startWorkText">🚀 Start Work</span>
+                                 </button>
+                                 <button id="endWorkBtn" onclick="endSelectedWork()" 
+                                         class="w-full px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-lg transition-all disabled:bg-gray-300 disabled:cursor-not-allowed">
+                                   <span id="endWorkText">⏹️ End Work</span>
+                                 </button>
+                               </div>
+                             </div>
+                             <div class="bg-gray-50 rounded-lg p-3">
+                               <div class="text-sm text-gray-600 mb-1" id="startTimeLabel">Start Time</div>
+                               <div class="text-lg font-bold text-gray-900" id="selectedStartTime">-</div>
+                             </div>
+                             <div class="bg-gray-50 rounded-lg p-3">
+                               <div class="text-sm text-gray-600 mb-1" id="endTimeLabel">End Time</div>
+                               <div class="text-lg font-bold text-gray-900" id="selectedEndTime">-</div>
+                             </div>
+                           </div>
+                         </div>
+                       </div>
+
+                       <!-- Today's Schedule Table -->
+                       <div class="bg-white rounded-lg shadow-sm border flex-1 flex flex-col">
+                         <div class="p-3 border-b border-gray-200">
+                           <h2 class="text-lg font-bold text-gray-900" id="scheduleTableTitle">Today's Schedule</h2>
+                         </div>
+                         <div class="flex-1 overflow-hidden">
+                           <div class="h-full overflow-y-auto">
+                             <table class="w-full text-sm">
+                               <thead class="sticky top-0 bg-gray-50">
+                                 <tr class="border-b border-gray-200">
+                                   <th class="text-left py-2 px-2 font-semibold text-gray-700">ID</th>
+                                   <th class="text-left py-2 px-2 font-semibold text-gray-700" id="partHeader">Part</th>
+                                   <th class="text-left py-2 px-2 font-semibold text-gray-700" id="startHeader">Start</th>
+                                   <th class="text-left py-2 px-2 font-semibold text-gray-700" id="endHeader">End</th>
+                                   <th class="text-left py-2 px-2 font-semibold text-gray-700" id="statusHeader">Status</th>
+                                 </tr>
+                               </thead>
+                               <tbody id="scheduleTable">
+                                 <!-- Schedule items will be populated here -->
+                               </tbody>
+                             </table>
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                 `;
+                 
+                 // Supervisor 페이지 초기화
+                 console.log('👨‍💼 Supervisor page HTML loaded, scheduling initialization...');
+                 setTimeout(() => {
+                   console.log('⏰ Supervisor page initialization timeout triggered');
+                   initializeSupervisorPage();
+                 }, 100);
                } else {
                  document.getElementById('mainContent').innerHTML = `
                    <div class="text-center p-8">
@@ -1817,6 +2193,1314 @@
                // 로컬과 동일하게 작동하도록 상대 경로 사용
                const statusUrl = './pages/truck/status.html';
                window.open(statusUrl, '_blank');
+             }
+
+             // Admin 페이지 초기화
+             function initializeAdminPage() {
+               console.log('🚀 Initializing Admin page...');
+               
+               // Admin 페이지 변수들
+               window.adminScheduleData = [];
+               window.adminSelectedDate = new Date().toISOString().split('T')[0];
+               
+               // 날짜 선택기 설정
+               const dateSelector = document.getElementById('dateSelector');
+               if (dateSelector) {
+                 dateSelector.value = window.adminSelectedDate;
+               }
+               
+               // 스케줄 데이터 로드 (Supabase + Mock)
+               loadAdminScheduleData();
+               
+               console.log('✅ Admin page initialization completed');
+             }
+
+             // Admin 테이블 렌더링
+             function renderAdminTable() {
+               const container = document.getElementById('scheduleTable');
+               if (!container) {
+                 console.error('❌ Schedule table container not found');
+                 return;
+               }
+               
+               console.log('🔨 Rendering Admin table...');
+               console.log('All schedule data:', window.adminScheduleData);
+               
+               // 모든 항목을 표시하되, 파트가 선택된 항목은 정렬하고 선택되지 않은 항목은 뒤에 표시
+               const validItems = window.adminScheduleData.filter(item => 
+                 item.part_number && item.part_number.trim() !== ''
+               );
+               const invalidItems = window.adminScheduleData.filter(item => 
+                 !item.part_number || item.part_number.trim() === ''
+               );
+               
+               const sortedValidItems = validItems.sort((a, b) => {
+                 if (a.part_number !== b.part_number) {
+                   return a.part_number.localeCompare(b.part_number);
+                 }
+                 return a.id - b.id;
+               });
+               
+               const sortedData = [...sortedValidItems, ...invalidItems];
+               
+               let tableHTML = `
+                 <div class="overflow-x-auto h-full">
+                   <table class="min-w-full divide-y divide-gray-200">
+                     <thead class="bg-gray-50">
+                       <tr>
+                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">파트</th>
+                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시작 시간</th>
+                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">종료 시간</th>
+                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">비고</th>
+                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작업</th>
+                       </tr>
+                     </thead>
+                     <tbody class="bg-white divide-y divide-gray-200">
+               `;
+               
+               sortedData.forEach((item, index) => {
+                 const status = calculateStatus(item);
+                 const statusColor = status === 'completed' ? 'bg-green-100 text-green-800' :
+                                   status === 'active' ? 'bg-yellow-100 text-yellow-800' :
+                                   'bg-gray-100 text-gray-800';
+                 
+                 const gapTime = calculateGapTime(item, sortedData, index);
+                 const isPartSelected = item.part_number && item.part_number.trim() !== '';
+                 const rowClass = isPartSelected ? 'hover:bg-gray-50' : 'bg-gray-100 hover:bg-gray-200';
+                 
+                 tableHTML += `
+                   <tr class="${rowClass}" data-index="${sortedData.indexOf(item)}">
+                     <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                       ${item.id < 0 ? `NEW (${Math.abs(item.id)})` : item.id}
+                     </td>
+                     <td class="px-3 py-2 whitespace-nowrap">
+                       <select class="px-2 py-1 text-sm border border-gray-300 rounded" onchange="updateScheduleData(${sortedData.indexOf(item)}, 'part_number', this.value)">
+                         <option value="" ${!item.part_number ? 'selected' : ''}>선택하세요</option>
+                         <option value="24" ${item.part_number === '24' ? 'selected' : ''}>24</option>
+                         <option value="33" ${item.part_number === '33' ? 'selected' : ''}>33</option>
+                         <option value="34" ${item.part_number === '34' ? 'selected' : ''}>34</option>
+                         <option value="35" ${item.part_number === '35' ? 'selected' : ''}>35</option>
+                         <option value="79" ${item.part_number === '79' ? 'selected' : ''}>79</option>
+                         <option value="80" ${item.part_number === '80' ? 'selected' : ''}>80</option>
+                         <option value="4GV3" ${item.part_number === '4GV3' ? 'selected' : ''}>4GV3</option>
+                         <option value="4GF8" ${item.part_number === '4GF8' ? 'selected' : ''}>4GF8</option>
+                         <option value="SWAP" ${item.part_number === 'SWAP' ? 'selected' : ''}>SWAP</option>
+                       </select>
+                     </td>
+                     <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                       ${item.start_time || '-'}
+                     </td>
+                     <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                       ${item.end_time || '-'}
+                     </td>
+                     <td class="px-3 py-2 whitespace-nowrap">
+                       <span class="px-2 py-1 text-xs font-semibold rounded-full ${isPartSelected ? statusColor : 'bg-gray-200 text-gray-600'}">
+                         ${isPartSelected ? (status === 'completed' ? '완료' : status === 'active' ? '진행중' : '대기') : '미선택'}
+                       </span>
+                     </td>
+                     <td class="px-3 py-2 whitespace-nowrap">
+                       <div class="flex items-center space-x-3">
+                         <input type="text" value="${item.note || ''}" placeholder="비고 입력" 
+                                class="w-40 px-3 py-2 text-sm border border-gray-300 rounded" 
+                                onchange="updateScheduleData(${sortedData.indexOf(item)}, 'note', this.value)">
+                         ${gapTime ? `
+                           <div class="flex items-center space-x-2">
+                             <span class="text-sm text-red-600 font-medium">${gapTime}</span>
+                             <input type="text" value="${item.gap_reason || ''}" placeholder="공백 이유" 
+                                    class="w-32 px-2 py-2 text-sm border border-gray-300 rounded" 
+                                    onchange="updateScheduleData(${sortedData.indexOf(item)}, 'gap_reason', this.value)">
+                           </div>
+                         ` : ''}
+                       </div>
+                     </td>
+                     <td class="px-3 py-2 whitespace-nowrap">
+                       <button onclick="openTimeEditModal(${sortedData.indexOf(item)})" class="text-blue-600 hover:text-blue-800 text-sm mr-2">수정</button>
+                       <button onclick="deleteScheduleRow(${sortedData.indexOf(item)})" class="text-red-600 hover:text-red-800 text-sm">삭제</button>
+                     </td>
+                   </tr>
+                 `;
+               });
+               
+               tableHTML += `
+                     </tbody>
+                   </table>
+                 </div>
+               `;
+               
+               container.innerHTML = tableHTML;
+               console.log('✅ Admin table rendered with', sortedData.length, 'rows');
+             }
+
+             // Admin 스케줄 데이터 로드 (Supabase + Mock)
+             async function loadAdminScheduleData() {
+               try {
+                 if (window.supabase && typeof window.supabase.from === 'function') {
+                   const { data, error } = await window.supabase
+                     .from('packaging_schedule')
+                     .select('*')
+                     .eq('date', window.adminSelectedDate)
+                     .order('id', { ascending: true });
+                   
+                   if (error) throw error;
+                   window.adminScheduleData = data || [];
+                   console.log('✅ Admin schedule data loaded from Supabase');
+                 } else {
+                   console.log('⚠️ Supabase not available, using mock data');
+                   loadAdminMockData();
+                 }
+                 
+                 renderAdminTable();
+                 updateAdminStatistics();
+               } catch (error) {
+                 console.error('Error loading admin schedule data:', error);
+                 console.log('🔄 Falling back to mock data...');
+                 loadAdminMockData();
+                 renderAdminTable();
+                 updateAdminStatistics();
+               }
+             }
+
+             // Admin Mock 데이터 로드
+             function loadAdminMockData() {
+               window.adminScheduleData = [
+                 { id: 1, part_number: '24', start_time: '09:00', end_time: '10:00', note: '', gap_reason: '', date: window.adminSelectedDate },
+                 { id: 2, part_number: '24', start_time: '10:00', end_time: '11:00', note: '', gap_reason: '', date: window.adminSelectedDate },
+                 { id: 3, part_number: '24', start_time: '11:00', end_time: '12:00', note: '', gap_reason: '', date: window.adminSelectedDate },
+                 { id: 4, part_number: '33', start_time: '13:00', end_time: '14:00', note: '', gap_reason: '', date: window.adminSelectedDate },
+                 { id: 5, part_number: '33', start_time: '14:00', end_time: '15:00', note: '', gap_reason: '', date: window.adminSelectedDate },
+                 { id: 6, part_number: '34', start_time: '15:00', end_time: '16:00', note: '', gap_reason: '', date: window.adminSelectedDate },
+                 { id: 7, part_number: '34', start_time: '16:00', end_time: '17:00', note: '', gap_reason: '', date: window.adminSelectedDate },
+                 { id: 8, part_number: '35', start_time: '17:00', end_time: '18:00', note: '', gap_reason: '', date: window.adminSelectedDate },
+                 { id: 9, part_number: '79', start_time: '18:00', end_time: '19:00', note: '', gap_reason: '', date: window.adminSelectedDate },
+                 { id: 10, part_number: '80', start_time: '19:00', end_time: '20:00', note: '', gap_reason: '', date: window.adminSelectedDate }
+               ];
+               
+               renderAdminTable();
+               updateAdminStatistics();
+             }
+
+             // 상태 자동 계산
+             function calculateStatus(item) {
+               if (item.start_time && item.end_time) {
+                 return 'completed';
+               } else if (item.start_time) {
+                 return 'active';
+               } else {
+                 return 'waiting';
+               }
+             }
+
+             // 시간 간격 계산
+             function calculateGapTime(item, sortedData, index) {
+               if (index === 0) return null;
+               
+               const prevItem = sortedData[index - 1];
+               if (!prevItem || prevItem.part_number !== item.part_number) return null;
+               
+               if (prevItem.end_time && item.start_time) {
+                 const prevEnd = new Date(`2000-01-01 ${prevItem.end_time}`);
+                 const currentStart = new Date(`2000-01-01 ${item.start_time}`);
+                 const diffMinutes = (currentStart - prevEnd) / (1000 * 60);
+                 
+                 if (diffMinutes > 0) {
+                   return `+${Math.round(diffMinutes)}분`;
+                 }
+               }
+               
+               return null;
+             }
+
+             // 시간 수정 모달 열기
+             function openTimeEditModal(index) {
+               window.currentEditIndex = index;
+               
+               const item = window.adminScheduleData[index];
+               const modal = document.getElementById('timeEditModal');
+               const startTimeInput = document.getElementById('editStartTime');
+               const endTimeInput = document.getElementById('editEndTime');
+               
+               startTimeInput.value = item.start_time || '';
+               endTimeInput.value = item.end_time || '';
+               
+               modal.classList.remove('hidden');
+               modal.classList.add('flex');
+             }
+
+             // 시간 수정 모달 닫기
+             function closeTimeEditModal() {
+               const modal = document.getElementById('timeEditModal');
+               modal.classList.add('hidden');
+               modal.classList.remove('flex');
+             }
+
+             // 시간 수정 저장
+             function saveTimeEdit() {
+               const index = window.currentEditIndex;
+               const startTime = document.getElementById('editStartTime').value;
+               const endTime = document.getElementById('editEndTime').value;
+               
+               window.adminScheduleData[index].start_time = startTime;
+               window.adminScheduleData[index].end_time = endTime;
+               
+               closeTimeEditModal();
+               renderAdminTable();
+               updateAdminStatistics();
+             }
+
+             // 스케줄 데이터 업데이트
+             function updateScheduleData(index, field, value) {
+               if (window.adminScheduleData[index]) {
+                 window.adminScheduleData[index][field] = value;
+                 
+                 console.log(`Updated schedule data [${index}].${field} = ${value}`);
+                 renderAdminTable();
+                 updateAdminStatistics();
+               }
+             }
+
+             // 스케줄 행 삭제
+             function deleteScheduleRow(index) {
+               if (confirm('이 행을 삭제하시겠습니까?')) {
+                 window.adminScheduleData.splice(index, 1);
+                 renderAdminTable();
+                 updateAdminStatistics();
+                 console.log(`Deleted schedule row ${index}`);
+               }
+             }
+
+             // Admin 통계 업데이트
+             function updateAdminStatistics() {
+               // 파트가 선택된 항목만 필터링
+               const validItems = window.adminScheduleData.filter(item => 
+                 item.part_number && item.part_number.trim() !== ''
+               );
+               
+               const totalItems = validItems.length;
+               const completedItems = validItems.filter(item => calculateStatus(item) === 'completed').length;
+               const activeItems = validItems.filter(item => calculateStatus(item) === 'active').length;
+               
+               const totalRoundsEl = document.getElementById('totalRounds');
+               const completedRoundsEl = document.getElementById('completedRounds');
+               const activeRoundsEl = document.getElementById('activeRounds');
+               
+               if (totalRoundsEl) totalRoundsEl.textContent = totalItems;
+               if (completedRoundsEl) completedRoundsEl.textContent = completedItems;
+               if (activeRoundsEl) activeRoundsEl.textContent = activeItems;
+             }
+
+             // Admin 함수들
+             function addNewRow() {
+               console.log('🔄 Adding new row...');
+               console.log('Current data before adding:', window.adminScheduleData);
+               
+               // 임시 ID 생성 (음수로 시작해서 고유성 보장)
+               const tempId = -(Date.now() % 1000000); // 현재 시간 기반 임시 ID
+               
+               const newRow = {
+                 id: tempId, // 임시 ID
+                 part_number: '',
+                 start_time: '',
+                 end_time: '',
+                 note: '',
+                 gap_reason: '',
+                 date: window.adminSelectedDate,
+                 isNew: true // 새로 추가된 행임을 표시
+               };
+               
+               window.adminScheduleData.push(newRow);
+               console.log('New row added:', newRow);
+               console.log('Data after adding:', window.adminScheduleData);
+               
+               renderAdminTable();
+               updateAdminStatistics();
+               console.log('✅ Added new schedule row');
+             }
+
+             async function saveSchedule() {
+               // 파트가 선택된 항목만 필터링
+               const validData = window.adminScheduleData.filter(item => 
+                 item.part_number && item.part_number.trim() !== ''
+               );
+               
+               if (validData.length === 0) {
+                 alert('최소 하나의 파트를 선택해주세요.');
+                 return;
+               }
+               
+               try {
+                 if (window.supabase && typeof window.supabase.from === 'function') {
+                   // 기존 데이터 삭제
+                   const { error: deleteError } = await window.supabase
+                     .from('packaging_schedule')
+                     .delete()
+                     .eq('date', window.adminSelectedDate);
+                   
+                   if (deleteError) throw deleteError;
+                   
+                   // 새 데이터 삽입
+                   const { data: insertedData, error: insertError } = await window.supabase
+                     .from('packaging_schedule')
+                     .insert(validData.map(item => ({
+                       date: window.adminSelectedDate,
+                       part_number: item.part_number,
+                       start_time: item.start_time || null,
+                       end_time: item.end_time || null,
+                       status: item.status || 'waiting',
+                       note: item.note || '',
+                       gap_reason: item.gap_reason || ''
+                     })))
+                     .select();
+                   
+                   if (insertError) throw insertError;
+                   
+                   // 저장된 데이터로 로컬 데이터 업데이트
+                   if (insertedData && insertedData.length > 0) {
+                     window.adminScheduleData = insertedData;
+                     console.log('✅ Local data updated with new IDs:', window.adminScheduleData);
+                   }
+                   
+                   console.log('✅ Schedule saved to Supabase');
+                   alert(`스케줄이 성공적으로 저장되었습니다. (${validData.length}개 항목)`);
+                 } else {
+                   console.log('⚠️ Supabase not available, saving locally only');
+                   alert(`스케줄이 로컬에 저장되었습니다. (${validData.length}개 항목)`);
+                 }
+                 
+                 updateAdminStatistics();
+                 console.log('Schedule saved:', window.adminScheduleData);
+               } catch (error) {
+                 console.error('Error saving schedule:', error);
+                 alert('스케줄 저장 중 오류가 발생했습니다: ' + error.message);
+               }
+             }
+
+             function loadScheduleForDate() {
+               const dateSelector = document.getElementById('dateSelector');
+               if (dateSelector) {
+                 window.adminSelectedDate = dateSelector.value;
+               }
+               loadAdminScheduleData();
+             }
+
+             function loadTodaySchedule() {
+               const today = new Date().toISOString().split('T')[0];
+               const dateSelector = document.getElementById('dateSelector');
+               if (dateSelector) {
+                 dateSelector.value = today;
+               }
+               window.adminSelectedDate = today;
+               loadAdminScheduleData();
+             }
+
+             function refreshData() {
+               loadAdminScheduleData();
+             }
+
+             // ===== SUPERVISOR CONTROL FUNCTIONS =====
+             
+             // 언어 설정
+             window.supervisorLanguage = 'en';
+             
+             // 번역 데이터
+             const supervisorTranslations = {
+               en: {
+                 title: 'Packaging Work Management',
+                 subtitle: 'Supervisor Control Panel',
+                 currentTime: 'Current Time',
+                 todayDate: 'Today\'s Date',
+                 currentId: 'Current ID',
+                 currentPart: 'Current Part',
+                 elapsedTime: 'Elapsed Time',
+                 idSelection: '🎯 Task ID Selection',
+                 taskControl: 'Selected Task Control',
+                 selectedId: 'Selected ID',
+                 partNumber: 'Part Number',
+                 currentStatus: 'Current Status',
+                 workControl: 'Work Control',
+                 startWork: '🚀 Start Work',
+                 endWork: '⏹️ End Work',
+                 startTime: 'Start Time',
+                 endTime: 'End Time',
+                 scheduleTable: 'Today\'s Schedule',
+                 part: 'Part',
+                 start: 'Start',
+                 end: 'End',
+                 status: 'Status',
+                 completed: 'Completed',
+                 active: 'Active',
+                 waiting: 'Waiting'
+               },
+               es: {
+                 title: 'Gestión de Trabajo de Empaque',
+                 subtitle: 'Panel de Control del Supervisor',
+                 currentTime: 'Hora Actual',
+                 todayDate: 'Fecha de Hoy',
+                 currentId: 'ID Actual',
+                 currentPart: 'Parte Actual',
+                 elapsedTime: 'Tiempo Transcurrido',
+                 idSelection: '🎯 Selección de ID de Tarea',
+                 taskControl: 'Control de Tarea Seleccionada',
+                 selectedId: 'ID Seleccionado',
+                 partNumber: 'Número de Parte',
+                 currentStatus: 'Estado Actual',
+                 workControl: 'Control de Trabajo',
+                 startWork: '🚀 Iniciar Trabajo',
+                 endWork: '⏹️ Finalizar Trabajo',
+                 startTime: 'Hora de Inicio',
+                 endTime: 'Hora de Finalización',
+                 scheduleTable: 'Horario de Hoy',
+                 part: 'Parte',
+                 start: 'Inicio',
+                 end: 'Fin',
+                 status: 'Estado',
+                 completed: 'Completado',
+                 active: 'Activo',
+                 waiting: 'Esperando'
+               }
+             };
+             
+             // 언어 전환 함수
+             function setSupervisorLanguage(lang) {
+               window.supervisorLanguage = lang;
+               updateSupervisorLanguage();
+               
+               // 버튼 스타일 업데이트
+               document.getElementById('langEn').className = lang === 'en' ? 
+                 'px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800 border border-blue-300' :
+                 'px-2 py-1 text-xs font-semibold rounded bg-gray-100 text-gray-600 border border-gray-300';
+               document.getElementById('langEs').className = lang === 'es' ? 
+                 'px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800 border border-blue-300' :
+                 'px-2 py-1 text-xs font-semibold rounded bg-gray-100 text-gray-600 border border-gray-300';
+               
+               // 테이블 다시 렌더링
+               displaySupervisorScheduleTable();
+               
+               // 선택된 작업이 있으면 다시 표시
+               if (window.supervisorSelectedTaskId) {
+                 selectSupervisorTask(window.supervisorSelectedTaskId);
+               }
+             }
+             
+             // 언어 업데이트 함수
+             function updateSupervisorLanguage() {
+               const t = supervisorTranslations[window.supervisorLanguage];
+               
+               // 헤더
+               document.getElementById('supervisorTitle').textContent = t.title;
+               document.getElementById('supervisorSubtitle').textContent = t.subtitle;
+               document.getElementById('currentTimeLabel').textContent = t.currentTime;
+               
+               // 현재 상태
+               document.getElementById('todayDateLabel').textContent = t.todayDate;
+               document.getElementById('currentIdLabel').textContent = t.currentId;
+               document.getElementById('currentPartLabel').textContent = t.currentPart;
+               document.getElementById('elapsedTimeLabel').textContent = t.elapsedTime;
+               
+               // ID 선택
+               document.getElementById('idSelectionTitle').innerHTML = t.idSelection;
+               
+               // 작업 제어
+               document.getElementById('taskControlTitle').textContent = t.taskControl;
+               document.getElementById('selectedIdLabel').textContent = t.selectedId;
+               document.getElementById('selectedPartLabel').textContent = t.partNumber;
+               document.getElementById('currentStatusLabel').textContent = t.currentStatus;
+               document.getElementById('workControlLabel').textContent = t.workControl;
+               document.getElementById('startWorkText').textContent = t.startWork;
+               document.getElementById('endWorkText').textContent = t.endWork;
+               document.getElementById('startTimeLabel').textContent = t.startTime;
+               document.getElementById('endTimeLabel').textContent = t.endTime;
+               
+               // 스케줄 테이블
+               document.getElementById('scheduleTableTitle').textContent = t.scheduleTable;
+               document.getElementById('partHeader').textContent = t.part;
+               document.getElementById('startHeader').textContent = t.start;
+               document.getElementById('endHeader').textContent = t.end;
+               document.getElementById('statusHeader').textContent = t.status;
+             }
+             
+             // Supervisor 페이지 초기화
+             function initializeSupervisorPage() {
+               console.log('👨‍💼 Initializing Supervisor page...');
+               
+               // 전역 변수 초기화
+               window.supervisorScheduleData = [];
+               window.supervisorCurrentWork = null;
+               window.supervisorWorkStartTime = null;
+               window.supervisorTimerInterval = null;
+               window.supervisorClockInterval = null;
+               window.supervisorSelectedTaskId = null;
+               
+               // 오늘 날짜 설정
+               setSupervisorTodayDate();
+               
+               // 시계 시작
+               startSupervisorClock();
+               
+               // 스케줄 데이터 로드
+               loadSupervisorScheduleData();
+               
+               // 타이머 시작 (기존 진행 중인 작업이 있는지 확인)
+               startSupervisorTimer();
+               
+               // 언어 업데이트
+               updateSupervisorLanguage();
+               
+               // 자동으로 현재 진행중인 작업 또는 다음 작업 선택
+               setTimeout(() => {
+                 autoSelectCurrentTask();
+               }, 500);
+               
+               console.log('✅ Supervisor page initialization completed');
+             }
+
+             // 오늘 날짜 설정
+             function setSupervisorTodayDate() {
+               const today = new Date();
+               const todayString = today.toLocaleDateString('ko-KR', {
+                 year: 'numeric',
+                 month: '2-digit',
+                 day: '2-digit'
+               });
+               const todayDateEl = document.getElementById('todayDate');
+               if (todayDateEl) {
+                 todayDateEl.textContent = todayString;
+               }
+             }
+
+             // 시계 시작
+             function startSupervisorClock() {
+               updateSupervisorClock();
+               window.supervisorClockInterval = setInterval(updateSupervisorClock, 1000);
+             }
+
+             // 시계 업데이트
+             function updateSupervisorClock() {
+               const now = new Date();
+               const timeString = now.toLocaleTimeString('ko-KR', { 
+                 hour12: false,
+                 hour: '2-digit',
+                 minute: '2-digit',
+                 second: '2-digit'
+               });
+               const currentTimeEl = document.getElementById('currentTime');
+               if (currentTimeEl) {
+                 currentTimeEl.textContent = timeString;
+               }
+             }
+
+             // 스케줄 데이터 로드
+             async function loadSupervisorScheduleData() {
+               try {
+                 // Supabase 클라이언트 확인
+                 if (window.supabase && typeof window.supabase.from === 'function') {
+                   const today = new Date().toISOString().split('T')[0];
+                   const { data, error } = await window.supabase
+                     .from('packaging_schedule')
+                     .select('*')
+                     .eq('date', today)
+                     .order('id', { ascending: true });
+                   
+                   if (error) throw error;
+                   window.supervisorScheduleData = data || [];
+                   
+                   // 진행 중인 작업이 있으면 현재 작업으로 설정
+                   const activeWork = window.supervisorScheduleData.find(item => item.status === 'active');
+                   if (activeWork && activeWork.start_time) {
+                     // 시작 시간을 Date 객체로 변환 (오늘 날짜 + 시작 시간)
+                     const today = new Date();
+                     const [hours, minutes] = activeWork.start_time.split(':');
+                     const startTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(hours), parseInt(minutes));
+                     
+                     window.supervisorCurrentWork = activeWork;
+                     window.supervisorWorkStartTime = startTime;
+                     
+                     console.log(`🔄 Found active work from Supabase: ID ${activeWork.id}, started at ${activeWork.start_time}`);
+                   }
+                   
+                   console.log('✅ Supervisor schedule data loaded from Supabase');
+                 } else {
+                   console.log('⚠️ Supabase not available, using mock data');
+                   loadSupervisorMockData();
+                 }
+                 
+                 displaySupervisorIdSelector();
+                 displaySupervisorScheduleTable();
+                 updateSupervisorCurrentStatus();
+                 
+                 // 자동으로 현재 진행중인 작업 또는 다음 작업 선택
+                 autoSelectCurrentTask();
+               } catch (error) {
+                 console.error('Error loading supervisor schedule data:', error);
+                 console.log('🔄 Falling back to mock data');
+                 loadSupervisorMockData();
+               }
+             }
+
+             // Mock 데이터 로드
+             function loadSupervisorMockData() {
+               window.supervisorScheduleData = [
+                 { id: 1, part_number: '24', start_time: '08:00', end_time: '09:00', status: 'completed', date: new Date().toISOString().split('T')[0] },
+                 { id: 2, part_number: '33', start_time: '09:00', end_time: '', status: 'active', date: new Date().toISOString().split('T')[0] },
+                 { id: 3, part_number: '34', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                 { id: 4, part_number: '35', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                 { id: 5, part_number: '79', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                 { id: 6, part_number: '80', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                 { id: 7, part_number: '4GV3', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                 { id: 8, part_number: '4GF8', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                 { id: 9, part_number: 'SWAP', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] }
+               ];
+               
+               // 진행 중인 작업이 있으면 현재 작업으로 설정
+               const activeWork = window.supervisorScheduleData.find(item => item.status === 'active');
+               if (activeWork && activeWork.start_time) {
+                 // 시작 시간을 Date 객체로 변환 (오늘 날짜 + 시작 시간)
+                 const today = new Date();
+                 const [hours, minutes] = activeWork.start_time.split(':');
+                 const startTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(hours), parseInt(minutes));
+                 
+                 window.supervisorCurrentWork = activeWork;
+                 window.supervisorWorkStartTime = startTime;
+                 
+                 console.log(`🔄 Found active work: ID ${activeWork.id}, started at ${activeWork.start_time}`);
+               }
+               
+               displaySupervisorIdSelector();
+               displaySupervisorScheduleTable();
+               updateSupervisorCurrentStatus();
+               
+               // 자동으로 현재 진행중인 작업 또는 다음 작업 선택
+               autoSelectCurrentTask();
+             }
+
+             // ID 선택기 표시
+             function displaySupervisorIdSelector() {
+               const container = document.getElementById('idSelector');
+               if (!container) return;
+               
+               const sortedData = [...window.supervisorScheduleData].sort((a, b) => a.id - b.id);
+               
+               container.innerHTML = sortedData.map(item => {
+                 const status = calculateSupervisorStatus(item);
+                 const statusColor = status === 'completed' ? 
+                   'bg-gradient-to-br from-green-100 to-green-200 text-green-800 border-2 border-green-400 shadow-sm hover:shadow-lg' :
+                   status === 'active' ? 
+                   'bg-gradient-to-br from-yellow-100 to-yellow-200 text-yellow-800 border-2 border-yellow-400 shadow-sm hover:shadow-lg animate-pulse' :
+                   'bg-gradient-to-br from-blue-100 to-blue-200 text-blue-800 border-2 border-blue-400 shadow-sm hover:shadow-lg';
+                 
+                 return `
+                   <button onclick="selectSupervisorTask(${item.id})" 
+                           class="p-4 rounded-xl font-bold text-xl transition-all duration-200 transform hover:scale-105 ${statusColor}">
+                     ${item.id}
+                   </button>
+                 `;
+               }).join('');
+             }
+
+             // 자동으로 현재 진행중인 작업 또는 다음 작업 선택
+             function autoSelectCurrentTask() {
+               if (!window.supervisorScheduleData || window.supervisorScheduleData.length === 0) {
+                 console.log('⚠️ No schedule data available for auto-selection');
+                 return;
+               }
+               
+               // 1. 현재 진행중인 작업 찾기
+               const activeTask = window.supervisorScheduleData.find(item => item.status === 'active');
+               if (activeTask) {
+                 console.log('🔄 Auto-selecting active task:', activeTask.id);
+                 selectSupervisorTask(activeTask.id);
+                 return;
+               }
+               
+               // 2. 진행중인 작업이 없으면 다음 대기 작업 찾기
+               const nextWaitingTask = window.supervisorScheduleData.find(item => item.status === 'waiting');
+               if (nextWaitingTask) {
+                 console.log('⏭️ Auto-selecting next waiting task:', nextWaitingTask.id);
+                 selectSupervisorTask(nextWaitingTask.id);
+                 return;
+               }
+               
+               console.log('ℹ️ No suitable task found for auto-selection');
+             }
+
+             // 작업 선택
+             function selectSupervisorTask(itemId) {
+               const item = window.supervisorScheduleData.find(s => s.id === itemId);
+               if (!item) return;
+               
+               // 선택된 작업 정보 업데이트
+               const selectedIdEl = document.getElementById('selectedId');
+               const selectedPartEl = document.getElementById('selectedPart');
+               const selectedStatusEl = document.getElementById('selectedStatus');
+               const selectedStartTimeEl = document.getElementById('selectedStartTime');
+               const selectedEndTimeEl = document.getElementById('selectedEndTime');
+               
+               if (selectedIdEl) selectedIdEl.textContent = item.id;
+               if (selectedPartEl) selectedPartEl.textContent = item.part_number;
+               
+               const status = calculateSupervisorStatus(item);
+               const t = supervisorTranslations[window.supervisorLanguage];
+               const statusText = status === 'completed' ? t.completed : 
+                                status === 'active' ? t.active : t.waiting;
+               const statusColor = status === 'completed' ? 'text-green-600' :
+                                 status === 'active' ? 'text-yellow-600' : 'text-gray-600';
+               
+               if (selectedStatusEl) {
+                 selectedStatusEl.textContent = statusText;
+                 selectedStatusEl.className = `text-xl font-bold ${statusColor}`;
+               }
+               
+               if (selectedStartTimeEl) selectedStartTimeEl.textContent = item.start_time || '-';
+               if (selectedEndTimeEl) selectedEndTimeEl.textContent = item.end_time || '-';
+               
+               // 버튼 상태 업데이트
+               const hasStartTime = item.start_time && item.start_time.trim() !== '';
+               const hasEndTime = item.end_time && item.end_time.trim() !== '';
+               
+               const startBtn = document.getElementById('startWorkBtn');
+               const endBtn = document.getElementById('endWorkBtn');
+               
+               if (startBtn) {
+                 if (hasStartTime) {
+                   startBtn.disabled = true;
+                   startBtn.textContent = t.active;
+                 } else {
+                   startBtn.disabled = false;
+                   startBtn.textContent = t.startWork;
+                 }
+               }
+               
+               if (endBtn) {
+                 if (!hasStartTime || hasEndTime) {
+                   endBtn.disabled = true;
+                   endBtn.textContent = hasEndTime ? t.completed : t.waiting;
+                 } else {
+                   endBtn.disabled = false;
+                   endBtn.textContent = t.endWork;
+                 }
+               }
+               
+               // 작업 제어 패널 표시
+               const taskControlEl = document.getElementById('taskControl');
+               if (taskControlEl) {
+                 taskControlEl.style.display = 'block';
+               }
+               
+               // 선택된 작업 저장
+               window.supervisorSelectedTaskId = itemId;
+             }
+
+             // 선택된 작업 시작
+             async function startSelectedWork() {
+               if (!window.supervisorSelectedTaskId) return;
+               await startSupervisorWork(window.supervisorSelectedTaskId);
+             }
+
+             // 선택된 작업 종료
+             async function endSelectedWork() {
+               if (!window.supervisorSelectedTaskId) return;
+               await endSupervisorWork(window.supervisorSelectedTaskId);
+             }
+
+             // 작업 시작
+             async function startSupervisorWork(itemId) {
+               const item = window.supervisorScheduleData.find(s => s.id === itemId);
+               if (!item) return;
+               
+               if (item.start_time && item.start_time.trim() !== '') {
+                 const t = supervisorTranslations[window.supervisorLanguage];
+                 alert(t.active);
+                 return;
+               }
+               
+               try {
+                 const now = new Date();
+                 const timeString = now.toLocaleTimeString('ko-KR', { 
+                   hour12: false,
+                   hour: '2-digit',
+                   minute: '2-digit'
+                 });
+                 
+                 if (window.supabase && typeof window.supabase.from === 'function') {
+                   const { error } = await window.supabase
+                     .from('packaging_schedule')
+                     .update({ 
+                       start_time: timeString,
+                       status: 'active'
+                     })
+                     .eq('id', itemId);
+                   
+                   if (error) throw error;
+                   console.log('✅ Work start time saved to Supabase');
+                 } else {
+                   console.log('⚠️ Supabase not available, saving locally only');
+                 }
+                 
+                 // 로컬 데이터 업데이트
+                 const index = window.supervisorScheduleData.findIndex(s => s.id === itemId);
+                 window.supervisorScheduleData[index].start_time = timeString;
+                 window.supervisorScheduleData[index].status = 'active';
+                 
+                 // 현재 작업으로 설정하고 타이머 시작
+                 window.supervisorCurrentWork = item;
+                 window.supervisorWorkStartTime = now;
+                 
+                 displaySupervisorIdSelector();
+                 displaySupervisorScheduleTable();
+                 updateSupervisorCurrentStatus();
+                 startSupervisorTimer();
+                 
+                 console.log(`⏰ Timer started for work ID ${itemId}`);
+                 
+                 // 선택된 작업이 시작된 경우 업데이트
+                 if (window.supervisorSelectedTaskId === itemId) {
+                   selectSupervisorTask(itemId);
+                 }
+                 
+                 console.log(`Work started: ${item.part_number} at ${timeString}`);
+               } catch (error) {
+                 console.error('Error starting work:', error);
+                 const t = supervisorTranslations[window.supervisorLanguage];
+                 alert(window.supervisorLanguage === 'en' ? 'Error starting work' : 'Error al iniciar trabajo');
+               }
+             }
+
+             // 작업 종료
+             async function endSupervisorWork(itemId) {
+               const item = window.supervisorScheduleData.find(s => s.id === itemId);
+               if (!item) return;
+               
+               if (!item.start_time || item.start_time.trim() === '') {
+                 alert('시작 시간이 없습니다.');
+                 return;
+               }
+               
+               if (item.end_time && item.end_time.trim() !== '') {
+                 alert('이 작업은 이미 종료되었습니다.');
+                 return;
+               }
+               
+               try {
+                 const now = new Date();
+                 const timeString = now.toLocaleTimeString('ko-KR', { 
+                   hour12: false,
+                   hour: '2-digit',
+                   minute: '2-digit'
+                 });
+                 
+                 if (window.supabase && typeof window.supabase.from === 'function') {
+                   const { error } = await window.supabase
+                     .from('packaging_schedule')
+                     .update({ 
+                       end_time: timeString,
+                       status: 'completed'
+                     })
+                     .eq('id', itemId);
+                   
+                   if (error) throw error;
+                   console.log('✅ Work end time saved to Supabase');
+                 } else {
+                   console.log('⚠️ Supabase not available, saving locally only');
+                 }
+                 
+                 // 로컬 데이터 업데이트
+                 const index = window.supervisorScheduleData.findIndex(s => s.id === itemId);
+                 window.supervisorScheduleData[index].end_time = timeString;
+                 window.supervisorScheduleData[index].status = 'completed';
+                 
+                 // 현재 작업이 종료된 경우 타이머 중지
+                 if (window.supervisorCurrentWork && window.supervisorCurrentWork.id === itemId) {
+                   window.supervisorCurrentWork = null;
+                   window.supervisorWorkStartTime = null;
+                   stopSupervisorTimer();
+                   console.log(`⏹️ Timer stopped for work ID ${itemId}`);
+                 }
+                 
+                 displaySupervisorIdSelector();
+                 displaySupervisorScheduleTable();
+                 updateSupervisorCurrentStatus();
+                 
+                 // 선택된 작업이 종료된 경우 업데이트
+                 if (window.supervisorSelectedTaskId === itemId) {
+                   selectSupervisorTask(itemId);
+                 }
+                 
+                 console.log(`Work ended: ${item.part_number} at ${timeString}`);
+               } catch (error) {
+                 console.error('Error ending work:', error);
+                 alert('작업 종료 중 오류가 발생했습니다.');
+               }
+             }
+
+             // 스케줄 테이블 표시
+             function displaySupervisorScheduleTable() {
+               const tbody = document.getElementById('scheduleTable');
+               if (!tbody) return;
+               
+               const sortedData = [...window.supervisorScheduleData].sort((a, b) => a.id - b.id);
+               
+               tbody.innerHTML = sortedData.map(item => {
+                 const status = calculateSupervisorStatus(item);
+                 const statusColor = status === 'completed' ? 'bg-green-100 text-green-800' :
+                                   status === 'active' ? 'bg-yellow-100 text-yellow-800' :
+                                   'bg-gray-100 text-gray-800';
+                 
+                 const t = supervisorTranslations[window.supervisorLanguage];
+                 const statusText = status === 'completed' ? t.completed : 
+                                  status === 'active' ? t.active : t.waiting;
+                 
+                 let rowClass = "border-b border-gray-100 hover:bg-gray-50 cursor-pointer";
+                 if (status === 'active') {
+                   rowClass = "border-b border-gray-100 bg-yellow-50 border-l-4 border-l-yellow-500 cursor-pointer";
+                 } else if (status === 'completed') {
+                   rowClass = "border-b border-gray-100 bg-green-50 border-l-4 border-l-green-500 cursor-pointer";
+                 }
+                 
+                 return `
+                   <tr class="${rowClass}" onclick="selectSupervisorTask(${item.id})">
+                     <td class="py-2 px-2 font-semibold text-sm">${item.id}</td>
+                     <td class="py-2 px-2 font-semibold text-sm">${item.part_number}</td>
+                     <td class="py-2 px-2 text-sm">${item.start_time || '-'}</td>
+                     <td class="py-2 px-2 text-sm">${item.end_time || '-'}</td>
+                     <td class="py-2 px-2">
+                       <span class="px-2 py-1 rounded-full text-xs font-semibold ${statusColor}">
+                         ${statusText}
+                       </span>
+                     </td>
+                   </tr>
+                 `;
+               }).join('');
+             }
+
+             // 상태 계산
+             function calculateSupervisorStatus(item) {
+               if (item.start_time && item.start_time.trim() !== '' && item.end_time && item.end_time.trim() !== '') {
+                 return 'completed';
+               } else if (item.start_time && item.start_time.trim() !== '') {
+                 return 'active';
+               } else {
+                 return 'waiting';
+               }
+             }
+
+             // 현재 상태 업데이트
+             function updateSupervisorCurrentStatus() {
+               const activeItem = window.supervisorScheduleData.find(item => item.status === 'active');
+               
+               const currentRoundEl = document.getElementById('currentRound');
+               const currentPartEl = document.getElementById('currentPart');
+               
+               if (activeItem) {
+                 if (currentRoundEl) currentRoundEl.textContent = `ID ${activeItem.id}`;
+                 if (currentPartEl) currentPartEl.textContent = activeItem.part_number;
+               } else {
+                 if (currentRoundEl) currentRoundEl.textContent = '-';
+                 if (currentPartEl) currentPartEl.textContent = '-';
+               }
+             }
+
+             // 타이머 시작
+             function startSupervisorTimer() {
+               if (window.supervisorTimerInterval) {
+                 clearInterval(window.supervisorTimerInterval);
+               }
+               
+               window.supervisorTimerInterval = setInterval(() => {
+                 // 현재 진행 중인 작업이 있고 시작 시간이 있는 경우에만 타이머 업데이트
+                 if (window.supervisorCurrentWork && window.supervisorWorkStartTime) {
+                   const now = new Date();
+                   const elapsed = Math.floor((now - window.supervisorWorkStartTime) / 1000);
+                   
+                   const hours = Math.floor(elapsed / 3600);
+                   const minutes = Math.floor((elapsed % 3600) / 60);
+                   const seconds = elapsed % 60;
+                   
+                   const timeString = hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0') + ':' + seconds.toString().padStart(2, '0');
+                   const elapsedTimeEl = document.getElementById('elapsedTime');
+                   if (elapsedTimeEl) {
+                     elapsedTimeEl.textContent = timeString;
+                   }
+                   
+                   // 디버깅을 위한 로그 (5초마다)
+                   if (seconds % 5 === 0) {
+                     console.log(`⏰ Timer update: Work ID ${window.supervisorCurrentWork.id}, Elapsed: ${timeString}`);
+                   }
+                 } else {
+                   // 진행 중인 작업이 없으면 00:00:00으로 리셋
+                   const elapsedTimeEl = document.getElementById('elapsedTime');
+                   if (elapsedTimeEl) {
+                     elapsedTimeEl.textContent = '00:00:00';
+                   }
+                 }
+               }, 1000);
+             }
+
+             // 타이머 중지
+             function stopSupervisorTimer() {
+               if (window.supervisorTimerInterval) {
+                 clearInterval(window.supervisorTimerInterval);
+                 window.supervisorTimerInterval = null;
+               }
+               const elapsedTimeEl = document.getElementById('elapsedTime');
+               if (elapsedTimeEl) {
+                 elapsedTimeEl.textContent = '00:00:00';
+               }
+             }
+
+             // 새로고침
+             function refreshSupervisorData() {
+               loadSupervisorScheduleData();
+             }
+
+             // ===== LIVE DISPLAY NEW WINDOW FUNCTIONS =====
+
+             // ===== LIVE DISPLAY PAGE FUNCTIONS =====
+             
+             // Live Display 페이지 초기화
+             function initializeDisplayPage() {
+               console.log('📺 Initializing Live Display page...');
+               
+               // 전역 변수 초기화
+               window.displayStartTime = null;
+               window.displayCurrentId = null;
+               window.displayCurrentPart = null;
+               window.displayScheduleData = [];
+               window.displayTimerInterval = null;
+               
+               // 스케줄 데이터 로드
+               loadDisplayScheduleData();
+               
+               // 자동 리프래시 시작
+               startDisplayAutoRefresh();
+             }
+             
+             // 스케줄 데이터 로드 (Supabase + Mock 데이터)
+             async function loadDisplayScheduleData() {
+               try {
+                 if (window.supabase && typeof window.supabase.from === 'function') {
+                   const today = new Date().toISOString().split('T')[0];
+                   const { data, error } = await window.supabase
+                     .from('packaging_schedule')
+                     .select('*')
+                     .eq('date', today)
+                     .order('id', { ascending: true });
+                   
+                   if (error) throw error;
+                   window.displayScheduleData = data || [];
+                   console.log('✅ Display schedule data loaded from Supabase');
+                 } else {
+                   console.log('⚠️ Supabase not available, using mock data');
+                   loadDisplayMockData();
+                 }
+                 
+                 displaySchedule();
+               } catch (error) {
+                 console.error('Error loading display schedule data:', error);
+                 console.log('🔄 Falling back to mock data...');
+                 loadDisplayMockData();
+                 displaySchedule();
+               }
+             }
+             
+             // 자동 리프래시 시작
+             function startDisplayAutoRefresh() {
+               // 30초마다 데이터 새로고침
+               if (window.displayRefreshInterval) {
+                 clearInterval(window.displayRefreshInterval);
+               }
+               window.displayRefreshInterval = setInterval(() => {
+                 console.log('🔄 Auto-refreshing Live Display data...');
+                 loadDisplayScheduleData();
+               }, 30000);
+             }
+             
+             // 자동 리프래시 중지
+             function stopDisplayAutoRefresh() {
+               if (window.displayRefreshInterval) {
+                 clearInterval(window.displayRefreshInterval);
+                 window.displayRefreshInterval = null;
+               }
+             }
+             
+             // Mock 데이터 로드
+             function loadDisplayMockData() {
+               window.displayScheduleData = [
+                 { id: 1, part_number: '24', start_time: '08:00', end_time: '09:00', status: 'completed', date: new Date().toISOString().split('T')[0] },
+                 { id: 2, part_number: '33', start_time: '09:00', end_time: '', status: 'active', date: new Date().toISOString().split('T')[0] },
+                 { id: 3, part_number: '34', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                 { id: 4, part_number: '35', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                 { id: 5, part_number: '79', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                 { id: 6, part_number: '80', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                 { id: 7, part_number: '4GV3', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                 { id: 8, part_number: '4GF8', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                 { id: 9, part_number: 'SWAP', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] }
+               ];
+               displaySchedule();
+             }
+             
+             // 스케줄 표시
+             function displaySchedule() {
+               const scheduleList = document.getElementById('scheduleList');
+               if (!scheduleList) return;
+               
+               // 상태별로 정렬: 진행중 -> 대기 -> 완료 순서
+               const sortedData = [...window.displayScheduleData].sort((a, b) => {
+                 const statusOrder = { 'active': 0, 'waiting': 1, 'completed': 2 };
+                 return statusOrder[a.status] - statusOrder[b.status];
+               });
+               
+               // Display schedule list
+               scheduleList.innerHTML = '';
+               sortedData.forEach(item => {
+                 const itemDiv = document.createElement('div');
+                 itemDiv.className = `flex justify-between items-center p-4 rounded-lg mb-2 ${
+                   item.status === 'active' ? 'status-active' :
+                   item.status === 'completed' ? 'status-completed' :
+                   'status-waiting'
+                 }`;
+                 
+                 const statusText = item.status === 'active' ? 'ACTIVE' : 
+                                  item.status === 'completed' ? 'COMPLETED' : 'WAITING';
+                 
+                 // 경과 시간 계산
+                 let elapsedTimeText = '';
+                 let elapsedMinutes = 0;
+                 if (item.start_time && item.end_time) {
+                   // 완료된 작업: 시작시간부터 종료시간까지의 경과시간
+                   const startTime = parseTimeToMinutes(item.start_time);
+                   const endTime = parseTimeToMinutes(item.end_time);
+                   elapsedMinutes = endTime - startTime;
+                   elapsedTimeText = formatElapsedTime(elapsedMinutes);
+                 } else if (item.start_time && item.status === 'active') {
+                   // 진행중인 작업: 시작시간부터 현재까지의 경과시간
+                   const startTime = parseTimeToMinutes(item.start_time);
+                   const currentTime = parseTimeToMinutes(getCurrentTimeString());
+                   elapsedMinutes = currentTime - startTime;
+                   elapsedTimeText = formatElapsedTime(elapsedMinutes);
+                 }
+                 
+                 itemDiv.innerHTML = `
+                   <div class="flex items-center space-x-4">
+                     <span class="text-xl font-bold text-white">NO ${item.id}</span>
+                     <span class="text-2xl font-bold text-white">${item.part_number}</span>
+                     <span class="text-sm px-3 py-1 rounded-full font-bold ${
+                       item.status === 'active' ? 'bg-green-600 text-white' :
+                       item.status === 'completed' ? 'bg-gray-600 text-white' :
+                       'bg-yellow-600 text-white'
+                     }">${statusText}</span>
+                   </div>
+                   <div class="text-xl font-bold">
+                     ${elapsedTimeText ? 
+                       `<span class="${getElapsedTimeColor(elapsedMinutes)}">ELAPSED: ${elapsedTimeText}</span>` : 
+                       '<span class="text-white">WAITING</span>'
+                     }
+                   </div>
+                 `;
+                 
+                 scheduleList.appendChild(itemDiv);
+               });
+
+               // Update current status
+               updateDisplayCurrentStatus();
+             }
+             
+             // 시간 문자열을 분으로 변환 (HH:MM -> minutes)
+             function parseTimeToMinutes(timeString) {
+               if (!timeString) return 0;
+               const [hours, minutes] = timeString.split(':').map(Number);
+               return hours * 60 + minutes;
+             }
+             
+             // 분을 시간:분 형식으로 변환
+             function formatElapsedTime(minutes) {
+               if (minutes < 0) return '00:00';
+               const hours = Math.floor(minutes / 60);
+               const mins = minutes % 60;
+               return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+             }
+             
+             // 경과 시간에 따른 색상 반환 (1시간 기준)
+             function getElapsedTimeColor(minutes) {
+               if (minutes < 60) {
+                 return 'text-green-300'; // 1시간 미만: 초록색
+               } else {
+                 return 'text-red-300';   // 1시간 이상: 빨간색
+               }
+             }
+             
+             // 현재 시간을 HH:MM 형식으로 반환
+             function getCurrentTimeString() {
+               const now = new Date();
+               return now.toTimeString().slice(0, 5);
+             }
+             
+             // 현재 상태 업데이트
+             function updateDisplayCurrentStatus() {
+               const activeItem = window.displayScheduleData.find(item => item.status === 'active');
+               
+               if (activeItem) {
+                 window.displayCurrentId = activeItem.id;
+                 window.displayCurrentPart = activeItem.part_number;
+                 
+                 document.getElementById('currentId').textContent = `NO ${window.displayCurrentId}`;
+                 document.getElementById('currentPart').textContent = window.displayCurrentPart;
+                 
+                 // Start timer if not already started
+                 if (!window.displayStartTime && activeItem.start_time) {
+                   // 시작 시간을 Date 객체로 변환 (오늘 날짜 + 시작 시간)
+                   const today = new Date();
+                   const [hours, minutes] = activeItem.start_time.split(':');
+                   window.displayStartTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(hours), parseInt(minutes));
+                   startDisplayTimer();
+                 }
+               } else {
+                 document.getElementById('currentId').textContent = '-';
+                 document.getElementById('currentPart').textContent = '-';
+                 document.getElementById('elapsedTime').textContent = '00:00:00';
+                 
+                 if (window.displayTimerInterval) {
+                   clearInterval(window.displayTimerInterval);
+                   window.displayTimerInterval = null;
+                 }
+                 window.displayStartTime = null;
+               }
+             }
+             
+             // 타이머 시작
+             function startDisplayTimer() {
+               if (window.displayTimerInterval) {
+                 clearInterval(window.displayTimerInterval);
+               }
+               
+               window.displayTimerInterval = setInterval(() => {
+                 if (window.displayStartTime) {
+                   const now = new Date();
+                   const elapsed = Math.floor((now - window.displayStartTime) / 1000);
+                   
+                   const hours = Math.floor(elapsed / 3600);
+                   const minutes = Math.floor((elapsed % 3600) / 60);
+                   const seconds = elapsed % 60;
+                   
+                   const timeString = hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0') + ':' + seconds.toString().padStart(2, '0');
+                   const elapsedTimeEl = document.getElementById('elapsedTime');
+                   if (elapsedTimeEl) {
+                     elapsedTimeEl.textContent = timeString;
+                     
+                     // 경과 시간에 따라 색상 변경 (1시간 기준)
+                     const totalMinutes = hours * 60 + minutes;
+                     elapsedTimeEl.className = elapsedTimeEl.className.replace(/text-(green|red)-300/, '');
+                     if (totalMinutes < 60) {
+                       elapsedTimeEl.classList.add('text-green-300');
+                     } else {
+                       elapsedTimeEl.classList.add('text-red-300');
+                     }
+                   }
+                   
+                   // 스케줄 목록의 진행중인 작업 경과시간도 업데이트
+                   displaySchedule();
+                 }
+               }, 1000);
              }
 
     console.log('✅ TM System loaded successfully');

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Packaging Schedule - Live Display</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.6/dist/umd/supabase.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        
+        .digital-clock {
+            font-family: 'Orbitron', monospace;
+            font-weight: 900;
+        }
+        
+        .timer-display {
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+        }
+        
+        .pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, #10b981, #059669);
+            transition: width 0.3s ease;
+        }
+        
+        .status-active {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: 2px solid #10b981;
+        }
+        
+        .status-waiting {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            border: 2px solid #f59e0b;
+        }
+        
+        .status-completed {
+            background: linear-gradient(135deg, #6b7280, #4b5563);
+            color: white;
+            border: 2px solid #6b7280;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <div class="min-h-screen p-6">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h2 class="text-4xl font-semibold text-blue-300 mb-2">포장 스케줄 현황</h2>
+            <p class="text-xl text-gray-200">Packaging Schedule Live Display</p>
+        </div>
+
+        <!-- Current Status Card -->
+        <div class="bg-gray-800 rounded-2xl shadow-2xl p-8 mb-8">
+            <div class="text-center">
+                <h3 class="text-3xl font-bold mb-6 text-green-300">현재 진행 중</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- Current ID -->
+                    <div class="bg-gray-700 rounded-xl p-6 border-2 border-gray-600">
+                        <div class="text-2xl font-semibold text-white mb-2">현재 ID</div>
+                        <div class="text-5xl font-bold text-yellow-300" id="currentId">-</div>
+                    </div>
+                    
+                    <!-- Current Part -->
+                    <div class="bg-gray-700 rounded-xl p-6 border-2 border-gray-600">
+                        <div class="text-2xl font-semibold text-white mb-2">현재 파트</div>
+                        <div class="text-5xl font-bold text-blue-300" id="currentPart">-</div>
+                    </div>
+                    
+                    <!-- Elapsed Time -->
+                    <div class="bg-gray-700 rounded-xl p-6 border-2 border-gray-600">
+                        <div class="text-2xl font-semibold text-white mb-2">경과 시간</div>
+                        <div class="text-5xl font-bold text-red-300 timer-display" id="elapsedTime">00:00:00</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Today's Schedule -->
+        <div class="bg-gray-800 rounded-2xl shadow-2xl p-8 border-2 border-gray-600">
+            <h3 class="text-3xl font-bold mb-6 text-center text-blue-300">금일 스케줄</h3>
+            <div class="space-y-4" id="scheduleList">
+                <!-- Schedule items will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Timer variables
+        let startTime = null;
+        let currentId = null;
+        let currentPart = null;
+        let scheduleData = [];
+        let timerInterval = null;
+
+        // Initialize the display
+        document.addEventListener('DOMContentLoaded', function() {
+            loadScheduleData();
+        });
+
+        // Load schedule data
+        async function loadScheduleData() {
+            try {
+                if (window.supabase && typeof window.supabase.from === 'function') {
+                    const { data, error } = await window.supabase
+                        .from('packaging_schedule')
+                        .select('*')
+                        .eq('date', new Date().toISOString().split('T')[0])
+                        .order('id', { ascending: true });
+                    
+                    if (error) throw error;
+                    scheduleData = data || [];
+                    console.log('✅ Schedule data loaded from Supabase');
+                } else {
+                    console.log('⚠️ Supabase not available, using mock data');
+                    loadMockData();
+                }
+                
+                displaySchedule();
+            } catch (error) {
+                console.error('Error loading schedule data:', error);
+                loadMockData();
+            }
+        }
+
+        // Load mock data for development
+        function loadMockData() {
+            scheduleData = [
+                { id: 1, part_number: '24', start_time: '08:00', end_time: '09:00', status: 'completed', date: new Date().toISOString().split('T')[0] },
+                { id: 2, part_number: '33', start_time: '09:00', end_time: '', status: 'active', date: new Date().toISOString().split('T')[0] },
+                { id: 3, part_number: '34', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                { id: 4, part_number: '35', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                { id: 5, part_number: '79', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                { id: 6, part_number: '80', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                { id: 7, part_number: '4GV3', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                { id: 8, part_number: '4GF8', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] },
+                { id: 9, part_number: 'SWAP', start_time: '', end_time: '', status: 'waiting', date: new Date().toISOString().split('T')[0] }
+            ];
+            displaySchedule();
+        }
+
+        // Display schedule
+        function displaySchedule() {
+            const scheduleList = document.getElementById('scheduleList');
+            
+            // Display schedule list
+            scheduleList.innerHTML = '';
+            scheduleData.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = `flex justify-between items-center p-4 rounded-xl mb-2 ${
+                    item.status === 'active' ? 'status-active' :
+                    item.status === 'completed' ? 'status-completed' :
+                    'status-waiting'
+                }`;
+                
+                const statusText = item.status === 'active' ? '진행중' : 
+                                 item.status === 'completed' ? '완료' : '대기';
+                
+                itemDiv.innerHTML = `
+                    <div class="flex items-center space-x-4">
+                        <span class="text-2xl font-bold text-white">ID ${item.id}</span>
+                        <span class="text-xl font-semibold text-white">${item.part_number}</span>
+                        <span class="text-sm px-3 py-1 rounded-full font-bold ${
+                            item.status === 'active' ? 'bg-green-600 text-white' :
+                            item.status === 'completed' ? 'bg-gray-600 text-white' :
+                            'bg-yellow-600 text-white'
+                        }">${statusText}</span>
+                    </div>
+                    <div class="text-sm text-white font-medium">
+                        ${item.start_time ? `시작: ${item.start_time}` : ''}
+                        ${item.end_time ? ` - 종료: ${item.end_time}` : ''}
+                    </div>
+                `;
+                
+                scheduleList.appendChild(itemDiv);
+            });
+
+            // Update current status
+            updateCurrentStatus();
+        }
+
+        // Update current status
+        function updateCurrentStatus() {
+            const activeItem = scheduleData.find(item => item.status === 'active');
+            
+            if (activeItem) {
+                currentId = activeItem.id;
+                currentPart = activeItem.part_number;
+                
+                document.getElementById('currentId').textContent = `ID ${currentId}`;
+                document.getElementById('currentPart').textContent = currentPart;
+                
+                // Start timer if not already started
+                if (!startTime && activeItem.start_time) {
+                    // 시작 시간을 Date 객체로 변환 (오늘 날짜 + 시작 시간)
+                    const today = new Date();
+                    const [hours, minutes] = activeItem.start_time.split(':');
+                    startTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(hours), parseInt(minutes));
+                    startTimer();
+                }
+            } else {
+                document.getElementById('currentId').textContent = '-';
+                document.getElementById('currentPart').textContent = '-';
+                document.getElementById('elapsedTime').textContent = '00:00:00';
+                
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+                startTime = null;
+            }
+        }
+
+        // Start timer
+        function startTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            timerInterval = setInterval(() => {
+                if (startTime) {
+                    const now = new Date();
+                    const elapsed = Math.floor((now - startTime) / 1000);
+                    
+                    const hours = Math.floor(elapsed / 3600);
+                    const minutes = Math.floor((elapsed % 3600) / 60);
+                    const seconds = elapsed % 60;
+                    
+                    const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    document.getElementById('elapsedTime').textContent = timeString;
+                }
+            }, 1000);
+        }
+
+
+        // Refresh data every 30 seconds
+        setInterval(() => {
+            loadScheduleData();
+        }, 30000);
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (timerInterval) clearInterval(timerInterval);
+        });
+    </script>
+</body>
+</html>
