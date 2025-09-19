@@ -54,12 +54,22 @@
       color: white;
       border: 2px solid #6b7280;
     }
+    
+    /* 풀스크린 관련 스타일 */
+    .sidebar-hidden {
+      display: none !important;
+    }
+    
+    .main-content-fullscreen {
+      margin-left: 0 !important;
+      width: 100% !important;
+    }
   </style>
 </head>
 <body class="bg-gray-50">
   <div class="flex h-screen">
     <!-- Sidebar -->
-    <aside class="w-64 bg-white shadow-lg border-r border-gray-200">
+    <aside id="sidebar" class="w-64 bg-white shadow-lg border-r border-gray-200">
       <div class="p-6">
         <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
           <span class="text-3xl mr-2">🔄</span>
@@ -128,13 +138,16 @@
     </aside>
     
     <!-- Main Content -->
-    <main class="flex-1 overflow-hidden">
+    <main id="mainContent" class="flex-1 overflow-hidden">
       <div class="h-full flex flex-col">
         <!-- Content Header -->
         <header class="bg-white border-b border-gray-200 px-6 py-4">
           <div class="flex items-center justify-between">
-            <h1 class="text-2xl font-semibold text-gray-800">Welcome to TM System</h1>
+            <h1 class="text-2xl font-semibold text-gray-800" id="pageTitle">Welcome to TM System</h1>
             <div class="flex items-center space-x-4">
+              <button onclick="toggleFullscreen()" id="fullscreenBtn" class="bg-red-500 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold text-lg shadow-lg">
+                <span id="fullscreenText">🖥️ FULLSCREEN</span>
+              </button>
               <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                 System Status
               </span>
@@ -178,6 +191,37 @@
   </div>
 
   <script>
+    // 풀스크린 토글 함수
+    function toggleFullscreen() {
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.getElementById('mainContent');
+      const fullscreenBtn = document.getElementById('fullscreenBtn');
+      const fullscreenText = document.getElementById('fullscreenText');
+      
+      if (sidebar && mainContent && fullscreenBtn && fullscreenText) {
+        if (sidebar.classList.contains('sidebar-hidden')) {
+          // 사이드바 표시 (일반 모드)
+          sidebar.classList.remove('sidebar-hidden');
+          mainContent.classList.remove('main-content-fullscreen');
+          fullscreenText.textContent = '🖥️ FULLSCREEN';
+          fullscreenBtn.className = 'bg-red-500 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold text-lg shadow-lg';
+          fullscreenBtn.style.position = 'absolute';
+          fullscreenBtn.style.top = '0';
+          fullscreenBtn.style.right = '0';
+        } else {
+          // 사이드바 숨김 (전체 화면 모드)
+          sidebar.classList.add('sidebar-hidden');
+          mainContent.classList.add('main-content-fullscreen');
+          fullscreenText.textContent = '❌ EXIT FULLSCREEN';
+          fullscreenBtn.className = 'bg-green-500 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold text-lg shadow-lg';
+          fullscreenBtn.style.position = 'fixed';
+          fullscreenBtn.style.top = '20px';
+          fullscreenBtn.style.right = '20px';
+          fullscreenBtn.style.zIndex = '9999';
+        }
+      }
+    }
+
     // 페이지 로딩 완료 후 초기화
     document.addEventListener('DOMContentLoaded', function() {
       console.log('🚀 TM System 초기화 시작');
@@ -596,8 +640,11 @@
                 document.getElementById('mainContent').innerHTML = `
                   <div class="h-screen p-4 bg-gray-900 text-white overflow-hidden">
                     <!-- Header -->
-                    <div class="text-center mb-4">
+                    <div class="text-center mb-4 relative">
                       <h2 class="text-3xl font-semibold text-blue-300 mb-1">PACKAGING SCHEDULE STATUS</h2>
+                      <button onclick="toggleFullscreen()" id="fullscreenBtn" class="absolute top-0 right-0 bg-red-500 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold text-lg shadow-lg">
+                        <span id="fullscreenText">🖥️ FULLSCREEN</span>
+                      </button>
                     </div>
 
                     <!-- Current Status Card -->
