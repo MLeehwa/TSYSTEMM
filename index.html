@@ -700,12 +700,13 @@
                              <button onclick="addNewRow()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-semibold">
                                + 행 추가
                              </button>
-                             <button onclick="saveSchedule()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-semibold">
-                               💾 저장
-                             </button>
                              <button onclick="loadScheduleToTable()" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg text-sm font-semibold">
                                🔄 새로고침
                              </button>
+                             <div class="flex items-center text-sm text-gray-600">
+                               <span class="mr-2">💾</span>
+                               <span>자동 저장</span>
+                             </div>
                            </div>
                          </div>
                        </div>
@@ -2447,6 +2448,9 @@
                closeTimeEditModal();
                renderAdminTable();
                updateAdminStatistics();
+               
+               // 자동 저장
+               autoSaveSchedule();
              }
 
              // 스케줄 데이터 업데이트
@@ -2457,6 +2461,12 @@
                  console.log(`Updated schedule data [${index}].${field} = ${value}`);
                  renderAdminTable();
                  updateAdminStatistics();
+                 
+                 // 자동 저장 (디바운스 적용)
+                 clearTimeout(window.autoSaveTimeout);
+                 window.autoSaveTimeout = setTimeout(() => {
+                   autoSaveSchedule();
+                 }, 1000); // 1초 후 자동 저장
                }
              }
 
@@ -2467,6 +2477,9 @@
                  renderAdminTable();
                  updateAdminStatistics();
                  console.log(`Deleted schedule row ${index}`);
+                 
+                 // 자동 저장
+                 autoSaveSchedule();
                }
              }
 
@@ -2516,6 +2529,65 @@
                renderAdminTable();
                updateAdminStatistics();
                console.log('✅ Added new schedule row');
+               
+               // 자동 저장 (디바운스 적용)
+               clearTimeout(window.autoSaveTimeout);
+               window.autoSaveTimeout = setTimeout(() => {
+                 autoSaveSchedule();
+               }, 1000); // 1초 후 자동 저장
+             }
+
+             // 자동 저장 함수 (알림 없이 조용히 저장)
+             async function autoSaveSchedule() {
+               try {
+                 // 파트가 선택된 항목만 필터링
+                 const validData = window.adminScheduleData.filter(item => 
+                   item.part_number && item.part_number.trim() !== ''
+                 );
+                 
+                 if (validData.length === 0) {
+                   console.log('⚠️ No valid data to save');
+                   return;
+                 }
+                 
+                 if (window.supabase && typeof window.supabase.from === 'function') {
+                   // 기존 데이터 삭제
+                   const { error: deleteError } = await window.supabase
+                     .from('packaging_schedule')
+                     .delete()
+                     .eq('date', window.adminSelectedDate);
+                   
+                   if (deleteError) throw deleteError;
+                   
+                   // 새 데이터 삽입
+                   const { data: insertedData, error: insertError } = await window.supabase
+                     .from('packaging_schedule')
+                     .insert(validData.map(item => ({
+                       date: window.adminSelectedDate,
+                       part_number: item.part_number,
+                       start_time: item.start_time || null,
+                       end_time: item.end_time || null,
+                       status: item.status || 'waiting',
+                       note: item.note || '',
+                       gap_reason: item.gap_reason || ''
+                     })))
+                     .select();
+                   
+                   if (insertError) throw insertError;
+                   
+                   // 저장된 데이터로 로컬 데이터 업데이트
+                   if (insertedData && insertedData.length > 0) {
+                     window.adminScheduleData = insertedData;
+                     console.log('✅ Auto-saved successfully:', window.adminScheduleData);
+                   }
+                 } else {
+                   console.log('⚠️ Supabase not available, auto-save skipped');
+                 }
+                 
+                 updateAdminStatistics();
+               } catch (error) {
+                 console.error('Error auto-saving schedule:', error);
+               }
              }
 
              async function saveSchedule() {

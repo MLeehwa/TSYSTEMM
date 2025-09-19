@@ -27,6 +27,12 @@ CREATE INDEX IF NOT EXISTS idx_packaging_schedule_date_status ON packaging_sched
 ALTER TABLE packaging_schedule ENABLE ROW LEVEL SECURITY;
 
 -- 4. RLS 정책 설정 (익명 사용자도 읽기/쓰기 가능)
+-- 기존 정책이 있으면 삭제 후 재생성
+DROP POLICY IF EXISTS "Allow anonymous read access" ON packaging_schedule;
+DROP POLICY IF EXISTS "Allow anonymous insert access" ON packaging_schedule;
+DROP POLICY IF EXISTS "Allow anonymous update access" ON packaging_schedule;
+DROP POLICY IF EXISTS "Allow anonymous delete access" ON packaging_schedule;
+
 CREATE POLICY "Allow anonymous read access" ON packaging_schedule
     FOR SELECT USING (true);
 
@@ -49,6 +55,9 @@ END;
 $$ language 'plpgsql';
 
 -- 6. 업데이트 트리거 생성
+-- 기존 트리거가 있으면 삭제 후 재생성
+DROP TRIGGER IF EXISTS update_packaging_schedule_updated_at ON packaging_schedule;
+
 CREATE TRIGGER update_packaging_schedule_updated_at 
     BEFORE UPDATE ON packaging_schedule 
     FOR EACH ROW 
@@ -74,6 +83,9 @@ END;
 $$ language 'plpgsql';
 
 -- 8. 상태 자동 업데이트 트리거
+-- 기존 트리거가 있으면 삭제 후 재생성
+DROP TRIGGER IF EXISTS update_packaging_schedule_status_trigger ON packaging_schedule;
+
 CREATE TRIGGER update_packaging_schedule_status_trigger
     BEFORE INSERT OR UPDATE ON packaging_schedule
     FOR EACH ROW
@@ -93,6 +105,9 @@ INSERT INTO packaging_schedule (date, part_number, start_time, end_time, status,
 ON CONFLICT DO NOTHING;
 
 -- 10. 뷰 생성 (현재 활성 작업 조회용)
+-- 기존 뷰가 있으면 삭제 후 재생성
+DROP VIEW IF EXISTS packaging_schedule_active;
+
 CREATE OR REPLACE VIEW packaging_schedule_active AS
 SELECT 
     id,
@@ -139,5 +154,37 @@ WHERE table_schema = 'public'
 AND table_name = 'packaging_schedule'
 ORDER BY ordinal_position;
 
--- 12. 완료 메시지
-SELECT 'Packaging Schedule database setup completed successfully!' as status;
+-- 12. 시퀀스 리셋 함수 (ID를 1부터 다시 시작하고 싶을 때 사용)
+-- 기존 함수가 있으면 삭제 후 재생성
+DROP FUNCTION IF EXISTS reset_packaging_schedule_sequence();
+
+CREATE OR REPLACE FUNCTION reset_packaging_schedule_sequence()
+RETURNS void AS $$
+BEGIN
+    -- 테이블의 모든 데이터 삭제
+    DELETE FROM packaging_schedule;
+    
+    -- 시퀀스를 1로 리셋
+    ALTER SEQUENCE packaging_schedule_id_seq RESTART WITH 1;
+    
+    RAISE NOTICE 'Packaging schedule sequence reset to 1';
+END;
+$$ LANGUAGE plpgsql;
+
+-- 13. 시퀀스 리셋 실행 (ID를 1부터 다시 시작)
+SELECT reset_packaging_schedule_sequence();
+
+-- 14. 샘플 데이터 재삽입 (ID 1부터 시작)
+INSERT INTO packaging_schedule (date, part_number, start_time, end_time, status, note, gap_reason) VALUES
+    (CURRENT_DATE, '24', '08:00', '09:00', 'completed', '정상 완료', ''),
+    (CURRENT_DATE, '33', '09:00', NULL, 'active', '진행 중', ''),
+    (CURRENT_DATE, '34', NULL, NULL, 'waiting', '', ''),
+    (CURRENT_DATE, '35', NULL, NULL, 'waiting', '', ''),
+    (CURRENT_DATE, '79', NULL, NULL, 'waiting', '', ''),
+    (CURRENT_DATE, '80', NULL, NULL, 'waiting', '', ''),
+    (CURRENT_DATE, '4GV3', NULL, NULL, 'waiting', '', ''),
+    (CURRENT_DATE, '4GF8', NULL, NULL, 'waiting', '', ''),
+    (CURRENT_DATE, 'SWAP', NULL, NULL, 'waiting', '', '');
+
+-- 15. 완료 메시지
+SELECT 'Packaging Schedule database setup completed successfully! ID sequence reset to 1.' as status;
