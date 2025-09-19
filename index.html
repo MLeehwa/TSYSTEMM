@@ -2919,30 +2919,30 @@
             }
 
              // 자동으로 현재 진행중인 작업 또는 다음 작업 선택
-             function autoSelectCurrentTask() {
-               if (!window.supervisorScheduleData || window.supervisorScheduleData.length === 0) {
-                 console.log('⚠️ No schedule data available for auto-selection');
-                 return;
-               }
-               
-               // 1. 현재 진행중인 작업 찾기
-               const activeTask = window.supervisorScheduleData.find(item => item.status === 'active');
-               if (activeTask) {
-                 console.log('🔄 Auto-selecting active task:', activeTask.id);
-                 selectSupervisorTask(activeTask.id);
-                 return;
-               }
-               
-               // 2. 진행중인 작업이 없으면 다음 대기 작업 찾기
-               const nextWaitingTask = window.supervisorScheduleData.find(item => item.status === 'waiting');
-               if (nextWaitingTask) {
-                 console.log('⏭️ Auto-selecting next waiting task:', nextWaitingTask.id);
-                 selectSupervisorTask(nextWaitingTask.id);
-                 return;
-               }
-               
-               console.log('ℹ️ No suitable task found for auto-selection');
-             }
+            function autoSelectCurrentTask() {
+              if (!window.supervisorScheduleData || window.supervisorScheduleData.length === 0) {
+                console.log('⚠️ No schedule data available for auto-selection');
+                return;
+              }
+              
+              // 1. 현재 진행중인 작업 찾기
+              const activeTask = window.supervisorScheduleData.find(item => item.status === 'active');
+              if (activeTask) {
+                console.log('🔄 Auto-selecting active task:', activeTask.sequence_number);
+                selectSupervisorTask(activeTask.sequence_number);
+                return;
+              }
+              
+              // 2. 진행중인 작업이 없으면 다음 대기 작업 찾기
+              const nextWaitingTask = window.supervisorScheduleData.find(item => item.status === 'waiting');
+              if (nextWaitingTask) {
+                console.log('⏭️ Auto-selecting next waiting task:', nextWaitingTask.sequence_number);
+                selectSupervisorTask(nextWaitingTask.sequence_number);
+                return;
+              }
+              
+              console.log('ℹ️ No suitable task found for auto-selection');
+            }
 
              // 작업 선택
             function selectSupervisorTask(sequenceNumber) {
@@ -3213,9 +3213,9 @@
                const currentRoundEl = document.getElementById('currentRound');
                const currentPartEl = document.getElementById('currentPart');
                
-               if (activeItem) {
-                 if (currentRoundEl) currentRoundEl.textContent = `ID ${activeItem.id}`;
-                 if (currentPartEl) currentPartEl.textContent = activeItem.part_number;
+              if (activeItem) {
+                if (currentRoundEl) currentRoundEl.textContent = `ID ${activeItem.sequence_number}`;
+                if (currentPartEl) currentPartEl.textContent = activeItem.part_number;
                } else {
                  if (currentRoundEl) currentRoundEl.textContent = '-';
                  if (currentPartEl) currentPartEl.textContent = '-';
@@ -3244,10 +3244,10 @@
                      elapsedTimeEl.textContent = timeString;
                    }
                    
-                   // 디버깅을 위한 로그 (5초마다)
-                   if (seconds % 5 === 0) {
-                     console.log(`⏰ Timer update: Work ID ${window.supervisorCurrentWork.id}, Elapsed: ${timeString}`);
-                   }
+                  // 디버깅을 위한 로그 (5초마다)
+                  if (seconds % 5 === 0) {
+                    console.log(`⏰ Timer update: Work Sequence ${window.supervisorCurrentWork.sequence_number}, Elapsed: ${timeString}`);
+                  }
                  } else {
                    // 진행 중인 작업이 없으면 00:00:00으로 리셋
                    const elapsedTimeEl = document.getElementById('elapsedTime');
