@@ -1,10 +1,13 @@
 -- Packaging Schedule Database Setup for Supabase
 -- 이 스크립트를 Supabase SQL Editor에서 실행하세요
 
--- 1. Packaging Schedule 테이블 생성
-CREATE TABLE IF NOT EXISTS packaging_schedule (
-    id SERIAL PRIMARY KEY,
+-- 1. 기존 테이블 삭제 (새로운 구조로 변경하기 위해)
+DROP TABLE IF EXISTS packaging_schedule CASCADE;
+
+-- 2. Packaging Schedule 테이블 생성 (새로운 구조)
+CREATE TABLE packaging_schedule (
     date DATE NOT NULL,
+    sequence_number INTEGER NOT NULL,
     part_number VARCHAR(20) NOT NULL,
     start_time VARCHAR(5), -- Format: HH:MM (08:00, 09:30, etc.)
     end_time VARCHAR(5),   -- Format: HH:MM (09:00, 10:30, etc.)
@@ -14,19 +17,21 @@ CREATE TABLE IF NOT EXISTS packaging_schedule (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     created_by VARCHAR(100),
-    updated_by VARCHAR(100)
+    updated_by VARCHAR(100),
+    PRIMARY KEY (date, sequence_number) -- 복합 기본키: 날짜별로 시퀀스 번호 1번부터 시작
 );
 
--- 2. 인덱스 생성 (성능 향상)
+-- 3. 인덱스 생성 (성능 향상)
 CREATE INDEX IF NOT EXISTS idx_packaging_schedule_date ON packaging_schedule(date);
 CREATE INDEX IF NOT EXISTS idx_packaging_schedule_status ON packaging_schedule(status);
 CREATE INDEX IF NOT EXISTS idx_packaging_schedule_part_number ON packaging_schedule(part_number);
+CREATE INDEX IF NOT EXISTS idx_packaging_schedule_sequence ON packaging_schedule(date, sequence_number);
 CREATE INDEX IF NOT EXISTS idx_packaging_schedule_date_status ON packaging_schedule(date, status);
 
--- 3. RLS (Row Level Security) 설정
+-- 4. RLS (Row Level Security) 설정
 ALTER TABLE packaging_schedule ENABLE ROW LEVEL SECURITY;
 
--- 4. RLS 정책 설정 (익명 사용자도 읽기/쓰기 가능)
+-- 5. RLS 정책 설정 (익명 사용자도 읽기/쓰기 가능)
 -- 기존 정책이 있으면 삭제 후 재생성
 DROP POLICY IF EXISTS "Allow anonymous read access" ON packaging_schedule;
 DROP POLICY IF EXISTS "Allow anonymous insert access" ON packaging_schedule;
@@ -45,7 +50,7 @@ CREATE POLICY "Allow anonymous update access" ON packaging_schedule
 CREATE POLICY "Allow anonymous delete access" ON packaging_schedule
     FOR DELETE USING (true);
 
--- 5. 업데이트 트리거 함수
+-- 6. 업데이트 트리거 함수
 CREATE OR REPLACE FUNCTION update_packaging_schedule_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -54,7 +59,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- 6. 업데이트 트리거 생성
+-- 7. 업데이트 트리거 생성
 -- 기존 트리거가 있으면 삭제 후 재생성
 DROP TRIGGER IF EXISTS update_packaging_schedule_updated_at ON packaging_schedule;
 
@@ -63,7 +68,7 @@ CREATE TRIGGER update_packaging_schedule_updated_at
     FOR EACH ROW 
     EXECUTE FUNCTION update_packaging_schedule_updated_at();
 
--- 7. 상태 자동 업데이트 함수
+-- 8. 상태 자동 업데이트 함수
 CREATE OR REPLACE FUNCTION update_packaging_schedule_status()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -82,7 +87,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- 8. 상태 자동 업데이트 트리거
+-- 9. 상태 자동 업데이트 트리거
 -- 기존 트리거가 있으면 삭제 후 재생성
 DROP TRIGGER IF EXISTS update_packaging_schedule_status_trigger ON packaging_schedule;
 
@@ -91,27 +96,33 @@ CREATE TRIGGER update_packaging_schedule_status_trigger
     FOR EACH ROW
     EXECUTE FUNCTION update_packaging_schedule_status();
 
--- 9. 샘플 데이터 삽입 (오늘 날짜)
-INSERT INTO packaging_schedule (date, part_number, start_time, end_time, status, note, gap_reason) VALUES
-    (CURRENT_DATE, '24', '08:00', '09:00', 'completed', '정상 완료', ''),
-    (CURRENT_DATE, '33', '09:00', NULL, 'active', '진행 중', ''),
-    (CURRENT_DATE, '34', NULL, NULL, 'waiting', '', ''),
-    (CURRENT_DATE, '35', NULL, NULL, 'waiting', '', ''),
-    (CURRENT_DATE, '79', NULL, NULL, 'waiting', '', ''),
-    (CURRENT_DATE, '80', NULL, NULL, 'waiting', '', ''),
-    (CURRENT_DATE, '4GV3', NULL, NULL, 'waiting', '', ''),
-    (CURRENT_DATE, '4GF8', NULL, NULL, 'waiting', '', ''),
-    (CURRENT_DATE, 'SWAP', NULL, NULL, 'waiting', '', '')
-ON CONFLICT DO NOTHING;
+-- 10. 샘플 데이터 삽입 (오늘 날짜) - 날짜별 시퀀스 번호 1번부터 시작
+INSERT INTO packaging_schedule (date, sequence_number, part_number, start_time, end_time, status, note, gap_reason) VALUES
+    (CURRENT_DATE, 1, '24', '08:00', '09:00', 'completed', '정상 완료', ''),
+    (CURRENT_DATE, 2, '33', '09:00', NULL, 'active', '진행 중', ''),
+    (CURRENT_DATE, 3, '34', NULL, NULL, 'waiting', '', ''),
+    (CURRENT_DATE, 4, '35', NULL, NULL, 'waiting', '', ''),
+    (CURRENT_DATE, 5, '79', NULL, NULL, 'waiting', '', ''),
+    (CURRENT_DATE, 6, '80', NULL, NULL, 'waiting', '', ''),
+    (CURRENT_DATE, 7, '4GV3', NULL, NULL, 'waiting', '', ''),
+    (CURRENT_DATE, 8, '4GF8', NULL, NULL, 'waiting', '', ''),
+    (CURRENT_DATE, 9, 'SWAP', NULL, NULL, 'waiting', '', '')
+ON CONFLICT (date, sequence_number) DO UPDATE SET
+    part_number = EXCLUDED.part_number,
+    start_time = EXCLUDED.start_time,
+    end_time = EXCLUDED.end_time,
+    status = EXCLUDED.status,
+    note = EXCLUDED.note,
+    gap_reason = EXCLUDED.gap_reason;
 
--- 10. 뷰 생성 (현재 활성 작업 조회용)
+-- 11. 뷰 생성 (현재 활성 작업 조회용)
 -- 기존 뷰가 있으면 삭제 후 재생성
 DROP VIEW IF EXISTS packaging_schedule_active;
 
 CREATE OR REPLACE VIEW packaging_schedule_active AS
 SELECT 
-    id,
     date,
+    sequence_number,
     part_number,
     start_time,
     end_time,
@@ -140,9 +151,9 @@ ORDER BY
         WHEN 'waiting' THEN 2 
         WHEN 'completed' THEN 3 
     END,
-    id;
+    sequence_number;
 
--- 11. 테이블 정보 확인
+-- 12. 테이블 정보 확인
 SELECT 
     table_name,
     column_name,
@@ -154,37 +165,27 @@ WHERE table_schema = 'public'
 AND table_name = 'packaging_schedule'
 ORDER BY ordinal_position;
 
--- 12. 시퀀스 리셋 함수 (ID를 1부터 다시 시작하고 싶을 때 사용)
+-- 13. 날짜별 시퀀스 번호 자동 생성 함수
 -- 기존 함수가 있으면 삭제 후 재생성
-DROP FUNCTION IF EXISTS reset_packaging_schedule_sequence();
+DROP FUNCTION IF EXISTS get_next_sequence_number(DATE);
 
-CREATE OR REPLACE FUNCTION reset_packaging_schedule_sequence()
-RETURNS void AS $$
+CREATE OR REPLACE FUNCTION get_next_sequence_number(target_date DATE)
+RETURNS INTEGER AS $$
+DECLARE
+    next_seq INTEGER;
 BEGIN
-    -- 테이블의 모든 데이터 삭제
-    DELETE FROM packaging_schedule;
+    -- 해당 날짜의 최대 시퀀스 번호를 찾아서 +1
+    SELECT COALESCE(MAX(sequence_number), 0) + 1 
+    INTO next_seq
+    FROM packaging_schedule 
+    WHERE date = target_date;
     
-    -- 시퀀스를 1로 리셋
-    ALTER SEQUENCE packaging_schedule_id_seq RESTART WITH 1;
-    
-    RAISE NOTICE 'Packaging schedule sequence reset to 1';
+    RETURN next_seq;
 END;
 $$ LANGUAGE plpgsql;
 
--- 13. 시퀀스 리셋 실행 (ID를 1부터 다시 시작)
-SELECT reset_packaging_schedule_sequence();
-
--- 14. 샘플 데이터 재삽입 (ID 1부터 시작)
-INSERT INTO packaging_schedule (date, part_number, start_time, end_time, status, note, gap_reason) VALUES
-    (CURRENT_DATE, '24', '08:00', '09:00', 'completed', '정상 완료', ''),
-    (CURRENT_DATE, '33', '09:00', NULL, 'active', '진행 중', ''),
-    (CURRENT_DATE, '34', NULL, NULL, 'waiting', '', ''),
-    (CURRENT_DATE, '35', NULL, NULL, 'waiting', '', ''),
-    (CURRENT_DATE, '79', NULL, NULL, 'waiting', '', ''),
-    (CURRENT_DATE, '80', NULL, NULL, 'waiting', '', ''),
-    (CURRENT_DATE, '4GV3', NULL, NULL, 'waiting', '', ''),
-    (CURRENT_DATE, '4GF8', NULL, NULL, 'waiting', '', ''),
-    (CURRENT_DATE, 'SWAP', NULL, NULL, 'waiting', '', '');
-
--- 15. 완료 메시지
-SELECT 'Packaging Schedule database setup completed successfully! ID sequence reset to 1.' as status;
+-- 14. 완료 메시지
+SELECT 'Packaging Schedule database setup completed successfully! 
+- Table structure: date + sequence_number (composite primary key)
+- Each date starts sequence_number from 1
+- Use get_next_sequence_number(date) function to get next sequence number for a date' as status;
