@@ -37,19 +37,19 @@
       transition: width 0.3s ease;
     }
     
-    .status-active {
+    .work_status-active {
       background: linear-gradient(135deg, #10b981, #059669);
       color: white;
       border: 2px solid #10b981;
     }
     
-    .status-waiting {
+    .work_status-waiting {
       background: linear-gradient(135deg, #f59e0b, #d97706);
       color: white;
       border: 2px solid #f59e0b;
     }
     
-    .status-completed {
+    .work_status-completed {
       background: linear-gradient(135deg, #6b7280, #4b5563);
       color: white;
       border: 2px solid #6b7280;
@@ -161,7 +161,7 @@
               <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-300">
                 <div class="text-4xl mb-4">🚛</div>
                 <h3 class="text-xl font-semibold text-gray-800 mb-3">Truck Management</h3>
-                <p class="text-gray-600">Monitor real-time truck status and manage fleet operations.</p>
+                <p class="text-gray-600">Monitor real-time truck work_status and manage fleet operations.</p>
               </div>
               
               <!-- System Overview -->
@@ -191,9 +191,9 @@
       if (typeof supabase !== 'undefined') {
         try {
           sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-          window.sb = sb;
+        window.sb = sb;
           window.supabase = sb; // 클라이언트 인스턴스를 전역에 할당
-          console.log('✅ Supabase 클라이언트 생성 완료');
+        console.log('✅ Supabase 클라이언트 생성 완료');
         } catch (error) {
           console.error('❌ Supabase 클라이언트 생성 실패:', error);
         }
@@ -877,7 +877,7 @@
                                    <th class="text-left py-2 px-2 font-semibold text-gray-700" id="partHeader">Part</th>
                                    <th class="text-left py-2 px-2 font-semibold text-gray-700" id="startHeader">Start</th>
                                    <th class="text-left py-2 px-2 font-semibold text-gray-700" id="endHeader">End</th>
-                                   <th class="text-left py-2 px-2 font-semibold text-gray-700" id="statusHeader">Status</th>
+                                   <th class="text-left py-2 px-2 font-semibold text-gray-700" id="work_statusHeader">Status</th>
                                  </tr>
                                </thead>
                                <tbody id="scheduleTable">
@@ -1124,9 +1124,9 @@
                performAnalysis();
                
                // 상태 업데이트
-               const status = document.getElementById('filterStatus');
-               if (status) {
-                 status.textContent = `필터 적용됨: ${filtered.length}개 레코드`;
+               const work_status = document.getElementById('filterStatus');
+               if (work_status) {
+                 work_status.textContent = `필터 적용됨: ${filtered.length}개 레코드`;
                }
              }
              
@@ -1141,9 +1141,9 @@
                window.filteredData = [...window.allData];
                performAnalysis();
                
-               const status = document.getElementById('filterStatus');
-               if (status) {
-                 status.textContent = 'No filters applied';
+               const work_status = document.getElementById('filterStatus');
+               if (work_status) {
+                 work_status.textContent = 'No filters applied';
                }
              }
              
@@ -1597,12 +1597,12 @@
                performPackagingAnalysis();
                
                // 상태 업데이트
-               const status = document.getElementById('packagingFilterStatus');
-               if (status) {
+               const work_status = document.getElementById('packagingFilterStatus');
+               if (work_status) {
                  if (partNo) {
-                   status.textContent = `Fixed: F101, N, RACK NO | Applied: Part No=${partNo} | ${filtered.length}개 레코드`;
+                   work_status.textContent = `Fixed: F101, N, RACK NO | Applied: Part No=${partNo} | ${filtered.length}개 레코드`;
                  } else {
-                   status.textContent = `Fixed filters: Location=F101, Hold Whether=N, RACK NO required (Part No only searchable) | ${filtered.length}개 레코드`;
+                   work_status.textContent = `Fixed filters: Location=F101, Hold Whether=N, RACK NO required (Part No only searchable) | ${filtered.length}개 레코드`;
                  }
                }
              }
@@ -1620,9 +1620,9 @@
                window.packagingFilteredData = filtered;
                performPackagingAnalysis();
                
-               const status = document.getElementById('packagingFilterStatus');
-               if (status) {
-                 status.textContent = `Fixed filters: Location=F101, Hold Whether=N, RACK NO required (Part No only searchable) | ${filtered.length}개 레코드`;
+               const work_status = document.getElementById('packagingFilterStatus');
+               if (work_status) {
+                 work_status.textContent = `Fixed filters: Location=F101, Hold Whether=N, RACK NO required (Part No only searchable) | ${filtered.length}개 레코드`;
                }
              }
              
@@ -1706,7 +1706,7 @@
                    }
                    locationGroups[location].noRackNo++;
                  } else if (rackNo.startsWith('LHSAB') || rackNo.startsWith('LHSBA') || 
-                           rackNo.startsWith('LHSAA') || rackNo.startsWith('LHSBB')) {
+                     rackNo.startsWith('LHSAA') || rackNo.startsWith('LHSBB')) {
                    packagingStatus = 'Before Packaging';
                    locationGroups[location].beforePackaging++;
                  } else if (rackNo.startsWith('LHSAC') || rackNo.startsWith('LHSAD') || 
@@ -1993,23 +1993,23 @@
              async function handleFileUpload() {
                const fileInput = document.getElementById('fileInput');
                const file = fileInput.files[0];
-               const statusDiv = document.getElementById('uploadStatus');
+               const work_statusDiv = document.getElementById('uploadStatus');
                const tableDiv = document.getElementById('dataTable');
                
                if (!file) {
-                 statusDiv.innerHTML = '<div class="text-red-600">파일을 선택해주세요.</div>';
+                 work_statusDiv.innerHTML = '<div class="text-red-600">파일을 선택해주세요.</div>';
                  return;
                }
                
                // Supabase 연결 확인
                if (!window.sb) {
-                 statusDiv.innerHTML = '<div class="text-red-600">❌ 데이터베이스 연결이 없습니다. 페이지를 새로고침해주세요.</div>';
+                 work_statusDiv.innerHTML = '<div class="text-red-600">❌ 데이터베이스 연결이 없습니다. 페이지를 새로고침해주세요.</div>';
                  console.error('❌ Supabase client not available');
                  return;
                }
                
                const supabase = window.sb;
-               statusDiv.innerHTML = '<div class="text-blue-600">📁 파일 읽는 중...</div>';
+               work_statusDiv.innerHTML = '<div class="text-blue-600">📁 파일 읽는 중...</div>';
                
                try {
                  // 1단계: 파일 읽기
@@ -2018,7 +2018,7 @@
                    throw new Error('No data found in file');
                  }
                  
-                 statusDiv.innerHTML = '<div class="text-blue-600">🔍 데이터 검증 중...</div>';
+                 work_statusDiv.innerHTML = '<div class="text-blue-600">🔍 데이터 검증 중...</div>';
                  
                  // 2단계: 데이터 검증
                  const validatedData = validateData(data);
@@ -2026,7 +2026,7 @@
                    throw new Error('No valid data after validation');
                  }
                  
-                 statusDiv.innerHTML = '<div class="text-blue-600">🗑️ 기존 데이터 삭제 중...</div>';
+                 work_statusDiv.innerHTML = '<div class="text-blue-600">🗑️ 기존 데이터 삭제 중...</div>';
                  
                  // 3단계: 기존 데이터 삭제
                  const { error: deleteError } = await supabase
@@ -2038,7 +2038,7 @@
                    throw new Error(`Delete error: ${deleteError.message}`);
                  }
                  
-                 statusDiv.innerHTML = '<div class="text-blue-600">📝 데이터베이스에 저장 중...</div>';
+                 work_statusDiv.innerHTML = '<div class="text-blue-600">📝 데이터베이스에 저장 중...</div>';
                  
                  // 4단계: 새 데이터 추가 (배치 처리)
                  const batchSize = 500;
@@ -2053,7 +2053,7 @@
                  
                  for (let i = 0; i < batches.length; i++) {
                    const batch = batches[i];
-                   statusDiv.innerHTML = `<div class="text-blue-600">📤 배치 ${i + 1}/${batches.length} 처리 중... (${totalInserted}개 완료)</div>`;
+                   work_statusDiv.innerHTML = `<div class="text-blue-600">📤 배치 ${i + 1}/${batches.length} 처리 중... (${totalInserted}개 완료)</div>`;
                    
                    try {
                      const { data: result, error: insertError } = await supabase
@@ -2078,9 +2078,9 @@
                  // 결과 표시
                  if (failedBatches.length > 0) {
                    const successRate = ((batches.length - failedBatches.length) / batches.length * 100).toFixed(1);
-                   statusDiv.innerHTML = `<div class="text-yellow-600">⚠️ 업로드 완료: ${totalInserted}개 성공, ${failedBatches.length}개 배치 실패 (${successRate}% 성공률)</div>`;
+                   work_statusDiv.innerHTML = `<div class="text-yellow-600">⚠️ 업로드 완료: ${totalInserted}개 성공, ${failedBatches.length}개 배치 실패 (${successRate}% 성공률)</div>`;
                  } else {
-                   statusDiv.innerHTML = `<div class="text-green-600">✅ 업로드 완료: ${totalInserted}개 레코드가 성공적으로 저장되었습니다!</div>`;
+                   work_statusDiv.innerHTML = `<div class="text-green-600">✅ 업로드 완료: ${totalInserted}개 레코드가 성공적으로 저장되었습니다!</div>`;
                  }
                  
                  // 미리보기 테이블 생성
@@ -2120,7 +2120,7 @@
                  
                  } catch (error) {
                  console.error('❌ Upload failed:', error);
-                 statusDiv.innerHTML = `<div class="text-red-600">❌ 업로드 실패: ${error.message}</div>`;
+                 work_statusDiv.innerHTML = `<div class="text-red-600">❌ 업로드 실패: ${error.message}</div>`;
                }
              }
              
@@ -2192,8 +2192,8 @@
              // STATUS 페이지를 새 탭에서 열기
              function openStatusInNewTab() {
                // 로컬과 동일하게 작동하도록 상대 경로 사용
-               const statusUrl = './pages/truck/status.html';
-               window.open(statusUrl, '_blank');
+               const work_statusUrl = './pages/truck/work_status.html';
+               window.open(work_statusUrl, '_blank');
              }
 
              // Admin 페이지 초기화
@@ -2227,22 +2227,10 @@
                console.log('🔨 Rendering Admin table...');
                console.log('All schedule data:', window.adminScheduleData);
                
-               // 모든 항목을 표시하되, 파트가 선택된 항목은 정렬하고 선택되지 않은 항목은 뒤에 표시
-               const validItems = window.adminScheduleData.filter(item => 
-                 item.part_number && item.part_number.trim() !== ''
-               );
-               const invalidItems = window.adminScheduleData.filter(item => 
-                 !item.part_number || item.part_number.trim() === ''
-               );
-               
-               const sortedValidItems = validItems.sort((a, b) => {
-                 if (a.part_number !== b.part_number) {
-                   return a.part_number.localeCompare(b.part_number);
-                 }
-                 return (a.sequence_number || 0) - (b.sequence_number || 0);
+               // 모든 항목을 ID 순서대로 정렬
+               const sortedData = window.adminScheduleData.sort((a, b) => {
+                 return (a.seq_no || 0) - (b.seq_no || 0);
                });
-               
-               const sortedData = [...sortedValidItems, ...invalidItems];
                
                let tableHTML = `
                  <div class="overflow-x-auto h-full">
@@ -2262,56 +2250,59 @@
                `;
                
                sortedData.forEach((item, index) => {
-                 const status = calculateStatus(item);
-                 const statusColor = status === 'completed' ? 'bg-green-100 text-green-800' :
-                                   status === 'active' ? 'bg-yellow-100 text-yellow-800' :
+                 const work_status = calculateStatus(item);
+                 const work_statusColor = work_status === 'completed' ? 'bg-green-100 text-green-800' :
+                                   work_status === 'active' ? 'bg-yellow-100 text-yellow-800' :
                                    'bg-gray-100 text-gray-800';
                  
                  const gapTime = calculateGapTime(item, sortedData, index);
-                 const isPartSelected = item.part_number && item.part_number.trim() !== '';
+                 const isPartSelected = item.part_no && item.part_no.trim() !== '';
+                 const isCompleted = work_status === 'completed';
                  const rowClass = isPartSelected ? 'hover:bg-gray-50' : 'bg-gray-100 hover:bg-gray-200';
                  
                  tableHTML += `
                    <tr class="${rowClass}" data-index="${sortedData.indexOf(item)}">
                      <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                       ${item.sequence_number || 'NEW'}
+                       ${item.seq_no || 'NEW'}
                      </td>
                      <td class="px-3 py-2 whitespace-nowrap">
-                       <select class="px-2 py-1 text-sm border border-gray-300 rounded" onchange="updateScheduleData(${sortedData.indexOf(item)}, 'part_number', this.value)">
-                         <option value="" ${!item.part_number ? 'selected' : ''}>선택하세요</option>
-                         <option value="24" ${item.part_number === '24' ? 'selected' : ''}>24</option>
-                         <option value="33" ${item.part_number === '33' ? 'selected' : ''}>33</option>
-                         <option value="34" ${item.part_number === '34' ? 'selected' : ''}>34</option>
-                         <option value="35" ${item.part_number === '35' ? 'selected' : ''}>35</option>
-                         <option value="79" ${item.part_number === '79' ? 'selected' : ''}>79</option>
-                         <option value="80" ${item.part_number === '80' ? 'selected' : ''}>80</option>
-                         <option value="4GV3" ${item.part_number === '4GV3' ? 'selected' : ''}>4GV3</option>
-                         <option value="4GF8" ${item.part_number === '4GF8' ? 'selected' : ''}>4GF8</option>
-                         <option value="SWAP" ${item.part_number === 'SWAP' ? 'selected' : ''}>SWAP</option>
+                       <select class="px-2 py-1 text-sm border border-gray-300 rounded ${isCompleted ? 'bg-gray-200 cursor-not-allowed' : ''}" 
+                               onchange="updateScheduleData(${sortedData.indexOf(item)}, 'part_no', this.value)"
+                               ${isCompleted ? 'disabled' : ''}>
+                         <option value="" ${!item.part_no ? 'selected' : ''}>선택하세요</option>
+                         <option value="24" ${item.part_no === '24' ? 'selected' : ''}>24</option>
+                         <option value="33" ${item.part_no === '33' ? 'selected' : ''}>33</option>
+                         <option value="34" ${item.part_no === '34' ? 'selected' : ''}>34</option>
+                         <option value="35" ${item.part_no === '35' ? 'selected' : ''}>35</option>
+                         <option value="79" ${item.part_no === '79' ? 'selected' : ''}>79</option>
+                         <option value="80" ${item.part_no === '80' ? 'selected' : ''}>80</option>
+                         <option value="4GV3" ${item.part_no === '4GV3' ? 'selected' : ''}>4GV3</option>
+                         <option value="4GF8" ${item.part_no === '4GF8' ? 'selected' : ''}>4GF8</option>
+                         <option value="SWAP" ${item.part_no === 'SWAP' ? 'selected' : ''}>SWAP</option>
                        </select>
                      </td>
                      <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                       ${item.start_time || '-'}
+                       ${item.work_start_time || '-'}
                      </td>
                      <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                       ${item.end_time || '-'}
+                       ${item.work_end_time || '-'}
                      </td>
                      <td class="px-3 py-2 whitespace-nowrap">
-                       <span class="px-2 py-1 text-xs font-semibold rounded-full ${isPartSelected ? statusColor : 'bg-gray-200 text-gray-600'}">
-                         ${isPartSelected ? (status === 'completed' ? '완료' : status === 'active' ? '진행중' : '대기') : '미선택'}
+                       <span class="px-2 py-1 text-xs font-semibold rounded-full ${isPartSelected ? work_statusColor : 'bg-gray-200 text-gray-600'}">
+                         ${isPartSelected ? (work_status === 'completed' ? '완료' : work_status === 'active' ? '진행중' : '대기') : '미선택'}
                        </span>
                      </td>
                      <td class="px-3 py-2 whitespace-nowrap">
                        <div class="flex items-center space-x-3">
-                         <input type="text" value="${item.note || ''}" placeholder="비고 입력" 
+                         <input type="text" value="${item.work_note || ''}" placeholder="비고 입력" 
                                 class="w-40 px-3 py-2 text-sm border border-gray-300 rounded" 
-                                onchange="updateScheduleData(${sortedData.indexOf(item)}, 'note', this.value)">
+                                onchange="updateScheduleData(${sortedData.indexOf(item)}, 'work_note', this.value)">
                          ${gapTime ? `
                            <div class="flex items-center space-x-2">
                              <span class="text-sm text-red-600 font-medium">${gapTime}</span>
-                             <input type="text" value="${item.gap_reason || ''}" placeholder="공백 이유" 
+                             <input type="text" value="${item.delay_reason || ''}" placeholder="공백 이유" 
                                     class="w-32 px-2 py-2 text-sm border border-gray-300 rounded" 
-                                    onchange="updateScheduleData(${sortedData.indexOf(item)}, 'gap_reason', this.value)">
+                                    onchange="updateScheduleData(${sortedData.indexOf(item)}, 'delay_reason', this.value)">
                            </div>
                          ` : ''}
                        </div>
@@ -2342,10 +2333,9 @@
                 }
                 
                 const { data, error } = await window.supabase
-                  .from('packaging_schedule')
+                  .from('tm_packaging_schedule')
                   .select('*')
-                  .eq('date', window.adminSelectedDate)
-                  .order('sequence_number', { ascending: true });
+                  .eq('work_date', window.adminSelectedDate);
                 
                 if (error) throw error;
                 window.adminScheduleData = data || [];
@@ -2365,9 +2355,9 @@
 
              // 상태 자동 계산
              function calculateStatus(item) {
-               if (item.start_time && item.end_time) {
+               if (item.work_start_time && item.work_end_time) {
                  return 'completed';
-               } else if (item.start_time) {
+               } else if (item.work_start_time) {
                  return 'active';
                } else {
                  return 'waiting';
@@ -2379,11 +2369,11 @@
                if (index === 0) return null;
                
                const prevItem = sortedData[index - 1];
-               if (!prevItem || prevItem.part_number !== item.part_number) return null;
+               if (!prevItem || prevItem.part_no !== item.part_no) return null;
                
-               if (prevItem.end_time && item.start_time) {
-                 const prevEnd = new Date(`2000-01-01 ${prevItem.end_time}`);
-                 const currentStart = new Date(`2000-01-01 ${item.start_time}`);
+               if (prevItem.work_end_time && item.work_start_time) {
+                 const prevEnd = new Date(`2000-01-01 ${prevItem.work_end_time}`);
+                 const currentStart = new Date(`2000-01-01 ${item.work_start_time}`);
                  const diffMinutes = (currentStart - prevEnd) / (1000 * 60);
                  
                  if (diffMinutes > 0) {
@@ -2403,8 +2393,8 @@
                const startTimeInput = document.getElementById('editStartTime');
                const endTimeInput = document.getElementById('editEndTime');
                
-               startTimeInput.value = item.start_time || '';
-               endTimeInput.value = item.end_time || '';
+               startTimeInput.value = item.work_start_time || '';
+               endTimeInput.value = item.work_end_time || '';
                
                modal.classList.remove('hidden');
                modal.classList.add('flex');
@@ -2423,8 +2413,8 @@
                const startTime = document.getElementById('editStartTime').value;
                const endTime = document.getElementById('editEndTime').value;
                
-               window.adminScheduleData[index].start_time = startTime;
-               window.adminScheduleData[index].end_time = endTime;
+               window.adminScheduleData[index].work_start_time = startTime;
+               window.adminScheduleData[index].work_end_time = endTime;
                
                closeTimeEditModal();
                renderAdminTable();
@@ -2466,14 +2456,12 @@
 
              // Admin 통계 업데이트
              function updateAdminStatistics() {
-               // 파트가 선택된 항목만 필터링
-               const validItems = window.adminScheduleData.filter(item => 
-                 item.part_number && item.part_number.trim() !== ''
-               );
+               // 모든 항목을 포함 (파트가 선택되지 않은 항목도 포함)
+               const allItems = window.adminScheduleData;
                
-               const totalItems = validItems.length;
-               const completedItems = validItems.filter(item => calculateStatus(item) === 'completed').length;
-               const activeItems = validItems.filter(item => calculateStatus(item) === 'active').length;
+               const totalItems = allItems.length;
+               const completedItems = allItems.filter(item => calculateStatus(item) === 'completed').length;
+               const activeItems = allItems.filter(item => calculateStatus(item) === 'active').length;
                
                const totalRoundsEl = document.getElementById('totalRounds');
                const completedRoundsEl = document.getElementById('completedRounds');
@@ -2490,17 +2478,18 @@
               console.log('Current data before adding:', window.adminScheduleData);
               
               // 다음 시퀀스 번호 생성
-              const maxSeq = Math.max(0, ...window.adminScheduleData.map(item => item.sequence_number || 0));
+              const maxSeq = Math.max(0, ...window.adminScheduleData.map(item => item.seq_no || 0));
               const nextSequenceNumber = maxSeq + 1;
               
               const newRow = {
-                date: window.adminSelectedDate,
-                sequence_number: nextSequenceNumber,
-                part_number: '',
-                start_time: '',
-                end_time: '',
-                note: '',
-                gap_reason: '',
+                work_date: window.adminSelectedDate,
+                seq_no: nextSequenceNumber,
+                part_no: '',
+                work_start_time: '',
+                work_end_time: '',
+                work_status: 'waiting', // 기본 상태는 대기
+                work_note: '',
+                delay_reason: '',
                 isNew: true // 새로 추가된 행임을 표시
               };
                
@@ -2522,13 +2511,11 @@
             // 자동 저장 함수 (알림 없이 조용히 저장)
             async function autoSaveSchedule() {
               try {
-                // 파트가 선택된 항목만 필터링
-                const validData = window.adminScheduleData.filter(item => 
-                  item.part_number && item.part_number.trim() !== ''
-                );
+                // 모든 항목을 저장 (파트가 선택되지 않은 항목도 포함)
+                const allData = window.adminScheduleData;
                 
-                if (validData.length === 0) {
-                  console.log('⚠️ No valid data to save');
+                if (allData.length === 0) {
+                  console.log('⚠️ No data to save');
                   return;
                 }
                 
@@ -2539,24 +2526,24 @@
                 
                 // 기존 데이터 삭제
                 const { error: deleteError } = await window.supabase
-                  .from('packaging_schedule')
+                  .from('tm_packaging_schedule')
                   .delete()
-                  .eq('date', window.adminSelectedDate);
+                  .eq('work_date', window.adminSelectedDate);
                 
                 if (deleteError) throw deleteError;
                 
-                // 새 데이터 삽입 (sequence_number 포함)
+                // 새 데이터 삽입 (seq_no 포함)
                 const { data: insertedData, error: insertError } = await window.supabase
-                  .from('packaging_schedule')
-                  .insert(validData.map(item => ({
-                    date: item.date || window.adminSelectedDate,
-                    sequence_number: item.sequence_number,
-                    part_number: item.part_number,
-                    start_time: item.start_time || null,
-                    end_time: item.end_time || null,
-                    status: item.status || 'waiting',
-                    note: item.note || '',
-                    gap_reason: item.gap_reason || ''
+                  .from('tm_packaging_schedule')
+                  .insert(allData.map(item => ({
+                    work_date: item.work_date || window.adminSelectedDate,
+                    seq_no: item.seq_no,
+                    part_no: item.part_no,
+                    work_start_time: item.work_start_time || null,
+                    work_end_time: item.work_end_time || null,
+                    work_status: item.work_status || 'waiting',
+                    work_note: item.work_note || '',
+                    delay_reason: item.delay_reason || ''
                   })))
                   .select();
                 
@@ -2575,13 +2562,11 @@
             }
 
              async function saveSchedule() {
-               // 파트가 선택된 항목만 필터링
-               const validData = window.adminScheduleData.filter(item => 
-                 item.part_number && item.part_number.trim() !== ''
-               );
+               // 모든 항목을 저장 (파트가 선택되지 않은 항목도 포함)
+               const allData = window.adminScheduleData;
                
-               if (validData.length === 0) {
-                 alert('최소 하나의 파트를 선택해주세요.');
+               if (allData.length === 0) {
+                 alert('저장할 데이터가 없습니다.');
                  return;
                }
                
@@ -2592,25 +2577,25 @@
                  
                  // 기존 데이터 삭제
                  const { error: deleteError } = await window.supabase
-                   .from('packaging_schedule')
+                   .from('tm_packaging_schedule')
                    .delete()
-                   .eq('date', window.adminSelectedDate);
+                   .eq('work_date', window.adminSelectedDate);
                  
                  if (deleteError) throw deleteError;
                  
-                 // 새 데이터 삽입 (sequence_number 포함)
+                 // 새 데이터 삽입 (seq_no 포함)
                  const { data: insertedData, error: insertError } = await window.supabase
-                   .from('packaging_schedule')
-                   .insert(validData.map(item => ({
-                     date: item.date || window.adminSelectedDate,
-                     sequence_number: item.sequence_number,
-                     part_number: item.part_number,
-                     start_time: item.start_time || null,
-                     end_time: item.end_time || null,
-                     status: item.status || 'waiting',
-                     note: item.note || '',
-                     gap_reason: item.gap_reason || ''
-                   })))
+                   .from('tm_packaging_schedule')
+                   .insert(allData.map(item => ({
+                    work_date: item.work_date || window.adminSelectedDate,
+                    seq_no: item.seq_no,
+                    part_no: item.part_no,
+                    work_start_time: item.work_start_time || null,
+                    work_end_time: item.work_end_time || null,
+                    work_status: item.work_status || 'waiting',
+                    work_note: item.work_note || '',
+                    delay_reason: item.delay_reason || ''
+                  })))
                    .select();
                  
                  if (insertError) throw insertError;
@@ -2622,7 +2607,7 @@
                  }
                  
                  console.log('✅ Schedule saved to Supabase');
-                 alert(`스케줄이 성공적으로 저장되었습니다. (${validData.length}개 항목)`);
+                 alert(`스케줄이 성공적으로 저장되었습니다. (${allData.length}개 항목)`);
                  updateAdminStatistics();
                } catch (error) {
                  console.error('Error saving schedule:', error);
@@ -2681,10 +2666,11 @@
                  part: 'Part',
                  start: 'Start',
                  end: 'End',
-                 status: 'Status',
+                 work_status: 'Status',
                  completed: 'Completed',
                  active: 'Active',
-                 waiting: 'Waiting'
+                 waiting: 'Waiting',
+                 anotherActive: 'Another task is already active'
                },
                es: {
                  title: 'Gestión de Trabajo de Empaque',
@@ -2708,10 +2694,11 @@
                  part: 'Parte',
                  start: 'Inicio',
                  end: 'Fin',
-                 status: 'Estado',
+                 work_status: 'Estado',
                  completed: 'Completado',
                  active: 'Activo',
-                 waiting: 'Esperando'
+                 waiting: 'Esperando',
+                 anotherActive: 'Otra tarea ya está activa'
                }
              };
              
@@ -2771,7 +2758,7 @@
                document.getElementById('partHeader').textContent = t.part;
                document.getElementById('startHeader').textContent = t.start;
                document.getElementById('endHeader').textContent = t.end;
-               document.getElementById('statusHeader').textContent = t.status;
+               document.getElementById('work_statusHeader').textContent = t.work_status;
              }
              
              // Supervisor 페이지 초기화
@@ -2853,26 +2840,26 @@
                 
                 const today = new Date().toISOString().split('T')[0];
                 const { data, error } = await window.supabase
-                  .from('packaging_schedule')
+                  .from('tm_packaging_schedule')
                   .select('*')
-                  .eq('date', today)
-                  .order('sequence_number', { ascending: true });
+                  .eq('work_date', today)
+                  .order('seq_no', { ascending: true });
                 
                 if (error) throw error;
                 window.supervisorScheduleData = data || [];
                 
                 // 진행 중인 작업이 있으면 현재 작업으로 설정
-                const activeWork = window.supervisorScheduleData.find(item => item.status === 'active');
-                if (activeWork && activeWork.start_time) {
+                const activeWork = window.supervisorScheduleData.find(item => item.work_status === 'active');
+                if (activeWork && activeWork.work_start_time) {
                   // 시작 시간을 Date 객체로 변환 (오늘 날짜 + 시작 시간)
                   const today = new Date();
-                  const [hours, minutes] = activeWork.start_time.split(':');
+                  const [hours, minutes] = activeWork.work_start_time.split(':');
                   const startTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(hours), parseInt(minutes));
                   
                   window.supervisorCurrentWork = activeWork;
                   window.supervisorWorkStartTime = startTime;
                   
-                  console.log(`🔄 Found active work from Supabase: Sequence ${activeWork.sequence_number}, started at ${activeWork.start_time}`);
+                  console.log(`🔄 Found active work from Supabase: Sequence ${activeWork.seq_no}, started at ${activeWork.work_start_time}`);
                 }
                 
                 console.log('✅ Supervisor schedule data loaded from Supabase:', window.supervisorScheduleData);
@@ -2899,20 +2886,20 @@
               const container = document.getElementById('idSelector');
               if (!container) return;
               
-              const sortedData = [...window.supervisorScheduleData].sort((a, b) => (a.sequence_number || 0) - (b.sequence_number || 0));
+              const sortedData = [...window.supervisorScheduleData].sort((a, b) => (a.seq_no || 0) - (b.seq_no || 0));
               
               container.innerHTML = sortedData.map(item => {
-                const status = calculateSupervisorStatus(item);
-                const statusColor = status === 'completed' ? 
+                const work_status = calculateSupervisorStatus(item);
+                const work_statusColor = work_status === 'completed' ? 
                   'bg-gradient-to-br from-green-100 to-green-200 text-green-800 border-2 border-green-400 shadow-sm hover:shadow-lg' :
-                  status === 'active' ? 
+                  work_status === 'active' ? 
                   'bg-gradient-to-br from-yellow-100 to-yellow-200 text-yellow-800 border-2 border-yellow-400 shadow-sm hover:shadow-lg animate-pulse' :
                   'bg-gradient-to-br from-blue-100 to-blue-200 text-blue-800 border-2 border-blue-400 shadow-sm hover:shadow-lg';
                 
                 return `
-                  <button onclick="selectSupervisorTask(${item.sequence_number})" 
-                          class="p-4 rounded-xl font-bold text-xl transition-all duration-200 transform hover:scale-105 ${statusColor}">
-                    ${item.sequence_number}
+                  <button onclick="selectSupervisorTask(${item.seq_no})" 
+                          class="p-4 rounded-xl font-bold text-xl transition-all duration-200 transform hover:scale-105 ${work_statusColor}">
+                    ${item.seq_no}
                   </button>
                 `;
               }).join('');
@@ -2926,18 +2913,18 @@
               }
               
               // 1. 현재 진행중인 작업 찾기
-              const activeTask = window.supervisorScheduleData.find(item => item.status === 'active');
+              const activeTask = window.supervisorScheduleData.find(item => item.work_status === 'active');
               if (activeTask) {
-                console.log('🔄 Auto-selecting active task:', activeTask.sequence_number);
-                selectSupervisorTask(activeTask.sequence_number);
+                console.log('🔄 Auto-selecting active task:', activeTask.seq_no);
+                selectSupervisorTask(activeTask.seq_no);
                 return;
               }
               
               // 2. 진행중인 작업이 없으면 다음 대기 작업 찾기
-              const nextWaitingTask = window.supervisorScheduleData.find(item => item.status === 'waiting');
+              const nextWaitingTask = window.supervisorScheduleData.find(item => item.work_status === 'waiting');
               if (nextWaitingTask) {
-                console.log('⏭️ Auto-selecting next waiting task:', nextWaitingTask.sequence_number);
-                selectSupervisorTask(nextWaitingTask.sequence_number);
+                console.log('⏭️ Auto-selecting next waiting task:', nextWaitingTask.seq_no);
+                selectSupervisorTask(nextWaitingTask.seq_no);
                 return;
               }
               
@@ -2946,7 +2933,7 @@
 
              // 작업 선택
             function selectSupervisorTask(sequenceNumber) {
-              const item = window.supervisorScheduleData.find(s => s.sequence_number === sequenceNumber);
+              const item = window.supervisorScheduleData.find(s => s.seq_no === sequenceNumber);
               if (!item) return;
               
               // 선택된 작업 정보 업데이트
@@ -2956,27 +2943,27 @@
               const selectedStartTimeEl = document.getElementById('selectedStartTime');
               const selectedEndTimeEl = document.getElementById('selectedEndTime');
               
-              if (selectedIdEl) selectedIdEl.textContent = item.sequence_number;
-               if (selectedPartEl) selectedPartEl.textContent = item.part_number;
+              if (selectedIdEl) selectedIdEl.textContent = item.seq_no;
+               if (selectedPartEl) selectedPartEl.textContent = item.part_no;
                
-               const status = calculateSupervisorStatus(item);
+               const work_status = calculateSupervisorStatus(item);
                const t = supervisorTranslations[window.supervisorLanguage];
-               const statusText = status === 'completed' ? t.completed : 
-                                status === 'active' ? t.active : t.waiting;
-               const statusColor = status === 'completed' ? 'text-green-600' :
-                                 status === 'active' ? 'text-yellow-600' : 'text-gray-600';
+               const work_statusText = work_status === 'completed' ? t.completed : 
+                                work_status === 'active' ? t.active : t.waiting;
+               const work_statusColor = work_status === 'completed' ? 'text-green-600' :
+                                 work_status === 'active' ? 'text-yellow-600' : 'text-gray-600';
                
                if (selectedStatusEl) {
-                 selectedStatusEl.textContent = statusText;
-                 selectedStatusEl.className = `text-xl font-bold ${statusColor}`;
+                 selectedStatusEl.textContent = work_statusText;
+                 selectedStatusEl.className = `text-xl font-bold ${work_statusColor}`;
                }
                
-               if (selectedStartTimeEl) selectedStartTimeEl.textContent = item.start_time || '-';
-               if (selectedEndTimeEl) selectedEndTimeEl.textContent = item.end_time || '-';
+               if (selectedStartTimeEl) selectedStartTimeEl.textContent = item.work_start_time || '-';
+               if (selectedEndTimeEl) selectedEndTimeEl.textContent = item.work_end_time || '-';
                
                // 버튼 상태 업데이트
-               const hasStartTime = item.start_time && item.start_time.trim() !== '';
-               const hasEndTime = item.end_time && item.end_time.trim() !== '';
+               const hasStartTime = item.work_start_time && item.work_start_time.trim() !== '';
+               const hasEndTime = item.work_end_time && item.work_end_time.trim() !== '';
                
                const startBtn = document.getElementById('startWorkBtn');
                const endBtn = document.getElementById('endWorkBtn');
@@ -3025,12 +3012,23 @@
 
              // 작업 시작
             async function startSupervisorWork(sequenceNumber) {
-              const item = window.supervisorScheduleData.find(s => s.sequence_number === sequenceNumber);
+              const item = window.supervisorScheduleData.find(s => s.seq_no === sequenceNumber);
               if (!item) return;
                
-               if (item.start_time && item.start_time.trim() !== '') {
+               if (item.work_start_time && item.work_start_time.trim() !== '') {
                  const t = supervisorTranslations[window.supervisorLanguage];
                  alert(t.active);
+                 return;
+               }
+               
+               // 다른 작업이 이미 ACTIVE 상태인지 확인
+               const activeWork = window.supervisorScheduleData.find(s => 
+                 s.work_status === 'active' && s.seq_no !== sequenceNumber
+               );
+               
+               if (activeWork) {
+                 const t = supervisorTranslations[window.supervisorLanguage];
+                 alert(`${t.anotherActive} (ID: ${activeWork.seq_no})`);
                  return;
                }
                
@@ -3047,21 +3045,21 @@
                 }
                 
                 const { error } = await window.supabase
-                  .from('packaging_schedule')
+                  .from('tm_packaging_schedule')
                   .update({ 
-                    start_time: timeString,
-                    status: 'active'
+                    work_start_time: timeString,
+                    work_status: 'active'
                   })
-                  .eq('date', item.date)
-                  .eq('sequence_number', item.sequence_number);
+                  .eq('work_date', item.work_date)
+                  .eq('seq_no', item.seq_no);
                 
                 if (error) throw error;
                 console.log('✅ Work start time saved to Supabase');
                 
                 // 로컬 데이터 업데이트
-                const index = window.supervisorScheduleData.findIndex(s => s.sequence_number === sequenceNumber);
-                window.supervisorScheduleData[index].start_time = timeString;
-                window.supervisorScheduleData[index].status = 'active';
+                const index = window.supervisorScheduleData.findIndex(s => s.seq_no === sequenceNumber);
+                window.supervisorScheduleData[index].work_start_time = timeString;
+                window.supervisorScheduleData[index].work_status = 'active';
                  
                  // 현재 작업으로 설정하고 타이머 시작
                  window.supervisorCurrentWork = item;
@@ -3079,7 +3077,7 @@
                   selectSupervisorTask(sequenceNumber);
                 }
                  
-                 console.log(`Work started: ${item.part_number} at ${timeString}`);
+                 console.log(`Work started: ${item.part_no} at ${timeString}`);
                } catch (error) {
                  console.error('Error starting work:', error);
                  const t = supervisorTranslations[window.supervisorLanguage];
@@ -3089,15 +3087,15 @@
 
              // 작업 종료
             async function endSupervisorWork(sequenceNumber) {
-              const item = window.supervisorScheduleData.find(s => s.sequence_number === sequenceNumber);
+              const item = window.supervisorScheduleData.find(s => s.seq_no === sequenceNumber);
               if (!item) return;
                
-               if (!item.start_time || item.start_time.trim() === '') {
+               if (!item.work_start_time || item.work_start_time.trim() === '') {
                  alert('시작 시간이 없습니다.');
                  return;
                }
                
-               if (item.end_time && item.end_time.trim() !== '') {
+               if (item.work_end_time && item.work_end_time.trim() !== '') {
                  alert('이 작업은 이미 종료되었습니다.');
                  return;
                }
@@ -3115,24 +3113,24 @@
                 }
                 
                 const { error } = await window.supabase
-                  .from('packaging_schedule')
+                  .from('tm_packaging_schedule')
                   .update({ 
-                    end_time: timeString,
-                    status: 'completed'
+                    work_end_time: timeString,
+                    work_status: 'completed'
                   })
-                  .eq('date', item.date)
-                  .eq('sequence_number', item.sequence_number);
+                  .eq('work_date', item.work_date)
+                  .eq('seq_no', item.seq_no);
                 
                 if (error) throw error;
                 console.log('✅ Work end time saved to Supabase');
                  
                 // 로컬 데이터 업데이트
-                const index = window.supervisorScheduleData.findIndex(s => s.sequence_number === sequenceNumber);
-                window.supervisorScheduleData[index].end_time = timeString;
-                window.supervisorScheduleData[index].status = 'completed';
+                const index = window.supervisorScheduleData.findIndex(s => s.seq_no === sequenceNumber);
+                window.supervisorScheduleData[index].work_end_time = timeString;
+                window.supervisorScheduleData[index].work_status = 'completed';
                  
                 // 현재 작업이 종료된 경우 타이머 중지
-                if (window.supervisorCurrentWork && window.supervisorCurrentWork.sequence_number === sequenceNumber) {
+                if (window.supervisorCurrentWork && window.supervisorCurrentWork.seq_no === sequenceNumber) {
                   window.supervisorCurrentWork = null;
                   window.supervisorWorkStartTime = null;
                   stopSupervisorTimer();
@@ -3148,7 +3146,7 @@
                   selectSupervisorTask(sequenceNumber);
                 }
                  
-                 console.log(`Work ended: ${item.part_number} at ${timeString}`);
+                 console.log(`Work ended: ${item.part_no} at ${timeString}`);
                } catch (error) {
                  console.error('Error ending work:', error);
                  alert('작업 종료 중 오류가 발생했습니다.');
@@ -3160,34 +3158,34 @@
               const tbody = document.getElementById('scheduleTable');
               if (!tbody) return;
               
-              const sortedData = [...window.supervisorScheduleData].sort((a, b) => (a.sequence_number || 0) - (b.sequence_number || 0));
+              const sortedData = [...window.supervisorScheduleData].sort((a, b) => (a.seq_no || 0) - (b.seq_no || 0));
               
               tbody.innerHTML = sortedData.map(item => {
-                const status = calculateSupervisorStatus(item);
-                const statusColor = status === 'completed' ? 'bg-green-100 text-green-800' :
-                                  status === 'active' ? 'bg-yellow-100 text-yellow-800' :
+                const work_status = calculateSupervisorStatus(item);
+                const work_statusColor = work_status === 'completed' ? 'bg-green-100 text-green-800' :
+                                  work_status === 'active' ? 'bg-yellow-100 text-yellow-800' :
                                   'bg-gray-100 text-gray-800';
                 
                 const t = supervisorTranslations[window.supervisorLanguage];
-                const statusText = status === 'completed' ? t.completed : 
-                                 status === 'active' ? t.active : t.waiting;
+                const work_statusText = work_status === 'completed' ? t.completed : 
+                                 work_status === 'active' ? t.active : t.waiting;
                 
                 let rowClass = "border-b border-gray-100 hover:bg-gray-50 cursor-pointer";
-                if (status === 'active') {
+                if (work_status === 'active') {
                   rowClass = "border-b border-gray-100 bg-yellow-50 border-l-4 border-l-yellow-500 cursor-pointer";
-                } else if (status === 'completed') {
+                } else if (work_status === 'completed') {
                   rowClass = "border-b border-gray-100 bg-green-50 border-l-4 border-l-green-500 cursor-pointer";
                 }
                 
                 return `
-                  <tr class="${rowClass}" onclick="selectSupervisorTask(${item.sequence_number})">
-                    <td class="py-2 px-2 font-semibold text-sm">${item.sequence_number}</td>
-                    <td class="py-2 px-2 font-semibold text-sm">${item.part_number}</td>
-                    <td class="py-2 px-2 text-sm">${item.start_time || '-'}</td>
-                    <td class="py-2 px-2 text-sm">${item.end_time || '-'}</td>
+                  <tr class="${rowClass}" onclick="selectSupervisorTask(${item.seq_no})">
+                    <td class="py-2 px-2 font-semibold text-sm">${item.seq_no}</td>
+                    <td class="py-2 px-2 font-semibold text-sm">${item.part_no}</td>
+                    <td class="py-2 px-2 text-sm">${item.work_start_time || '-'}</td>
+                    <td class="py-2 px-2 text-sm">${item.work_end_time || '-'}</td>
                     <td class="py-2 px-2">
-                      <span class="px-2 py-1 rounded-full text-xs font-semibold ${statusColor}">
-                        ${statusText}
+                      <span class="px-2 py-1 rounded-full text-xs font-semibold ${work_statusColor}">
+                        ${work_statusText}
                       </span>
                     </td>
                   </tr>
@@ -3197,9 +3195,9 @@
 
              // 상태 계산
              function calculateSupervisorStatus(item) {
-               if (item.start_time && item.start_time.trim() !== '' && item.end_time && item.end_time.trim() !== '') {
+               if (item.work_start_time && item.work_start_time.trim() !== '' && item.work_end_time && item.work_end_time.trim() !== '') {
                  return 'completed';
-               } else if (item.start_time && item.start_time.trim() !== '') {
+               } else if (item.work_start_time && item.work_start_time.trim() !== '') {
                  return 'active';
                } else {
                  return 'waiting';
@@ -3208,14 +3206,14 @@
 
              // 현재 상태 업데이트
              function updateSupervisorCurrentStatus() {
-               const activeItem = window.supervisorScheduleData.find(item => item.status === 'active');
+               const activeItem = window.supervisorScheduleData.find(item => item.work_status === 'active');
                
                const currentRoundEl = document.getElementById('currentRound');
                const currentPartEl = document.getElementById('currentPart');
                
               if (activeItem) {
-                if (currentRoundEl) currentRoundEl.textContent = `ID ${activeItem.sequence_number}`;
-                if (currentPartEl) currentPartEl.textContent = activeItem.part_number;
+                if (currentRoundEl) currentRoundEl.textContent = `ID ${activeItem.seq_no}`;
+                if (currentPartEl) currentPartEl.textContent = activeItem.part_no;
                } else {
                  if (currentRoundEl) currentRoundEl.textContent = '-';
                  if (currentPartEl) currentPartEl.textContent = '-';
@@ -3246,7 +3244,7 @@
                    
                   // 디버깅을 위한 로그 (5초마다)
                   if (seconds % 5 === 0) {
-                    console.log(`⏰ Timer update: Work Sequence ${window.supervisorCurrentWork.sequence_number}, Elapsed: ${timeString}`);
+                    console.log(`⏰ Timer update: Work Sequence ${window.supervisorCurrentWork.seq_no}, Elapsed: ${timeString}`);
                   }
                  } else {
                    // 진행 중인 작업이 없으면 00:00:00으로 리셋
@@ -3306,10 +3304,10 @@
                 
                 const today = new Date().toISOString().split('T')[0];
                 const { data, error } = await window.supabase
-                  .from('packaging_schedule')
+                  .from('tm_packaging_schedule')
                   .select('*')
-                  .eq('date', today)
-                  .order('sequence_number', { ascending: true });
+                  .eq('work_date', today)
+                  .order('seq_no', { ascending: true });
                 
                 if (error) throw error;
                 window.displayScheduleData = data || [];
@@ -3353,8 +3351,8 @@
                
                // 상태별로 정렬: 진행중 -> 대기 -> 완료 순서
                const sortedData = [...window.displayScheduleData].sort((a, b) => {
-                 const statusOrder = { 'active': 0, 'waiting': 1, 'completed': 2 };
-                 return statusOrder[a.status] - statusOrder[b.status];
+                 const work_statusOrder = { 'active': 0, 'waiting': 1, 'completed': 2 };
+                 return work_statusOrder[a.work_status] - work_statusOrder[b.work_status];
                });
                
                // Display schedule list
@@ -3362,26 +3360,26 @@
                sortedData.forEach(item => {
                  const itemDiv = document.createElement('div');
                  itemDiv.className = `flex justify-between items-center p-4 rounded-lg mb-2 ${
-                   item.status === 'active' ? 'status-active' :
-                   item.status === 'completed' ? 'status-completed' :
-                   'status-waiting'
+                   item.work_status === 'active' ? 'work_status-active' :
+                   item.work_status === 'completed' ? 'work_status-completed' :
+                   'work_status-waiting'
                  }`;
                  
-                 const statusText = item.status === 'active' ? 'ACTIVE' : 
-                                  item.status === 'completed' ? 'COMPLETED' : 'WAITING';
+                 const work_statusText = item.work_status === 'active' ? 'ACTIVE' : 
+                                  item.work_status === 'completed' ? 'COMPLETED' : 'WAITING';
                  
                  // 경과 시간 계산
                  let elapsedTimeText = '';
                  let elapsedMinutes = 0;
-                 if (item.start_time && item.end_time) {
+                 if (item.work_start_time && item.work_end_time) {
                    // 완료된 작업: 시작시간부터 종료시간까지의 경과시간
-                   const startTime = parseTimeToMinutes(item.start_time);
-                   const endTime = parseTimeToMinutes(item.end_time);
+                   const startTime = parseTimeToMinutes(item.work_start_time);
+                   const endTime = parseTimeToMinutes(item.work_end_time);
                    elapsedMinutes = endTime - startTime;
                    elapsedTimeText = formatElapsedTime(elapsedMinutes);
-                 } else if (item.start_time && item.status === 'active') {
+                 } else if (item.work_start_time && item.work_status === 'active') {
                    // 진행중인 작업: 시작시간부터 현재까지의 경과시간
-                   const startTime = parseTimeToMinutes(item.start_time);
+                   const startTime = parseTimeToMinutes(item.work_start_time);
                    const currentTime = parseTimeToMinutes(getCurrentTimeString());
                    elapsedMinutes = currentTime - startTime;
                    elapsedTimeText = formatElapsedTime(elapsedMinutes);
@@ -3389,13 +3387,13 @@
                  
                  itemDiv.innerHTML = `
                    <div class="flex items-center space-x-4">
-                     <span class="text-xl font-bold text-white">NO ${item.sequence_number}</span>
-                     <span class="text-2xl font-bold text-white">${item.part_number}</span>
+                     <span class="text-xl font-bold text-white">NO ${item.seq_no}</span>
+                     <span class="text-2xl font-bold text-white">${item.part_no}</span>
                      <span class="text-sm px-3 py-1 rounded-full font-bold ${
-                       item.status === 'active' ? 'bg-green-600 text-white' :
-                       item.status === 'completed' ? 'bg-gray-600 text-white' :
+                       item.work_status === 'active' ? 'bg-green-600 text-white' :
+                       item.work_status === 'completed' ? 'bg-gray-600 text-white' :
                        'bg-yellow-600 text-white'
-                     }">${statusText}</span>
+                     }">${work_statusText}</span>
                    </div>
                    <div class="text-xl font-bold">
                      ${elapsedTimeText ? 
@@ -3408,7 +3406,7 @@
                  scheduleList.appendChild(itemDiv);
                });
 
-               // Update current status
+               // Update current work_status
                updateDisplayCurrentStatus();
              }
              
@@ -3444,20 +3442,20 @@
              
              // 현재 상태 업데이트
             function updateDisplayCurrentStatus() {
-              const activeItem = window.displayScheduleData.find(item => item.status === 'active');
+              const activeItem = window.displayScheduleData.find(item => item.work_status === 'active');
               
               if (activeItem) {
-                window.displayCurrentId = activeItem.sequence_number;
-                window.displayCurrentPart = activeItem.part_number;
+                window.displayCurrentId = activeItem.seq_no;
+                window.displayCurrentPart = activeItem.part_no;
                 
                 document.getElementById('currentId').textContent = `NO ${window.displayCurrentId}`;
                 document.getElementById('currentPart').textContent = window.displayCurrentPart;
                  
                  // Start timer if not already started
-                 if (!window.displayStartTime && activeItem.start_time) {
+                 if (!window.displayStartTime && activeItem.work_start_time) {
                    // 시작 시간을 Date 객체로 변환 (오늘 날짜 + 시작 시간)
                    const today = new Date();
-                   const [hours, minutes] = activeItem.start_time.split(':');
+                   const [hours, minutes] = activeItem.work_start_time.split(':');
                    window.displayStartTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(hours), parseInt(minutes));
                    startDisplayTimer();
                  }
