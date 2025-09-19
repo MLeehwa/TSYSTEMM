@@ -6,6 +6,8 @@
     <title>FIFO Upload - TM System</title>
     
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../../js/supabase-config.js"></script>
     
     <!-- Inline CSS -->
     <style>
@@ -469,6 +471,15 @@
             
             console.log('🚀 Starting upload for:', selectedFile.name);
             
+            // Supabase 연결 상태 확인
+            if (!window.sb && !window.supabase) {
+                alert('❌ 데이터베이스 연결이 없습니다. 페이지를 새로고침해주세요.');
+                console.error('❌ Supabase client not available');
+                return;
+            }
+            
+            console.log('✅ Supabase client available:', window.sb ? 'window.sb' : 'window.supabase');
+            
             // 진행률 표시 시작
             showProgress();
             
@@ -531,35 +542,81 @@
                     });
                 }
                 
-                // 3초 후 진행률 숨기기
+                // 5초 후 진행률 숨기기 (대용량 데이터 처리 시간 고려)
                 setTimeout(() => {
                     hideProgress();
                     resetFileSelection();
-                }, 3000);
+                }, 5000);
                 
             } catch (error) {
                 console.error('❌ Upload failed:', error);
                 updateProgress(0, 'Upload failed: ' + error.message, file.name);
                 
-                // 3초 후 진행률 숨기기
+                // 에러 메시지를 사용자에게 표시
+                let errorMessage = '업로드 중 오류가 발생했습니다.';
+                if (error.message.includes('File too large')) {
+                    errorMessage = '파일이 너무 큽니다. 100MB 이하의 파일을 업로드해주세요.';
+                } else if (error.message.includes('timeout')) {
+                    errorMessage = '업로드 시간이 초과되었습니다. 파일 크기를 줄이거나 다시 시도해주세요.';
+                } else if (error.message.includes('No data found')) {
+                    errorMessage = '엑셀 파일에서 유효한 데이터를 찾을 수 없습니다. 5행부터 데이터가 있는지 확인해주세요.';
+                }
+                
+                alert(`❌ ${errorMessage}\n\n상세 오류: ${error.message}`);
+                
+                // 5초 후 진행률 숨기기
                 setTimeout(() => {
                     hideProgress();
-                }, 3000);
+                }, 5000);
             }
         }
         
-        // Excel 파일 읽기
+        // Excel 파일 읽기 (메모리 최적화)
         function readExcelFile(file) {
             return new Promise((resolve, reject) => {
+                // 파일 크기 체크 (100MB 제한)
+                const maxFileSize = 100 * 1024 * 1024; // 100MB
+                if (file.size > maxFileSize) {
+                    reject(new Error(`File too large: ${(file.size / 1024 / 1024).toFixed(2)}MB. Maximum allowed: 100MB`));
+                    return;
+                }
+                
+                console.log(`📁 Reading file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+                
                 const reader = new FileReader();
                 
                 reader.onload = (e) => {
                     try {
                         const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
+                        
+                        // 메모리 사용량 모니터링
+                        const memoryBefore = performance.memory ? performance.memory.usedJSHeapSize : 0;
+                        console.log(`🧠 Memory before parsing: ${(memoryBefore / 1024 / 1024).toFixed(2)}MB`);
+                        
+                        // 워크시트 옵션 최적화
+                        const workbook = XLSX.read(data, { 
+                            type: 'array',
+                            cellDates: false, // 날짜 파싱 비활성화로 성능 향상
+                            cellNF: false,   // 숫자 포맷 비활성화
+                            cellText: false  // 텍스트 변환 비활성화
+                        });
+                        
                         const sheetName = workbook.SheetNames[0];
                         const worksheet = workbook.Sheets[sheetName];
-                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        
+                        // 범위 확인으로 불필요한 빈 행 제거
+                        const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
+                        console.log(`📊 Excel range: ${worksheet['!ref']} (${range.e.r + 1} rows, ${range.e.c + 1} columns)`);
+                        
+                        // 스트리밍 방식으로 데이터 읽기 (메모리 효율성)
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+                            header: 1,
+                            defval: '', // 빈 셀을 빈 문자열로 처리
+                            raw: false  // 원시 값 사용하지 않음
+                        });
+                        
+                        const memoryAfter = performance.memory ? performance.memory.usedJSHeapSize : 0;
+                        console.log(`🧠 Memory after parsing: ${(memoryAfter / 1024 / 1024).toFixed(2)}MB (+${((memoryAfter - memoryBefore) / 1024 / 1024).toFixed(2)}MB)`);
                         
                         console.log(`📊 Raw Excel data: ${jsonData.length} total rows`);
                         
@@ -576,11 +633,21 @@
                             return;
                         }
                         
-                        // 첫 몇 행 로깅 (디버깅용)
-                        console.log('🔍 First few data rows:');
-                        dataRows.slice(0, 3).forEach((row, index) => {
+                        // 대용량 데이터에 대한 경고
+                        if (dataRows.length > 50000) {
+                            console.warn(`⚠️ Large dataset detected: ${dataRows.length} rows. This may take several minutes to process.`);
+                        }
+                        
+                        // 첫 몇 행 로깅 (디버깅용) - 대용량 데이터의 경우 로깅 제한
+                        const logRows = Math.min(3, dataRows.length);
+                        console.log(`🔍 First ${logRows} data rows:`);
+                        dataRows.slice(0, logRows).forEach((row, index) => {
                             console.log(`Row ${startRow + index + 1}:`, row);
                         });
+                        
+                        // 메모리 정리
+                        delete workbook;
+                        delete worksheet;
                         
                         resolve(dataRows);
                     } catch (error) {
@@ -594,7 +661,7 @@
             });
         }
         
-        // 데이터 검증
+        // 데이터 검증 (대용량 데이터 최적화)
         function validateData(data) {
             if (!data || !Array.isArray(data)) {
                 console.error('❌ Invalid data input to validateData:', data);
@@ -604,90 +671,117 @@
             const validatedData = [];
             let skippedRows = 0;
             let truncatedRows = 0;
+            const totalRows = data.length;
             
-            console.log(`🔍 Starting validation of ${data.length} rows...`);
+            console.log(`🔍 Starting validation of ${totalRows} rows...`);
             
-            data.forEach((row, index) => {
-                try {
-                    if (!row || !Array.isArray(row)) {
-                        console.warn(`Row ${index + 1}: Invalid row format`, row);
-                        skippedRows++;
-                        return;
-                    }
+            // 대용량 데이터 처리를 위한 배치 검증
+            const validationBatchSize = 1000;
+            const validationBatches = Math.ceil(totalRows / validationBatchSize);
+            
+            for (let batchIndex = 0; batchIndex < validationBatches; batchIndex++) {
+                const startIndex = batchIndex * validationBatchSize;
+                const endIndex = Math.min(startIndex + validationBatchSize, totalRows);
+                const batch = data.slice(startIndex, endIndex);
+                
+                console.log(`🔍 Validating batch ${batchIndex + 1}/${validationBatches} (rows ${startIndex + 1}-${endIndex})...`);
+                
+                batch.forEach((row, localIndex) => {
+                    const globalIndex = startIndex + localIndex;
                     
-                    // Excel 실제 컬럼 구조에 맞게 매핑
-                    // A: Plant, B: PALLET NO, C: Location, D: Rack No, E: TM No, F: Part No, G: Part name, H: Hold Whether, I: Hold Date, J: Prod Date
-                    if (row.length < 10) { // 최소 10개 컬럼 필요 (J열까지)
-                        console.warn(`Row ${index + 1}: Insufficient columns (${row.length} columns, need at least 10)`, row);
-                        skippedRows++;
-                        return;
-                    }
-                    
-                    // Excel 컬럼을 데이터베이스 테이블 구조에 맞게 매핑
-                    // Plant는 제외하고 필요한 데이터만 추출
-                    const rowData = {
-                        pallet_no: String(row[1] || '').trim().substring(0, 100),      // B열 (인덱스1) - PALLET NO
-                        location: String(row[2] || '').trim().substring(0, 100),        // C열 (인덱스2) - Location
-                        rack_no: String(row[3] || '').trim().substring(0, 100),         // D열 (인덱스3) - Rack No
-                        tm_no: String(row[4] || '').trim().substring(0, 100),           // E열 (인덱스4) - TM No
-                        part_no: String(row[5] || '').trim().substring(0, 100),         // F열 (인덱스5) - Part No
-                        hold_whether: String(row[7] || 'N').trim().substring(0, 10),    // H열 (인덱스7) - Hold Whether
-                        prod_date: String(row[9] || '').trim().substring(0, 50)         // J열 (인덱스9) - Prod Date
-                    };
-                    
-                    // 🆕 디버깅을 위한 상세 로깅 추가
-                    if (index < 5) { // 처음 5행만 로깅 (너무 많은 로그 방지)
-                        console.log(`Row ${index + 1} detailed mapping:`, {
-                            originalRow: row,
-                            mappedData: rowData,
-                            'A-Plant': row[0],
-                            'B-Pallet': row[1],
-                            'C-Location': row[2], 
-                            'D-RackNo': row[3],
-                            'E-TMNo': row[4],
-                            'F-PartNo': row[5],
-                            'G-PartName': row[6],
-                            'H-HoldWhether': row[7],
-                            'I-HoldDate': row[8],
-                            'J-ProdDate': row[9]
-                        });
-                    }
-                    
-                    // 필수 필드 검증 (pallet_no와 tm_no는 필수)
-                    if (rowData.pallet_no && rowData.tm_no) {
-                        // 데이터 길이 제한 확인 및 로깅
-                        const originalPallet = String(row[1] || '').trim();
-                        const originalTM = String(row[4] || '').trim();
-                        const originalPartNo = String(row[5] || '').trim();
-                        const originalHoldWhether = String(row[7] || '').trim();
-                        
-                        if (originalPallet.length > 100 || originalTM.length > 100) {
-                            truncatedRows++;
-                            console.warn(`Row ${index + 1}: Data truncated - Pallet: "${originalPallet}" -> "${rowData.pallet_no}", TM: "${originalTM}" -> "${rowData.tm_no}"`);
+                    try {
+                        if (!row || !Array.isArray(row)) {
+                            if (globalIndex < 10) { // 처음 10개만 로깅
+                                console.warn(`Row ${globalIndex + 1}: Invalid row format`, row);
+                            }
+                            skippedRows++;
+                            return;
                         }
                         
-                        // 🆕 Part No와 Hold Whether 필드 검증 로깅
-                        if (index < 5) {
-                            console.log(`Row ${index + 1} validation:`, {
-                                pallet_no: rowData.pallet_no,
-                                part_no: rowData.part_no,
-                                hold_whether: rowData.hold_whether,
-                                rack_no: rowData.rack_no,
-                                'Original Part No': originalPartNo,
-                                'Original Hold Whether': originalHoldWhether
+                        // Excel 실제 컬럼 구조에 맞게 매핑
+                        // A: Plant, B: PALLET NO, C: Location, D: Rack No, E: TM No, F: Part No, G: Part name, H: Hold Whether, I: Hold Date, J: Prod Date
+                        if (row.length < 10) { // 최소 10개 컬럼 필요 (J열까지)
+                            if (globalIndex < 10) { // 처음 10개만 로깅
+                                console.warn(`Row ${globalIndex + 1}: Insufficient columns (${row.length} columns, need at least 10)`, row);
+                            }
+                            skippedRows++;
+                            return;
+                        }
+                        
+                        // Excel 컬럼을 데이터베이스 테이블 구조에 맞게 매핑
+                        // Plant는 제외하고 필요한 데이터만 추출
+                        const rowData = {
+                            pallet_no: String(row[1] || '').trim().substring(0, 100),      // B열 (인덱스1) - PALLET NO
+                            location: String(row[2] || '').trim().substring(0, 100),        // C열 (인덱스2) - Location
+                            rack_no: String(row[3] || '').trim().substring(0, 100),         // D열 (인덱스3) - Rack No
+                            tm_no: String(row[4] || '').trim().substring(0, 100),           // E열 (인덱스4) - TM No
+                            part_no: String(row[5] || '').trim().substring(0, 100),         // F열 (인덱스5) - Part No
+                            hold_whether: String(row[7] || 'N').trim().substring(0, 10),    // H열 (인덱스7) - Hold Whether
+                            prod_date: String(row[9] || '').trim().substring(0, 50)         // J열 (인덱스9) - Prod Date
+                        };
+                        
+                        // 디버깅을 위한 상세 로깅 (처음 5행만)
+                        if (globalIndex < 5) {
+                            console.log(`Row ${globalIndex + 1} detailed mapping:`, {
+                                originalRow: row,
+                                mappedData: rowData,
+                                'A-Plant': row[0],
+                                'B-Pallet': row[1],
+                                'C-Location': row[2], 
+                                'D-RackNo': row[3],
+                                'E-TMNo': row[4],
+                                'F-PartNo': row[5],
+                                'G-PartName': row[6],
+                                'H-HoldWhether': row[7],
+                                'I-HoldDate': row[8],
+                                'J-ProdDate': row[9]
                             });
                         }
                         
-                        validatedData.push(rowData);
-                    } else {
+                        // 필수 필드 검증 (pallet_no와 tm_no는 필수)
+                        if (rowData.pallet_no && rowData.tm_no) {
+                            // 데이터 길이 제한 확인 및 로깅
+                            const originalPallet = String(row[1] || '').trim();
+                            const originalTM = String(row[4] || '').trim();
+                            
+                            if (originalPallet.length > 100 || originalTM.length > 100) {
+                                truncatedRows++;
+                                if (globalIndex < 10) { // 처음 10개만 로깅
+                                    console.warn(`Row ${globalIndex + 1}: Data truncated - Pallet: "${originalPallet}" -> "${rowData.pallet_no}", TM: "${originalTM}" -> "${rowData.tm_no}"`);
+                                }
+                            }
+                            
+                            // Part No와 Hold Whether 필드 검증 로깅 (처음 5행만)
+                            if (globalIndex < 5) {
+                                const originalPartNo = String(row[5] || '').trim();
+                                const originalHoldWhether = String(row[7] || '').trim();
+                                console.log(`Row ${globalIndex + 1} validation:`, {
+                                    pallet_no: rowData.pallet_no,
+                                    part_no: rowData.part_no,
+                                    hold_whether: rowData.hold_whether,
+                                    rack_no: rowData.rack_no,
+                                    'Original Part No': originalPartNo,
+                                    'Original Hold Whether': originalHoldWhether
+                                });
+                            }
+                            
+                            validatedData.push(rowData);
+                        } else {
+                            skippedRows++;
+                            if (globalIndex < 10) { // 처음 10개만 로깅
+                                console.warn(`Row ${globalIndex + 1} skipped: missing required fields (pallet_no: "${rowData.pallet_no}", tm_no: "${rowData.tm_no}")`);
+                            }
+                        }
+                    } catch (rowError) {
+                        console.error(`❌ Error processing row ${globalIndex + 1}:`, rowError);
                         skippedRows++;
-                        console.warn(`Row ${index + 1} skipped: missing required fields (pallet_no: "${rowData.pallet_no}", tm_no: "${rowData.tm_no}")`);
                     }
-                } catch (rowError) {
-                    console.error(`❌ Error processing row ${index + 1}:`, rowError, row);
-                    skippedRows++;
-                }
-            });
+                });
+                
+                // 배치별 진행률 업데이트
+                const progress = ((batchIndex + 1) / validationBatches) * 100;
+                console.log(`📊 Validation progress: ${progress.toFixed(1)}% (${validatedData.length} valid, ${skippedRows} skipped)`);
+            }
             
             console.log(`✅ Data validation completed: ${validatedData.length} valid rows, ${skippedRows} skipped, ${truncatedRows} truncated`);
             
@@ -732,8 +826,8 @@
                 // 2단계: 새 데이터 추가 (배치 처리로 나누어 처리)
                 console.log('📝 Adding new data...');
                 
-                // 데이터를 1000개씩 나누어 처리 (더 큰 배치로 속도 향상)
-                const batchSize = 1000;
+                // 대용량 데이터 처리를 위한 최적화된 배치 크기
+                const batchSize = 500; // Supabase 제한을 고려하여 500개로 감소
                 const batches = [];
                 
                 for (let i = 0; i < data.length; i += batchSize) {
@@ -744,6 +838,8 @@
                 
                 let totalInserted = 0;
                 let failedBatches = [];
+                let retryCount = 0;
+                const maxRetries = 3;
                 
                 for (let i = 0; i < batches.length; i++) {
                     const batch = batches[i];
@@ -753,24 +849,75 @@
                     const batchProgress = 3 + (i / batches.length); // 3단계(삭제완료) ~ 4단계(추가완료)
                     updateProgress(batchProgress, `Processing batch ${i + 1}/${batches.length}...`, fileName, data.length, totalInserted);
                     
-                    try {
-                        const { data: result, error: insertError } = await supabase
-                            .from('vwtm_list_data')
-                            .insert(batch);
-                        
-                        if (insertError) {
-                            console.error(`❌ Batch ${i + 1} insert error:`, insertError);
-                            failedBatches.push({ batchIndex: i, error: insertError, data: batch });
-                            continue; // 실패한 배치는 건너뛰고 계속 진행
+                    let batchSuccess = false;
+                    let currentRetry = 0;
+                    
+                    // 재시도 로직 추가
+                    while (!batchSuccess && currentRetry < maxRetries) {
+                        try {
+                            // 타임아웃 설정 (30초)
+                            const timeoutPromise = new Promise((_, reject) => {
+                                setTimeout(() => reject(new Error('Batch timeout after 30 seconds')), 30000);
+                            });
+                            
+                            const insertPromise = supabase
+                                .from('vwtm_list_data')
+                                .insert(batch);
+                            
+                            const { data: result, error: insertError } = await Promise.race([
+                                insertPromise,
+                                timeoutPromise
+                            ]);
+                            
+                            if (insertError) {
+                                console.error(`❌ Batch ${i + 1} attempt ${currentRetry + 1} insert error:`, insertError);
+                                
+                                // 특정 에러에 대한 재시도 로직
+                                if (insertError.code === 'PGRST301' || insertError.message.includes('timeout')) {
+                                    currentRetry++;
+                                    if (currentRetry < maxRetries) {
+                                        console.log(`🔄 Retrying batch ${i + 1} (attempt ${currentRetry + 1}/${maxRetries})...`);
+                                        await new Promise(resolve => setTimeout(resolve, 1000 * currentRetry)); // 지수 백오프
+                                        continue;
+                                    }
+                                }
+                                
+                                failedBatches.push({ 
+                                    batchIndex: i, 
+                                    error: insertError, 
+                                    data: batch,
+                                    attempts: currentRetry + 1
+                                });
+                                break;
+                            }
+                            
+                            if (result) {
+                                totalInserted += result.length;
+                                console.log(`✅ Batch ${i + 1} completed: ${result.length} records inserted`);
+                                batchSuccess = true;
+                            }
+                            
+                        } catch (batchError) {
+                            console.error(`❌ Batch ${i + 1} attempt ${currentRetry + 1} unexpected error:`, batchError);
+                            currentRetry++;
+                            
+                            if (currentRetry < maxRetries) {
+                                console.log(`🔄 Retrying batch ${i + 1} (attempt ${currentRetry + 1}/${maxRetries})...`);
+                                await new Promise(resolve => setTimeout(resolve, 1000 * currentRetry));
+                            } else {
+                                failedBatches.push({ 
+                                    batchIndex: i, 
+                                    error: batchError, 
+                                    data: batch,
+                                    attempts: currentRetry
+                                });
+                            }
                         }
-                        
-                        if (result) {
-                            totalInserted += result.length;
-                            console.log(`✅ Batch ${i + 1} completed: ${result.length} records inserted`);
-                        }
-                    } catch (batchError) {
-                        console.error(`❌ Batch ${i + 1} unexpected error:`, batchError);
-                        failedBatches.push({ batchIndex: i, error: batchError, data: batch });
+                    }
+                    
+                    // 배치 간 잠시 대기 (서버 부하 방지)
+                    if (i < batches.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
                     }
                 }
                 
@@ -778,12 +925,27 @@
                 if (failedBatches.length > 0) {
                     console.warn(`⚠️ ${failedBatches.length} batches failed out of ${batches.length} total batches`);
                     failedBatches.forEach(failed => {
-                        console.warn(`Failed batch ${failed.batchIndex + 1}:`, failed.error);
+                        console.warn(`Failed batch ${failed.batchIndex + 1} (attempts: ${failed.attempts}):`, failed.error);
                     });
                 }
                 
-                console.log(`✅ Successfully added ${totalInserted} total records to database`);
-                return { length: totalInserted, failedBatches: failedBatches.length };
+                // 최종 결과 요약
+                const successRate = ((batches.length - failedBatches.length) / batches.length * 100).toFixed(1);
+                console.log(`✅ Upload completed: ${totalInserted} records inserted (${successRate}% success rate)`);
+                
+                // 사용자에게 결과 표시
+                if (failedBatches.length > 0) {
+                    alert(`업로드 완료!\n\n✅ 성공: ${totalInserted}개 레코드\n❌ 실패: ${failedBatches.length}개 배치\n📊 성공률: ${successRate}%`);
+                } else {
+                    alert(`업로드 완료!\n\n✅ 총 ${totalInserted}개 레코드가 성공적으로 업로드되었습니다.`);
+                }
+                
+                return { 
+                    length: totalInserted, 
+                    failedBatches: failedBatches.length,
+                    successRate: parseFloat(successRate),
+                    totalBatches: batches.length
+                };
                 
             } catch (error) {
                 console.error('❌ Database operation failed:', error);
@@ -823,6 +985,10 @@
             const progressContainer = document.getElementById('progressContainer');
             if (progressContainer) {
                 progressContainer.style.display = 'block';
+                progressContainer.classList.add('show');
+                console.log('📊 Progress container shown');
+            } else {
+                console.error('❌ Progress container not found');
             }
         }
         
@@ -831,6 +997,8 @@
             const progressContainer = document.getElementById('progressContainer');
             if (progressContainer) {
                 progressContainer.style.display = 'none';
+                progressContainer.classList.remove('show');
+                console.log('📊 Progress container hidden');
             }
         }
         
@@ -876,6 +1044,29 @@
         window.updateProgress = updateProgress;
         
         console.log('✅ FIFO Upload functions loaded and exposed globally');
+        
+        // 페이지 로드 시 Supabase 연결 확인
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔍 Checking Supabase connection...');
+            
+            // Supabase 클라이언트 확인
+            if (window.sb) {
+                console.log('✅ Supabase client (window.sb) is available');
+                // 연결 테스트
+                window.sb.from('vwtm_list_data').select('count', { count: 'exact', head: true })
+                    .then(({ data, error }) => {
+                        if (error) {
+                            console.error('❌ Supabase connection test failed:', error);
+                        } else {
+                            console.log('✅ Supabase connection test successful');
+                        }
+                    });
+            } else if (window.supabase) {
+                console.log('✅ Supabase client (window.supabase) is available');
+            } else {
+                console.error('❌ No Supabase client found');
+            }
+        });
     </script>
 </body>
 </html>
