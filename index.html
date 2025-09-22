@@ -103,13 +103,29 @@
                 Truck Status
               </div>
               <ul class="space-y-1 ml-2">
-                                 <li><button onclick="openStatusInNewTab()" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
+                <li><button onclick="loadPage('pages/truck/status.html')" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
                    <span class="text-lg mr-3">📺</span>
                    Live Status Display
                  </button></li>
                 <li><button onclick="loadPage('pages/truck/management.html')" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
                   <span class="text-lg mr-3">🚛</span>
                   Truck Management
+                </button></li>
+              </ul>
+            </li>
+            
+            <li class="pt-4">
+              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-4">
+                Display Control
+              </div>
+              <ul class="space-y-1 ml-2">
+                <li><button onclick="toggleSidebar()" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
+                  <span class="text-lg mr-3">📏</span>
+                  Toggle Sidebar
+                </button></li>
+                <li><button onclick="toggleFullscreenMode()" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
+                  <span class="text-lg mr-3">🖥️</span>
+                  Fullscreen Mode
                 </button></li>
               </ul>
             </li>
@@ -227,6 +243,15 @@
     document.addEventListener('DOMContentLoaded', function() {
       console.log('🚀 TM System 초기화 시작');
       
+      // 사이드바 상태 초기화
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.getElementById('mainContent');
+      if (sidebar && mainContent) {
+        sidebar.style.display = 'block';
+        mainContent.style.marginLeft = '256px';
+        mainContent.style.width = 'calc(100% - 256px)';
+      }
+      
       // Supabase 설정
       const SUPABASE_URL = 'https://wfnihtmmaebgjtdmazmo.supabase.co';
       const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmbmlodG1tYWViZ2p0ZG1hem1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3NTY3NTcsImV4cCI6MjA2NTMzMjc1N30.FYfdgSvOT1qUvANGlqXCEGvSR2JujggU7T_Sjzys3HQ';
@@ -251,11 +276,107 @@
         console.warn('⚠️ Supabase 라이브러리가 로드되지 않았습니다');
       }
       
-      // 전역 함수 등록
-      window.loadPage = loadPage;
-      window.openStatusInNewTab = openStatusInNewTab;
-      window.zoomIn = zoomIn;
-      window.zoomOut = zoomOut;
+             // 공백 시간 추가 모달 열기
+             function addGapRow() {
+               const gaps = detectTimeGaps();
+               if (gaps.length === 0) {
+                 console.warn('⚠️ 감지된 공백이 없습니다.');
+                 alert('감지된 공백이 없습니다. 시간 간격이 있는 스케줄을 먼저 입력해주세요.');
+                 return;
+               }
+               
+               // 첫 번째 공백을 기본값으로 설정
+               const firstGap = gaps[0];
+               const modal = document.getElementById('gapTimeModal');
+               const startTimeInput = document.getElementById('gapStartTime');
+               const endTimeInput = document.getElementById('gapEndTime');
+               const gapInfo = document.getElementById('detectedGapInfo');
+               
+               // 감지된 공백 정보 표시
+               gapInfo.textContent = `${firstGap.startTime} ~ ${firstGap.endTime} (${firstGap.duration}분)`;
+               
+               // 기본값 설정
+               startTimeInput.value = firstGap.startTime;
+               endTimeInput.value = firstGap.endTime;
+               document.getElementById('gapRemarks').value = '';
+               
+               modal.classList.remove('hidden');
+               modal.classList.add('flex');
+             }
+             
+             // 공백 시간 추가 모달 닫기
+             function closeGapTimeModal() {
+               const modal = document.getElementById('gapTimeModal');
+               modal.classList.add('hidden');
+               modal.classList.remove('flex');
+             }
+             
+             // 공백 시간 저장
+             async function saveGapTime() {
+               const startTime = document.getElementById('gapStartTime').value;
+               const endTime = document.getElementById('gapEndTime').value;
+               const remarks = document.getElementById('gapRemarks').value;
+               
+               if (!startTime || !endTime) {
+                 alert('시작 시간과 종료 시간을 모두 입력해주세요.');
+                 return;
+               }
+               
+               // 시간 유효성 검사
+               if (startTime >= endTime) {
+                 alert('종료 시간은 시작 시간보다 늦어야 합니다.');
+                 return;
+               }
+               
+               // 새로운 공백 행 생성
+               const maxSeq = Math.max(0, ...window.adminScheduleData.map(item => item.seq_no || 0));
+               const newGapRow = {
+                 seq_no: maxSeq + 1,
+                 part_no: 'GAP', // 공백 표시
+                 work_start_time: startTime,
+                 work_end_time: endTime,
+                 work_status: 'gap', // 공백 상태
+                 remarks: remarks || '공백 시간',
+                 work_date: window.adminSelectedDate,
+                 created_at: new Date().toISOString()
+               };
+               
+               try {
+                 // Supabase에 저장
+                 const { data, error } = await window.supabase
+                   .from('tm_packaging_schedule')
+                   .insert([newGapRow])
+                   .select();
+                 
+                 if (error) throw error;
+                 
+                 // 로컬 데이터 업데이트
+                 window.adminScheduleData.push(newGapRow);
+                 
+                 console.log('✅ Gap time added successfully:', newGapRow);
+                 
+                 // 테이블 새로고침
+                 renderAdminTable();
+                 updateAdminStatistics();
+                 
+                 closeGapTimeModal();
+                 
+               } catch (error) {
+                 console.error('❌ Error adding gap time:', error);
+                 alert('공백 시간 추가에 실패했습니다: ' + error.message);
+               }
+             }
+             
+             // 전역 함수 등록
+             window.loadPage = loadPage;
+             window.openStatusInNewTab = openStatusInNewTab;
+             window.zoomIn = zoomIn;
+             window.zoomOut = zoomOut;
+             window.toggleSidebar = toggleSidebar;
+             window.toggleFullscreenMode = toggleFullscreenMode;
+             window.addGapRow = addGapRow;
+             window.closeGapTimeModal = closeGapTimeModal;
+             window.saveGapTime = saveGapTime;
       
       console.log('✅ TM System 초기화 완료');
     });
@@ -263,6 +384,13 @@
              // 간단한 페이지 로더
              function loadPage(path) {
                console.log('Loading page:', path);
+               
+               // 사이드바 복원 (Live Display가 아닌 경우)
+               if (path !== 'pages/schedule/display.html') {
+                 document.getElementById('sidebar').style.display = 'block';
+                 document.getElementById('mainContent').style.marginLeft = '256px';
+                 document.getElementById('mainContent').style.width = 'calc(100% - 256px)';
+               }
                
                // 페이지 제목 업데이트
                const pageTitle = document.getElementById('pageTitle');
@@ -273,6 +401,8 @@
                    pageTitle.textContent = 'Shipping Plan Analysis';
                  } else if (path.includes('packaging-analysis-fixed.html')) {
                    pageTitle.textContent = 'Packaging Analysis';
+                 } else if (path.includes('truck/status.html')) {
+                   pageTitle.textContent = 'Truck Status';
                  } else if (path.includes('management.html')) {
                    pageTitle.textContent = 'Truck Management';
                  } else if (path.includes('schedule/display.html')) {
@@ -632,19 +762,26 @@
                  setTimeout(() => {
                    initializePackagingPage();
                  }, 100);
-               } else if (path === 'pages/truck/management.html') {
+               } else if (path === 'pages/truck/status.html') {
+                 // Truck Status 페이지를 iframe으로 로드
                  document.getElementById('mainContent').innerHTML = `
-                   <div class="bg-white rounded-lg shadow-md p-8">
-                     <h2 class="text-2xl font-bold text-gray-800 mb-6">Truck Management</h2>
-                     <div class="text-center py-8">
-                       <div class="text-4xl mb-4">🚛</div>
-                       <h3 class="text-xl font-semibold text-gray-700 mb-2">트럭 관리</h3>
-                       <p class="text-gray-600">트럭 관리 기능이 준비되었습니다</p>
-                     </div>
+                   <div class="w-full h-screen">
+                     <iframe src="${path}" class="w-full h-full border-0" frameborder="0"></iframe>
+                   </div>
+                 `;
+               } else if (path === 'pages/truck/management.html') {
+                 // Truck Management 페이지를 iframe으로 로드
+                 document.getElementById('mainContent').innerHTML = `
+                   <div class="w-full h-screen">
+                     <iframe src="${path}" class="w-full h-full border-0" frameborder="0"></iframe>
                    </div>
                  `;
               } else if (path === 'pages/schedule/display.html') {
-                // Live Display 페이지 - 인라인으로 구현
+                // Live Display 페이지 - 사이드바 숨기고 전체 화면으로 표시
+                document.getElementById('sidebar').style.display = 'none';
+                document.getElementById('mainContent').style.marginLeft = '0';
+                document.getElementById('mainContent').style.width = '100%';
+                
                 document.getElementById('mainContent').innerHTML = `
                   <div class="h-screen p-4 bg-gray-900 text-white overflow-hidden">
                     <!-- Header -->
@@ -759,6 +896,9 @@
                              <button onclick="addNewRow()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-semibold">
                                + 행 추가
                              </button>
+                             <button onclick="addGapRow()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-semibold">
+                               ⏰ 빈 시간 추가
+                             </button>
                              <button onclick="loadScheduleToTable()" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg text-sm font-semibold">
                                🔄 새로고침
                              </button>
@@ -799,6 +939,40 @@
                          <div class="flex justify-end space-x-2 mt-6">
                            <button onclick="closeTimeEditModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800">취소</button>
                            <button onclick="saveTimeEdit()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">저장</button>
+                         </div>
+                       </div>
+                     </div>
+
+                     <!-- 공백 시간 추가 모달 -->
+                     <div id="gapTimeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+                       <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+                         <h3 class="text-xl font-bold text-gray-900 mb-4">공백 시간 추가</h3>
+                         <div class="space-y-4">
+                           <div class="bg-blue-50 p-3 rounded-lg">
+                             <p class="text-sm text-blue-800">
+                               <strong>감지된 공백:</strong> <span id="detectedGapInfo">-</span>
+                             </p>
+                           </div>
+                           <div>
+                             <label class="block text-sm font-medium text-gray-700 mb-2">시작 시간</label>
+                             <input type="time" id="gapStartTime" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                           </div>
+                           <div>
+                             <label class="block text-sm font-medium text-gray-700 mb-2">종료 시간</label>
+                             <input type="time" id="gapEndTime" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                           </div>
+                           <div>
+                             <label class="block text-sm font-medium text-gray-700 mb-2">비고 (선택사항)</label>
+                             <input type="text" id="gapRemarks" placeholder="예: 휴식, 점검, 대기, 준비 등" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                           </div>
+                           <div class="flex justify-end space-x-2">
+                             <button onclick="closeGapTimeModal()" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                               취소
+                             </button>
+                             <button onclick="saveGapTime()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                               추가
+                             </button>
+                           </div>
                          </div>
                        </div>
                      </div>
@@ -864,44 +1038,44 @@
               <h2 class="text-2xl font-bold mb-4 flex items-center">
                 <span class="mr-2 text-3xl">⚡</span>
                 <span id="currentWorkTitle">Current Work</span>
-              </h2>
+                         </h2>
               <div class="bg-white bg-opacity-25 rounded-xl p-4">
                 <div class="grid grid-cols-4 gap-4">
                   <div class="text-center">
                     <div class="text-sm opacity-90 mb-1 font-semibold" id="currentIdLabel">Task ID</div>
                     <div class="text-3xl font-bold" id="currentRound">-</div>
-                  </div>
+                         </div>
                   <div class="text-center">
                     <div class="text-sm opacity-90 mb-1 font-semibold" id="currentPartLabel">Part Number</div>
                     <div class="text-3xl font-bold" id="currentPart">-</div>
-                  </div>
+                       </div>
                   <div class="text-center">
                     <div class="text-sm opacity-90 mb-1 font-semibold" id="elapsedTimeLabel">Elapsed Time</div>
                     <div class="text-3xl font-bold text-yellow-300 timer-display" id="elapsedTime">00:00:00</div>
-                  </div>
+                             </div>
                   <div class="text-center">
                     <div class="text-sm opacity-90 mb-1 font-semibold" id="todayDateLabel">Today's Date</div>
                     <div class="text-lg font-bold" id="todayDate">-</div>
-                  </div>
-                </div>
-                
-                <!-- Control Buttons -->
+                             </div>
+                           </div>
+                           
+                           <!-- Control Buttons -->
                 <div class="mt-4 flex justify-center space-x-3">
-                  <button id="startWorkBtn" onclick="startSelectedWork()"
+                                 <button id="startWorkBtn" onclick="startSelectedWork()" 
                           class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-lg transition-all disabled:bg-gray-400 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105">
-                    <span id="startWorkText">🚀 Start Work</span>
-                  </button>
-                  <button id="cancelWorkBtn" onclick="cancelSelectedWork()"
+                                   <span id="startWorkText">🚀 Start Work</span>
+                                 </button>
+                                 <button id="cancelWorkBtn" onclick="cancelSelectedWork()" 
                           class="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold text-lg transition-all disabled:bg-gray-400 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105">
                     <span id="cancelWorkText">❌ Cancel</span>
-                  </button>
-                  <button id="endWorkBtn" onclick="endSelectedWork()"
+                                 </button>
+                                 <button id="endWorkBtn" onclick="endSelectedWork()" 
                           class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-lg transition-all disabled:bg-gray-400 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105">
-                    <span id="endWorkText">⏹️ End Work</span>
-                  </button>
-                </div>
-              </div>
-            </div>
+                                   <span id="endWorkText">⏹️ End Work</span>
+                                 </button>
+                               </div>
+                             </div>
+                             </div>
                          
                          <!-- Next Work Preview -->
                          <div>
@@ -913,8 +1087,8 @@
                              <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="nextWorkPreview">
                                <div class="text-center text-gray-300 text-sm" id="noNextWork">No upcoming work</div>
                              </div>
+                             </div>
                            </div>
-                         </div>
                          </div>
                        </div>
 
@@ -2249,10 +2423,119 @@
              // STATUS 페이지를 새 탭에서 열기
              function openStatusInNewTab() {
                // 로컬과 동일하게 작동하도록 상대 경로 사용
-               const work_statusUrl = './pages/truck/work_status.html';
-               window.open(work_statusUrl, '_blank');
+               const statusUrl = './pages/truck/status.html';
+               window.open(statusUrl, '_blank');
+             }
+             
+             // 사이드바 토글 함수
+             function toggleSidebar() {
+               const sidebar = document.getElementById('sidebar');
+               const mainContent = document.getElementById('mainContent');
+               
+               if (sidebar.style.display === 'none') {
+                 // 사이드바 표시
+                 sidebar.style.display = 'block';
+                 mainContent.style.marginLeft = '256px';
+                 mainContent.style.width = 'calc(100% - 256px)';
+                 console.log('📏 Sidebar shown');
+               } else {
+                 // 사이드바 숨기기
+                 sidebar.style.display = 'none';
+                 mainContent.style.marginLeft = '0';
+                 mainContent.style.width = '100%';
+                 console.log('📏 Sidebar hidden');
+               }
+             }
+             
+             // 전체화면 모드 토글 함수
+             function toggleFullscreenMode() {
+               if (!document.fullscreenElement) {
+                 // 전체화면 모드 진입
+                 document.documentElement.requestFullscreen().then(() => {
+                   console.log('🖥️ Entered fullscreen mode');
+                 }).catch(err => {
+                   console.error('❌ Error entering fullscreen:', err);
+                 });
+               } else {
+                 // 전체화면 모드 종료
+                 document.exitFullscreen().then(() => {
+                   console.log('🖥️ Exited fullscreen mode');
+                 }).catch(err => {
+                   console.error('❌ Error exiting fullscreen:', err);
+                 });
+               }
              }
 
+             // 시간 간격 감지 및 공백 표시 함수
+             function detectTimeGaps() {
+               if (!window.adminScheduleData || window.adminScheduleData.length === 0) return [];
+               
+               const gaps = [];
+               const sortedData = [...window.adminScheduleData].sort((a, b) => {
+                 const timeA = a.work_start_time ? a.work_start_time : '23:59';
+                 const timeB = b.work_start_time ? b.work_start_time : '23:59';
+                 return timeA.localeCompare(timeB);
+               });
+               
+               // 8시 기준 시작 시간 계산
+               const baseTime = '08:00';
+               const baseMinutes = timeToMinutes(baseTime);
+               
+               for (let i = 0; i < sortedData.length; i++) {
+                 const current = sortedData[i];
+                 const next = sortedData[i + 1];
+                 
+                 if (current.work_start_time) {
+                   const currentMinutes = timeToMinutes(current.work_start_time);
+                   const gapMinutes = currentMinutes - baseMinutes;
+                   
+                   // 8시 이후 시작하는 경우 공백 추가
+                   if (gapMinutes > 0 && i === 0) {
+                     gaps.push({
+                       type: 'start_gap',
+                       startTime: baseTime,
+                       endTime: current.work_start_time,
+                       duration: gapMinutes,
+                       position: 'before_first'
+                     });
+                   }
+                   
+                   // 다음 항목과의 간격 확인
+                   if (next && next.work_start_time) {
+                     const nextMinutes = timeToMinutes(next.work_start_time);
+                     const currentEndMinutes = current.work_end_time ? timeToMinutes(current.work_end_time) : currentMinutes;
+                     const gapBetween = nextMinutes - currentEndMinutes;
+                     
+                     if (gapBetween > 0) {
+                       gaps.push({
+                         type: 'between_gaps',
+                         startTime: current.work_end_time || current.work_start_time,
+                         endTime: next.work_start_time,
+                         duration: gapBetween,
+                         position: `between_${current.seq_no}_${next.seq_no}`
+                       });
+                     }
+                   }
+                 }
+               }
+               
+               return gaps;
+             }
+             
+             // 시간을 분으로 변환하는 함수
+             function timeToMinutes(timeStr) {
+               if (!timeStr) return 0;
+               const [hours, minutes] = timeStr.split(':').map(Number);
+               return hours * 60 + minutes;
+             }
+             
+             // 분을 시간 문자열로 변환하는 함수
+             function minutesToTime(minutes) {
+               const hours = Math.floor(minutes / 60);
+               const mins = minutes % 60;
+               return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+             }
+             
              // Admin 페이지 초기화
              function initializeAdminPage() {
                console.log('🚀 Initializing Admin page...');
@@ -2313,14 +2596,18 @@
                
                sortedData.forEach((item, index) => {
                  const work_status = calculateStatus(item);
-                 const work_statusColor = work_status === 'completed' ? 'bg-green-100 text-green-800' :
+                 const isGapTime = item.work_status === 'gap';
+                 
+                 const work_statusColor = isGapTime ? 'bg-blue-100 text-blue-800' :
+                                   work_status === 'completed' ? 'bg-green-100 text-green-800' :
                                    work_status === 'active' ? 'bg-yellow-100 text-yellow-800' :
                                    'bg-gray-100 text-gray-800';
                  
                  const gapTime = calculateGapTime(item, sortedData, index);
                  const isPartSelected = item.part_no && item.part_no.trim() !== '';
                  const isCompleted = work_status === 'completed';
-                 const rowClass = isPartSelected ? 'hover:bg-gray-50' : 'bg-gray-100 hover:bg-gray-200';
+                 const rowClass = isGapTime ? 'bg-blue-50 hover:bg-blue-100' :
+                                 isPartSelected ? 'hover:bg-gray-50' : 'bg-gray-100 hover:bg-gray-200';
                  
                  tableHTML += `
                    <tr class="${rowClass}" data-index="${sortedData.indexOf(item)}">
@@ -2328,20 +2615,23 @@
                        ${item.seq_no || 'NEW'}
                      </td>
                      <td class="px-3 py-2 whitespace-nowrap">
-                       <select class="px-2 py-1 text-sm border border-gray-300 rounded ${isCompleted ? 'bg-gray-200 cursor-not-allowed' : ''}" 
+                       ${isGapTime ? 
+                         `<span class="px-2 py-1 text-sm font-medium text-blue-800 bg-blue-100 rounded">공백</span>` :
+                         `<select class="px-2 py-1 text-sm border border-gray-300 rounded ${isCompleted ? 'bg-gray-200 cursor-not-allowed' : ''}" 
                                onchange="updateScheduleData(${sortedData.indexOf(item)}, 'part_no', this.value)"
                                ${isCompleted ? 'disabled' : ''}>
-                         <option value="" ${!item.part_no ? 'selected' : ''}>선택하세요</option>
-                         <option value="24" ${item.part_no === '24' ? 'selected' : ''}>24</option>
-                         <option value="33" ${item.part_no === '33' ? 'selected' : ''}>33</option>
-                         <option value="34" ${item.part_no === '34' ? 'selected' : ''}>34</option>
-                         <option value="35" ${item.part_no === '35' ? 'selected' : ''}>35</option>
-                         <option value="79" ${item.part_no === '79' ? 'selected' : ''}>79</option>
-                         <option value="80" ${item.part_no === '80' ? 'selected' : ''}>80</option>
-                         <option value="4GV3" ${item.part_no === '4GV3' ? 'selected' : ''}>4GV3</option>
-                         <option value="4GF8" ${item.part_no === '4GF8' ? 'selected' : ''}>4GF8</option>
-                         <option value="SWAP" ${item.part_no === 'SWAP' ? 'selected' : ''}>SWAP</option>
-                       </select>
+                           <option value="" ${!item.part_no ? 'selected' : ''}>선택하세요</option>
+                           <option value="24" ${item.part_no === '24' ? 'selected' : ''}>24</option>
+                           <option value="33" ${item.part_no === '33' ? 'selected' : ''}>33</option>
+                           <option value="34" ${item.part_no === '34' ? 'selected' : ''}>34</option>
+                           <option value="35" ${item.part_no === '35' ? 'selected' : ''}>35</option>
+                           <option value="79" ${item.part_no === '79' ? 'selected' : ''}>79</option>
+                           <option value="80" ${item.part_no === '80' ? 'selected' : ''}>80</option>
+                           <option value="4GV3" ${item.part_no === '4GV3' ? 'selected' : ''}>4GV3</option>
+                           <option value="4GF8" ${item.part_no === '4GF8' ? 'selected' : ''}>4GF8</option>
+                           <option value="SWAP" ${item.part_no === 'SWAP' ? 'selected' : ''}>SWAP</option>
+                         </select>`
+                       }
                      </td>
                      <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
                        ${item.work_start_time || '-'}
@@ -2350,8 +2640,9 @@
                        ${item.work_end_time || '-'}
                      </td>
                      <td class="px-3 py-2 whitespace-nowrap">
-                       <span class="px-2 py-1 text-xs font-semibold rounded-full ${isPartSelected ? work_statusColor : 'bg-gray-200 text-gray-600'}">
-                         ${isPartSelected ? (work_status === 'completed' ? '완료' : work_status === 'active' ? '진행중' : '대기') : '미선택'}
+                       <span class="px-2 py-1 text-xs font-semibold rounded-full ${work_statusColor}">
+                         ${isGapTime ? '공백' :
+                           isPartSelected ? (work_status === 'completed' ? '완료' : work_status === 'active' ? '진행중' : '대기') : '미선택'}
                        </span>
                      </td>
                      <td class="px-3 py-2 whitespace-nowrap">
@@ -2528,12 +2819,12 @@
 
              // Admin 통계 업데이트
              function updateAdminStatistics() {
-               // 모든 항목을 포함 (파트가 선택되지 않은 항목도 포함)
-               const allItems = window.adminScheduleData;
+               // 공백 시간을 제외한 실제 작업 항목만 계산
+               const workItems = window.adminScheduleData.filter(item => item.work_status !== 'gap');
                
-               const totalItems = allItems.length;
-               const completedItems = allItems.filter(item => calculateStatus(item) === 'completed').length;
-               const activeItems = allItems.filter(item => calculateStatus(item) === 'active').length;
+               const totalItems = workItems.length;
+               const completedItems = workItems.filter(item => calculateStatus(item) === 'completed').length;
+               const activeItems = workItems.filter(item => calculateStatus(item) === 'active').length;
                
                const totalRoundsEl = document.getElementById('totalRounds');
                const completedRoundsEl = document.getElementById('completedRounds');
