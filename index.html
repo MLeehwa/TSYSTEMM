@@ -2298,47 +2298,59 @@
                return hours * 60 + minutes;
              }
              
-             // 점심시간 제외 토글 함수 (간단 버전)
+             // 점심시간 제외 토글 함수 (안전한 버전)
              function toggleLunchTimeExclusion(checkbox) {
-               const itemIndex = parseInt(checkbox.dataset.itemIndex);
-               const gapIndex = parseInt(checkbox.dataset.gapIndex);
-               
-               if (!window.adminScheduleData[itemIndex]) return;
-               
-               // 간단한 상태 저장
-               const item = window.adminScheduleData[itemIndex];
-               if (!item.lunchExcluded) {
-                 item.lunchExcluded = {};
-               }
-               item.lunchExcluded[gapIndex] = checkbox.checked;
-               
-               // 기존 배지 업데이트 - 첫 번째 span (시간 배지) 선택
-               const gapSpan = checkbox.closest('.flex').querySelector('span:first-child');
-               if (gapSpan) {
-                 const originalText = gapSpan.textContent;
-                 console.log('🔍 원본 텍스트:', originalText);
+               try {
+                 const itemIndex = parseInt(checkbox.dataset.itemIndex);
+                 const gapIndex = parseInt(checkbox.dataset.gapIndex);
                  
+                 if (!window.adminScheduleData || !window.adminScheduleData[itemIndex]) {
+                   console.log('❌ 데이터를 찾을 수 없음');
+                   return;
+                 }
+                 
+                 // 상태 저장
+                 const item = window.adminScheduleData[itemIndex];
+                 if (!item.lunchExcluded) {
+                   item.lunchExcluded = {};
+                 }
+                 item.lunchExcluded[gapIndex] = checkbox.checked;
+                 
+                 // 배지 찾기
+                 const flexContainer = checkbox.closest('.flex');
+                 if (!flexContainer) {
+                   console.log('❌ flex 컨테이너를 찾을 수 없음');
+                   return;
+                 }
+                 
+                 const gapSpan = flexContainer.querySelector('span:first-child');
+                 if (!gapSpan) {
+                   console.log('❌ 시간 배지를 찾을 수 없음');
+                   return;
+                 }
+                 
+                 // 텍스트 업데이트
+                 const originalText = gapSpan.textContent;
                  const timeMatch = originalText.match(/\+(\d+)분/);
+                 
                  if (timeMatch) {
                    const originalMinutes = parseInt(timeMatch[1]);
                    const adjustedMinutes = checkbox.checked ? Math.max(0, originalMinutes - 60) : originalMinutes;
                    const newText = originalText.replace(/\+(\d+)분/, `+${adjustedMinutes}분`);
                    
-                   console.log(`🔍 시간 변경: ${originalMinutes}분 → ${adjustedMinutes}분`);
-                   console.log('🔍 새 텍스트:', newText);
-                   
                    gapSpan.textContent = newText;
                    gapSpan.className = checkbox.checked ? 
                      'px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full' :
                      'px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full';
+                   
+                   console.log(`✅ 시간 변경: ${originalMinutes}분 → ${adjustedMinutes}분`);
                  } else {
                    console.log('❌ 시간 패턴을 찾을 수 없음:', originalText);
                  }
-               } else {
-                 console.log('❌ gapSpan을 찾을 수 없음');
+                 
+               } catch (error) {
+                 console.error('❌ toggleLunchTimeExclusion 오류:', error);
                }
-               
-               console.log(`🍽️ 점심시간 제외 ${checkbox.checked ? '활성화' : '비활성화'}`);
              }
 
              // Admin 페이지 초기화
