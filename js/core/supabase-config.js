@@ -12,6 +12,8 @@ let supabaseClient = null;
 let isOfflineMode = false;
 let connectionRetries = 0;
 const MAX_RETRIES = 3;
+let heartbeatInterval = null;
+let lastSuccessfulConnection = null;
 
 // 오프라인 모드 데이터 저장소
 let offlineDataStore = {
@@ -28,12 +30,18 @@ function initializeSupabase() {
             // Supabase v2 클라이언트 생성
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
                 auth: {
-                    autoRefreshToken: false,
-                    persistSession: false
+                    autoRefreshToken: true,    // ✅ 토큰 자동 갱신 활성화
+                    persistSession: true,      // ✅ 세션 지속 활성화
+                    detectSessionInUrl: false  // URL에서 세션 감지 비활성화
                 },
                 realtime: {
                     params: {
                         eventsPerSecond: 10
+                    }
+                },
+                global: {
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY
                     }
                 }
             });
@@ -116,6 +124,7 @@ async function checkSupabaseConnection() {
         }
 
         connectionRetries = 0;
+        lastSuccessfulConnection = new Date();
         console.log('✅ Supabase connection successful');
         return true;
         
@@ -232,12 +241,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, 200);
     
-    // 주기적으로 연결 상태 확인 (5분마다)
+    // 주기적으로 연결 상태 확인 (1분마다)
     setInterval(async () => {
         if (isOfflineMode) {
             await attemptReconnection();
+        } else {
+            // 온라인 모드에서도 연결 상태 확인
+            await checkSupabaseConnection();
         }
-    }, 5 * 60 * 1000);
+    }, 1 * 60 * 1000);
+    
+    // 하트비트 시작 (30초마다)
+    startHeartbeat();
 });
 
 // 전역 함수들 노출
@@ -247,5 +262,74 @@ window.getSupabaseClient = getSupabaseClient;
 window.attemptReconnection = attemptReconnection;
 window.getConnectionStatus = getConnectionStatus;
 window.syncOfflineData = syncOfflineData;
+window.showConnectionStatus = showConnectionStatus;
+window.startHeartbeat = startHeartbeat;
+window.stopHeartbeat = stopHeartbeat;
+
+// 하트비트 기능 시작
+function startHeartbeat() {
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+    }
+    
+    heartbeatInterval = setInterval(async () => {
+        if (!isOfflineMode && supabaseClient) {
+            try {
+                // 간단한 하트비트 요청
+                const { error } = await supabaseClient
+                    .from('vwtm_list_data')
+                    .select('count', { count: 'exact', head: true })
+                    .limit(1);
+                
+                if (error) {
+                    console.warn('⚠️ Heartbeat failed:', error.message);
+                    // 하트비트 실패 시 연결 상태 재확인
+                    await checkSupabaseConnection();
+                } else {
+                    lastSuccessfulConnection = new Date();
+                }
+            } catch (error) {
+                console.warn('⚠️ Heartbeat error:', error.message);
+                await checkSupabaseConnection();
+            }
+        }
+    }, 30 * 1000); // 30초마다
+}
+
+// 하트비트 중지
+function stopHeartbeat() {
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+    }
+}
+
+// 연결 상태 정보 가져오기 (개선된 버전)
+function getConnectionStatus() {
+    return {
+        isConnected: !isOfflineMode && supabaseClient !== null,
+        isOffline: isOfflineMode,
+        pendingUploads: offlineDataStore.pendingUploads.length,
+        lastSyncTime: offlineDataStore.lastSyncTime,
+        lastSuccessfulConnection: lastSuccessfulConnection,
+        connectionRetries: connectionRetries,
+        heartbeatActive: heartbeatInterval !== null
+    };
+}
+
+// 사용자에게 연결 상태 알림
+function showConnectionStatus() {
+    const status = getConnectionStatus();
+    const statusMessage = status.isConnected ? 
+        '✅ SUPABASE 연결됨' : 
+        '❌ SUPABASE 연결 안됨 - 오프라인 모드';
+    
+    console.log(`🔗 Connection Status: ${statusMessage}`);
+    
+    // 필요시 UI에 상태 표시
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(statusMessage, status.isConnected ? 'success' : 'error');
+    }
+}
 
 console.log('✅ Supabase Configuration loaded with offline support');

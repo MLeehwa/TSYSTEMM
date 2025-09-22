@@ -75,6 +75,7 @@
           <span class="text-3xl mr-2">🔄</span>
           LEEHWA VW TM System
         </h2>
+        
         <nav>
           <ul class="space-y-2">
             <li class="pt-2">
@@ -234,10 +235,15 @@
       let sb = null;
       if (typeof supabase !== 'undefined') {
         try {
-          sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        window.sb = sb;
-          window.supabase = sb; // 클라이언트 인스턴스를 전역에 할당
-        console.log('✅ Supabase 클라이언트 생성 완료');
+          sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+              autoRefreshToken: true,    // 토큰 자동 갱신
+              persistSession: true       // 세션 지속
+            }
+          });
+          window.sb = sb;
+          window.supabase = sb;
+          console.log('✅ Supabase 클라이언트 생성 완료');
         } catch (error) {
           console.error('❌ Supabase 클라이언트 생성 실패:', error);
         }
@@ -248,6 +254,8 @@
       // 전역 함수 등록
       window.loadPage = loadPage;
       window.openStatusInNewTab = openStatusInNewTab;
+      window.zoomIn = zoomIn;
+      window.zoomOut = zoomOut;
       
       console.log('✅ TM System 초기화 완료');
     });
@@ -642,6 +650,7 @@
                     <!-- Header -->
                     <div class="text-center mb-4 relative">
                       <h2 class="text-3xl font-semibold text-blue-300 mb-1">PACKAGING SCHEDULE STATUS</h2>
+                      <div class="text-lg font-bold text-yellow-300 mb-2" id="displayDate">-</div>
                       <button onclick="toggleFullscreen()" id="fullscreenBtn" class="absolute top-0 right-0 bg-red-500 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold text-lg shadow-lg">
                         <span id="fullscreenText">🖥️ FULLSCREEN</span>
                       </button>
@@ -700,6 +709,9 @@
                          <div class="flex space-x-2">
                            <button onclick="refreshData()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
                              🔄 새로고침
+                           </button>
+                           <button id="adminAutoRefreshBtn" onclick="toggleAdminAutoRefresh()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+                             🔄 AUTO: ON
                            </button>
                          </div>
                        </div>
@@ -803,48 +815,62 @@
                    initializeAdminPage();
                  }, 100);
                } else if (path === 'pages/schedule/supervisor.html') {
-                 // Supervisor 페이지 - 인라인으로 구현
+                 // Supervisor 페이지 - 인라인으로 구현 (24인치 모니터용 대형 화면)
                  document.getElementById('mainContent').innerHTML = `
-                   <div class="h-screen flex flex-col p-2 bg-gray-50">
+                   <div class="h-screen flex flex-col p-3 bg-gray-50 overflow-y-auto" style="transform: scaleY(1.5); transform-origin: top left; width: 100%; max-width: 100vw;">
                      <!-- Header -->
-                     <div class="bg-white rounded-lg shadow-sm border p-3 mb-2">
+                     <div class="bg-white rounded-lg shadow-sm border p-4 mb-3">
                        <div class="flex justify-between items-center">
                          <div>
-                           <h1 class="text-xl font-bold text-gray-900" id="supervisorTitle">Packaging Work Management</h1>
-                           <p class="text-gray-600 text-sm" id="supervisorSubtitle">Supervisor Control Panel</p>
+                           <h1 class="text-2xl font-bold text-gray-900" id="supervisorTitle">Packaging Work Management</h1>
+                           <p class="text-gray-600 text-base" id="supervisorSubtitle">Supervisor Control Panel</p>
                          </div>
-                         <div class="flex items-center space-x-3">
+                         <div class="flex items-center space-x-6">
                            <!-- Language Selector -->
-                           <div class="flex space-x-1">
-                             <button onclick="setSupervisorLanguage('en')" id="langEn" class="px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800 border border-blue-300">EN</button>
-                             <button onclick="setSupervisorLanguage('es')" id="langEs" class="px-2 py-1 text-xs font-semibold rounded bg-gray-100 text-gray-600 border border-gray-300">ES</button>
+                           <div class="flex space-x-2">
+                             <button onclick="setSupervisorLanguage('en')" id="langEn" class="px-4 py-2 text-sm font-semibold rounded bg-gray-100 text-gray-600 border border-gray-300">EN</button>
+                             <button onclick="setSupervisorLanguage('es')" id="langEs" class="px-4 py-2 text-sm font-semibold rounded bg-blue-100 text-blue-800 border border-blue-300">ES</button>
                            </div>
                            <div class="text-right">
-                             <div class="text-xs text-gray-500" id="currentTimeLabel">Current Time</div>
-                             <div class="text-lg font-bold text-blue-600" id="currentTime">00:00:00</div>
+                             <div class="text-sm text-gray-500" id="currentTimeLabel">Current Time</div>
+                             <div class="text-2xl font-bold text-blue-600" id="currentTime">00:00:00</div>
                            </div>
-                           <button onclick="refreshSupervisorData()" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm font-semibold">
+                           <button onclick="refreshSupervisorData()" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded text-lg font-semibold">
                              🔄
                            </button>
+                           <button id="supervisorAutoRefreshBtn" onclick="toggleSupervisorAutoRefresh()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded text-lg font-semibold">
+                             🔄 AUTO: ON
+                           </button>
+                           
+                           <!-- Zoom Controls -->
+                           <div class="flex items-center space-x-2">
+                             <button onclick="zoomOut()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-lg font-semibold" title="Zoom Out">
+                               ➖
+                             </button>
+                             <span id="zoomLevel" class="text-sm font-bold text-gray-700 min-w-[60px] text-center">150%</span>
+                             <button onclick="zoomIn()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-lg font-semibold" title="Zoom In">
+                               ➕
+                             </button>
+                           </div>
                          </div>
                        </div>
                      </div>
 
                      <!-- Current Status -->
-                     <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 mb-2">
-                       <div class="bg-white rounded-lg shadow-sm border p-3">
+                     <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-3">
+                       <div class="bg-white rounded-lg shadow-sm border p-4">
                          <div class="text-xs text-gray-600 mb-1" id="todayDateLabel">Today's Date</div>
                          <div class="text-lg font-bold text-blue-600" id="todayDate">-</div>
                        </div>
-                       <div class="bg-white rounded-lg shadow-sm border p-3">
+                       <div class="bg-white rounded-lg shadow-sm border p-4">
                          <div class="text-xs text-gray-600 mb-1" id="currentIdLabel">Current ID</div>
                          <div class="text-lg font-bold text-blue-600" id="currentRound">-</div>
                        </div>
-                       <div class="bg-white rounded-lg shadow-sm border p-3">
+                       <div class="bg-white rounded-lg shadow-sm border p-4">
                          <div class="text-xs text-gray-600 mb-1" id="currentPartLabel">Current Part</div>
                          <div class="text-lg font-bold text-green-600" id="currentPart">-</div>
                        </div>
-                       <div class="bg-white rounded-lg shadow-sm border p-3">
+                       <div class="bg-white rounded-lg shadow-sm border p-4">
                          <div class="text-xs text-gray-600 mb-1" id="elapsedTimeLabel">Elapsed Time</div>
                          <div class="text-lg font-bold text-red-600 timer-display" id="elapsedTime">00:00:00</div>
                        </div>
@@ -853,58 +879,62 @@
                      <!-- Main Content -->
                      <div class="flex-1 flex flex-col">
                        <!-- ID Selection -->
-                       <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-md border-2 border-blue-200 p-4 mb-2">
+                       <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-md border-2 border-blue-200 p-4 mb-3">
                          <h2 class="text-lg font-bold text-blue-800 mb-3 flex items-center" id="idSelectionTitle">
                            <span class="mr-2">🎯</span>
                            Task ID Selection
                          </h2>
-                         <div class="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-9 gap-2" id="idSelector">
+                         <div class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2" id="idSelector">
                            <!-- ID buttons will be populated here -->
                          </div>
                        </div>
 
                        <!-- Selected Task Control -->
-                       <div class="bg-white rounded-lg shadow-sm border p-4 mb-2" id="taskControl" style="display: none;">
-                         <h2 class="text-lg font-bold text-gray-900 mb-3" id="taskControlTitle">Selected Task Control</h2>
-                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div class="bg-white rounded-lg shadow-sm border p-5 mb-3" id="taskControl" style="display: none;">
+                         <h2 class="text-xl font-bold text-gray-900 mb-4" id="taskControlTitle">Selected Task Control</h2>
+                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
                            <!-- Task Info -->
-                           <div class="space-y-3">
-                             <div class="bg-gray-50 rounded-lg p-3">
-                               <div class="text-sm text-gray-600 mb-1" id="selectedIdLabel">Selected ID</div>
-                               <div class="text-xl font-bold text-blue-600" id="selectedId">-</div>
+                           <div class="space-y-4">
+                             <div class="bg-gray-50 rounded-lg p-4">
+                               <div class="text-sm text-gray-600 mb-2" id="selectedIdLabel">Selected ID</div>
+                               <div class="text-2xl font-bold text-blue-600" id="selectedId">-</div>
                              </div>
-                             <div class="bg-gray-50 rounded-lg p-3">
-                               <div class="text-sm text-gray-600 mb-1" id="selectedPartLabel">Part Number</div>
-                               <div class="text-xl font-bold text-green-600" id="selectedPart">-</div>
+                             <div class="bg-gray-50 rounded-lg p-4">
+                               <div class="text-sm text-gray-600 mb-2" id="selectedPartLabel">Part Number</div>
+                               <div class="text-2xl font-bold text-green-600" id="selectedPart">-</div>
                              </div>
-                             <div class="bg-gray-50 rounded-lg p-3">
-                               <div class="text-sm text-gray-600 mb-1" id="currentStatusLabel">Current Status</div>
-                               <div class="text-xl font-bold" id="selectedStatus">-</div>
+                             <div class="bg-gray-50 rounded-lg p-4">
+                               <div class="text-sm text-gray-600 mb-2" id="currentStatusLabel">Current Status</div>
+                               <div class="text-2xl font-bold" id="selectedStatus">-</div>
                              </div>
                            </div>
                            
                            <!-- Control Buttons -->
-                           <div class="space-y-3">
-                             <div class="bg-gray-50 rounded-lg p-3">
-                               <div class="text-sm text-gray-600 mb-2" id="workControlLabel">Work Control</div>
-                               <div class="space-y-2">
+                           <div class="space-y-4">
+                             <div class="bg-gray-50 rounded-lg p-4">
+                               <div class="text-sm text-gray-600 mb-3" id="workControlLabel">Work Control</div>
+                               <div class="space-y-3">
                                  <button id="startWorkBtn" onclick="startSelectedWork()" 
-                                         class="w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-lg transition-all disabled:bg-gray-300 disabled:cursor-not-allowed">
+                                         class="w-full px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-lg transition-all disabled:bg-gray-300 disabled:cursor-not-allowed">
                                    <span id="startWorkText">🚀 Start Work</span>
                                  </button>
+                                 <button id="cancelWorkBtn" onclick="cancelSelectedWork()" 
+                                         class="w-full px-6 py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold text-lg transition-all disabled:bg-gray-300 disabled:cursor-not-allowed">
+                                   <span id="cancelWorkText">❌ Cancel Start</span>
+                                 </button>
                                  <button id="endWorkBtn" onclick="endSelectedWork()" 
-                                         class="w-full px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-lg transition-all disabled:bg-gray-300 disabled:cursor-not-allowed">
+                                         class="w-full px-6 py-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-lg transition-all disabled:bg-gray-300 disabled:cursor-not-allowed">
                                    <span id="endWorkText">⏹️ End Work</span>
                                  </button>
                                </div>
                              </div>
-                             <div class="bg-gray-50 rounded-lg p-3">
-                               <div class="text-sm text-gray-600 mb-1" id="startTimeLabel">Start Time</div>
-                               <div class="text-lg font-bold text-gray-900" id="selectedStartTime">-</div>
+                             <div class="bg-gray-50 rounded-lg p-4">
+                               <div class="text-sm text-gray-600 mb-2" id="startTimeLabel">Start Time</div>
+                               <div class="text-xl font-bold text-gray-900" id="selectedStartTime">-</div>
                              </div>
-                             <div class="bg-gray-50 rounded-lg p-3">
-                               <div class="text-sm text-gray-600 mb-1" id="endTimeLabel">End Time</div>
-                               <div class="text-lg font-bold text-gray-900" id="selectedEndTime">-</div>
+                             <div class="bg-gray-50 rounded-lg p-4">
+                               <div class="text-sm text-gray-600 mb-2" id="endTimeLabel">End Time</div>
+                               <div class="text-xl font-bold text-gray-900" id="selectedEndTime">-</div>
                              </div>
                            </div>
                          </div>
@@ -912,7 +942,7 @@
 
                        <!-- Today's Schedule Table -->
                        <div class="bg-white rounded-lg shadow-sm border flex-1 flex flex-col">
-                         <div class="p-3 border-b border-gray-200">
+                         <div class="p-4 border-b border-gray-200">
                            <h2 class="text-lg font-bold text-gray-900" id="scheduleTableTitle">Today's Schedule</h2>
                          </div>
                          <div class="flex-1 overflow-hidden">
@@ -920,11 +950,11 @@
                              <table class="w-full text-sm">
                                <thead class="sticky top-0 bg-gray-50">
                                  <tr class="border-b border-gray-200">
-                                   <th class="text-left py-2 px-2 font-semibold text-gray-700">ID</th>
-                                   <th class="text-left py-2 px-2 font-semibold text-gray-700" id="partHeader">Part</th>
-                                   <th class="text-left py-2 px-2 font-semibold text-gray-700" id="startHeader">Start</th>
-                                   <th class="text-left py-2 px-2 font-semibold text-gray-700" id="endHeader">End</th>
-                                   <th class="text-left py-2 px-2 font-semibold text-gray-700" id="work_statusHeader">Status</th>
+                                   <th class="text-left py-2 px-3 font-semibold text-gray-700">ID</th>
+                                   <th class="text-left py-2 px-3 font-semibold text-gray-700" id="partHeader">Part</th>
+                                   <th class="text-left py-2 px-3 font-semibold text-gray-700" id="startHeader">Start</th>
+                                   <th class="text-left py-2 px-3 font-semibold text-gray-700" id="endHeader">End</th>
+                                   <th class="text-left py-2 px-3 font-semibold text-gray-700" id="work_statusHeader">Status</th>
                                  </tr>
                                </thead>
                                <tbody id="scheduleTable">
@@ -2260,6 +2290,11 @@
                // 스케줄 데이터 로드 (Supabase + Mock)
                loadAdminScheduleData();
                
+               // 자동 새로고침 시작
+               setTimeout(() => {
+                 toggleAdminAutoRefresh();
+               }, 1000); // 1초 후 자동 새로고침 시작
+               
                console.log('✅ Admin page initialization completed');
              }
 
@@ -2375,8 +2410,18 @@
              // Admin 스케줄 데이터 로드 (Supabase + Mock)
             async function loadAdminScheduleData() {
               try {
+                // Supabase가 준비될 때까지 대기
+                let retries = 0;
+                const maxRetries = 10;
+                
+                while ((!window.supabase || typeof window.supabase.from !== 'function') && retries < maxRetries) {
+                  console.log(`⏳ Waiting for Supabase... (attempt ${retries + 1}/${maxRetries})`);
+                  await new Promise(resolve => setTimeout(resolve, 200));
+                  retries++;
+                }
+                
                 if (!window.supabase || typeof window.supabase.from !== 'function') {
-                  throw new Error('Supabase not available');
+                  throw new Error('Supabase not available after waiting');
                 }
                 
                 const { data, error } = await window.supabase
@@ -2684,10 +2729,77 @@
                loadAdminScheduleData();
              }
 
+             // Admin 자동 새로고침 토글
+             function toggleAdminAutoRefresh() {
+               if (window.adminAutoRefreshInterval) {
+                 // 자동 새로고침 중지
+                 clearInterval(window.adminAutoRefreshInterval);
+                 window.adminAutoRefreshInterval = null;
+                 
+                 const btn = document.getElementById('adminAutoRefreshBtn');
+                 if (btn) {
+                   btn.textContent = '⏸️ AUTO: OFF';
+                   btn.className = 'bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors';
+                 }
+                 console.log('⏹️ Admin auto-refresh stopped');
+               } else {
+                 // 자동 새로고침 시작
+                 window.adminAutoRefreshInterval = setInterval(() => {
+                   console.log('🔄 Auto-refreshing Admin data...');
+                   loadAdminScheduleData();
+                 }, 30000); // 30초마다
+                 
+                 const btn = document.getElementById('adminAutoRefreshBtn');
+                 if (btn) {
+                   btn.textContent = '🔄 AUTO: ON';
+                   btn.className = 'bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors';
+                 }
+                 console.log('🚀 Admin auto-refresh started (30s interval)');
+               }
+             }
+
              // ===== SUPERVISOR CONTROL FUNCTIONS =====
              
-             // 언어 설정
-             window.supervisorLanguage = 'en';
+             // 언어 설정 (기본값: ES)
+             window.supervisorLanguage = 'es';
+             
+             // 선택된 작업 추적
+             window.selectedSupervisorTask = null;
+             
+             // 줌 레벨 관리
+             window.supervisorZoomLevel = 1.5;
+             
+             // 줌 인 함수
+             function zoomIn() {
+               if (window.supervisorZoomLevel < 3.0) {
+                 window.supervisorZoomLevel += 0.2;
+                 applyZoom();
+               }
+             }
+             
+             // 줌 아웃 함수
+             function zoomOut() {
+               if (window.supervisorZoomLevel > 0.8) {
+                 window.supervisorZoomLevel -= 0.2;
+                 applyZoom();
+               }
+             }
+             
+             // 줌 적용 함수
+             function applyZoom() {
+               const mainContainer = document.querySelector('#mainContent > div');
+               if (mainContainer) {
+                 mainContainer.style.transform = `scaleY(${window.supervisorZoomLevel})`;
+                 
+                 // 줌 레벨 표시 업데이트
+                 const zoomLevelEl = document.getElementById('zoomLevel');
+                 if (zoomLevelEl) {
+                   zoomLevelEl.textContent = Math.round(window.supervisorZoomLevel * 100) + '%';
+                 }
+                 
+                 console.log(`🔍 Zoom level: ${Math.round(window.supervisorZoomLevel * 100)}%`);
+               }
+             }
              
              // 번역 데이터
              const supervisorTranslations = {
@@ -2706,6 +2818,7 @@
                  currentStatus: 'Current Status',
                  workControl: 'Work Control',
                  startWork: '🚀 Start Work',
+                 cancelWork: '❌ Cancel Start',
                  endWork: '⏹️ End Work',
                  startTime: 'Start Time',
                  endTime: 'End Time',
@@ -2734,6 +2847,7 @@
                  currentStatus: 'Estado Actual',
                  workControl: 'Control de Trabajo',
                  startWork: '🚀 Iniciar Trabajo',
+                 cancelWork: '❌ Cancelar Inicio',
                  endWork: '⏹️ Finalizar Trabajo',
                  startTime: 'Hora de Inicio',
                  endTime: 'Hora de Finalización',
@@ -2756,18 +2870,21 @@
                
                // 버튼 스타일 업데이트
                document.getElementById('langEn').className = lang === 'en' ? 
-                 'px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800 border border-blue-300' :
-                 'px-2 py-1 text-xs font-semibold rounded bg-gray-100 text-gray-600 border border-gray-300';
+                 'px-4 py-2 text-sm font-semibold rounded bg-blue-100 text-blue-800 border border-blue-300' :
+                 'px-4 py-2 text-sm font-semibold rounded bg-gray-100 text-gray-600 border border-gray-300';
                document.getElementById('langEs').className = lang === 'es' ? 
-                 'px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800 border border-blue-300' :
-                 'px-2 py-1 text-xs font-semibold rounded bg-gray-100 text-gray-600 border border-gray-300';
+                 'px-4 py-2 text-sm font-semibold rounded bg-blue-100 text-blue-800 border border-blue-300' :
+                 'px-4 py-2 text-sm font-semibold rounded bg-gray-100 text-gray-600 border border-gray-300';
                
                // 테이블 다시 렌더링
                displaySupervisorScheduleTable();
                
+               // ID 선택기 다시 렌더링
+               displaySupervisorIdSelector();
+               
                // 선택된 작업이 있으면 다시 표시
-               if (window.supervisorSelectedTaskId) {
-                 selectSupervisorTask(window.supervisorSelectedTaskId);
+               if (window.selectedSupervisorTask) {
+                 selectSupervisorTask(window.selectedSupervisorTask);
                }
              }
              
@@ -2835,10 +2952,33 @@
                // 언어 업데이트
                updateSupervisorLanguage();
                
+               // 줌 적용
+               setTimeout(() => {
+                 applyZoom();
+               }, 100);
+               
+               // 키보드 단축키 등록
+               document.addEventListener('keydown', function(e) {
+                 if (e.ctrlKey || e.metaKey) {
+                   if (e.key === '=' || e.key === '+') {
+                     e.preventDefault();
+                     zoomIn();
+                   } else if (e.key === '-') {
+                     e.preventDefault();
+                     zoomOut();
+                   }
+                 }
+               });
+               
                // 자동으로 현재 진행중인 작업 또는 다음 작업 선택
                setTimeout(() => {
                  autoSelectCurrentTask();
                }, 500);
+               
+               // 자동 새로고침 시작
+               setTimeout(() => {
+                 toggleSupervisorAutoRefresh();
+               }, 1000); // 1초 후 자동 새로고침 시작
                
                console.log('✅ Supervisor page initialization completed');
              }
@@ -2881,19 +3021,38 @@
              // 스케줄 데이터 로드
             async function loadSupervisorScheduleData() {
               try {
+                // Supabase가 준비될 때까지 대기
+                let retries = 0;
+                const maxRetries = 10;
+                
+                while ((!window.supabase || typeof window.supabase.from !== 'function') && retries < maxRetries) {
+                  console.log(`⏳ Waiting for Supabase... (attempt ${retries + 1}/${maxRetries})`);
+                  await new Promise(resolve => setTimeout(resolve, 200));
+                  retries++;
+                }
+                
                 if (!window.supabase || typeof window.supabase.from !== 'function') {
-                  throw new Error('Supabase not available');
+                  throw new Error('Supabase not available after waiting');
                 }
                 
                 const today = new Date().toISOString().split('T')[0];
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const tomorrowStr = tomorrow.toISOString().split('T')[0];
+                
+                console.log(`🔄 Loading schedule data for ${today} and ${tomorrowStr}`);
+                
                 const { data, error } = await window.supabase
                   .from('tm_packaging_schedule')
                   .select('*')
-                  .eq('work_date', today)
+                  .in('work_date', [today, tomorrowStr])
+                  .order('work_date', { ascending: true })
                   .order('seq_no', { ascending: true });
                 
                 if (error) throw error;
                 window.supervisorScheduleData = data || [];
+                
+                console.log(`✅ Loaded ${window.supervisorScheduleData.length} schedule items`);
                 
                 // 진행 중인 작업이 있으면 현재 작업으로 설정
                 const activeWork = window.supervisorScheduleData.find(item => item.work_status === 'active');
@@ -2909,7 +3068,7 @@
                   console.log(`🔄 Found active work from Supabase: Sequence ${activeWork.seq_no}, started at ${activeWork.work_start_time}`);
                 }
                 
-                console.log('✅ Supervisor schedule data loaded from Supabase:', window.supervisorScheduleData);
+                console.log('✅ Supervisor schedule data loaded successfully');
                 
                 displaySupervisorIdSelector();
                 displaySupervisorScheduleTable();
@@ -2919,7 +3078,7 @@
                 autoSelectCurrentTask();
               } catch (error) {
                 console.error('Error loading supervisor schedule data:', error);
-                alert('데이터를 불러올 수 없습니다. Supabase 연결을 확인해주세요.');
+                console.warn('⚠️ 데이터를 불러올 수 없습니다. Supabase 연결을 확인해주세요.');
                 window.supervisorScheduleData = [];
                 displaySupervisorIdSelector();
                 displaySupervisorScheduleTable();
@@ -2935,18 +3094,48 @@
               
               const sortedData = [...window.supervisorScheduleData].sort((a, b) => (a.seq_no || 0) - (b.seq_no || 0));
               
+              // 활성화된 작업이 있는지 확인
+              const hasActiveWork = sortedData.some(item => {
+                const work_status = calculateSupervisorStatus(item);
+                return work_status === 'active';
+              });
+              
               container.innerHTML = sortedData.map(item => {
                 const work_status = calculateSupervisorStatus(item);
-                const work_statusColor = work_status === 'completed' ? 
-                  'bg-gradient-to-br from-green-100 to-green-200 text-green-800 border-2 border-green-400 shadow-sm hover:shadow-lg' :
-                  work_status === 'active' ? 
-                  'bg-gradient-to-br from-yellow-100 to-yellow-200 text-yellow-800 border-2 border-yellow-400 shadow-sm hover:shadow-lg animate-pulse' :
-                  'bg-gradient-to-br from-blue-100 to-blue-200 text-blue-800 border-2 border-blue-400 shadow-sm hover:shadow-lg';
+                const isActive = work_status === 'active';
+                const isCompleted = work_status === 'completed';
+                const isSelected = window.selectedSupervisorTask === item.seq_no;
+                
+                // 활성화된 작업이 있고 현재 작업이 활성화되지 않은 경우 비활성화
+                const shouldDisable = hasActiveWork && !isActive && !isCompleted;
+                
+                let work_statusColor;
+                if (isSelected) {
+                  // 선택된 버튼은 더 강조된 스타일
+                  work_statusColor = work_status === 'completed' ? 
+                    'bg-gradient-to-br from-green-300 to-green-400 text-green-900 border-4 border-green-600 shadow-lg' :
+                    work_status === 'active' ? 
+                    'bg-gradient-to-br from-yellow-300 to-yellow-400 text-yellow-900 border-4 border-yellow-600 shadow-lg animate-pulse' :
+                    'bg-gradient-to-br from-purple-300 to-purple-400 text-purple-900 border-4 border-purple-600 shadow-lg';
+                } else {
+                  // 일반 버튼 스타일
+                  work_statusColor = work_status === 'completed' ? 
+                    'bg-gradient-to-br from-green-100 to-green-200 text-green-800 border-2 border-green-400 shadow-sm hover:shadow-lg' :
+                    work_status === 'active' ? 
+                    'bg-gradient-to-br from-yellow-100 to-yellow-200 text-yellow-800 border-2 border-yellow-400 shadow-sm hover:shadow-lg animate-pulse' :
+                    shouldDisable ?
+                    'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-500 border-2 border-gray-300 shadow-sm cursor-not-allowed' :
+                    'bg-gradient-to-br from-blue-100 to-blue-200 text-blue-800 border-2 border-blue-400 shadow-sm hover:shadow-lg';
+                }
                 
                 return `
                   <button onclick="selectSupervisorTask(${item.seq_no})" 
-                          class="p-4 rounded-xl font-bold text-xl transition-all duration-200 transform hover:scale-105 ${work_statusColor}">
-                    ${item.seq_no}
+                          class="p-5 rounded-xl font-bold text-xl transition-all duration-200 transform ${shouldDisable ? 'cursor-not-allowed opacity-60' : 'hover:scale-105'} ${work_statusColor} min-h-[80px]"
+                          ${shouldDisable ? 'disabled' : ''}>
+                    <div class="text-center">
+                      <div class="text-2xl font-bold mb-2">${item.seq_no}</div>
+                      <div class="text-sm font-medium opacity-80">${item.part_no || '-'}</div>
+                    </div>
                   </button>
                 `;
               }).join('');
@@ -2980,8 +3169,23 @@
 
              // 작업 선택
             function selectSupervisorTask(sequenceNumber) {
+              // 선택된 작업 추적
+              window.selectedSupervisorTask = sequenceNumber;
+              
               const item = window.supervisorScheduleData.find(s => s.seq_no === sequenceNumber);
               if (!item) return;
+              
+              // 다른 작업이 활성화되어 있는지 확인
+              const activeWork = window.supervisorScheduleData.find(s => {
+                const work_status = calculateSupervisorStatus(s);
+                return work_status === 'active' && s.seq_no !== sequenceNumber;
+              });
+              
+              if (activeWork) {
+                const t = supervisorTranslations[window.supervisorLanguage];
+                console.warn(`⚠️ ${t.anotherActive} (ID: ${activeWork.seq_no})`);
+                return;
+              }
               
               // 선택된 작업 정보 업데이트
               const selectedIdEl = document.getElementById('selectedId');
@@ -3011,8 +3215,10 @@
                // 버튼 상태 업데이트
                const hasStartTime = item.work_start_time && item.work_start_time.trim() !== '';
                const hasEndTime = item.work_end_time && item.work_end_time.trim() !== '';
+               const isCompleted = work_status === 'completed';
                
                const startBtn = document.getElementById('startWorkBtn');
+               const cancelBtn = document.getElementById('cancelWorkBtn');
                const endBtn = document.getElementById('endWorkBtn');
                
                if (startBtn) {
@@ -3022,6 +3228,17 @@
                  } else {
                    startBtn.disabled = false;
                    startBtn.textContent = t.startWork;
+                 }
+               }
+               
+               if (cancelBtn) {
+                 // 완료된 작업이거나 시작 시간이 없으면 취소 버튼 비활성화
+                 if (isCompleted || !hasStartTime) {
+                   cancelBtn.disabled = true;
+                   cancelBtn.textContent = isCompleted ? t.completed : t.waiting;
+                 } else {
+                   cancelBtn.disabled = false;
+                   cancelBtn.textContent = t.cancelWork;
                  }
                }
                
@@ -3041,6 +3258,9 @@
                  taskControlEl.style.display = 'block';
                }
                
+               // ID 선택기 다시 렌더링 (선택된 버튼 강조 표시)
+               displaySupervisorIdSelector();
+               
               // 선택된 작업 저장
               window.supervisorSelectedTaskId = sequenceNumber;
              }
@@ -3049,6 +3269,12 @@
              async function startSelectedWork() {
                if (!window.supervisorSelectedTaskId) return;
                await startSupervisorWork(window.supervisorSelectedTaskId);
+             }
+
+             // 선택된 작업 취소
+             async function cancelSelectedWork() {
+               if (!window.supervisorSelectedTaskId) return;
+               await cancelSupervisorWork(window.supervisorSelectedTaskId);
              }
 
              // 선택된 작업 종료
@@ -3064,7 +3290,7 @@
                
                if (item.work_start_time && item.work_start_time.trim() !== '') {
                  const t = supervisorTranslations[window.supervisorLanguage];
-                 alert(t.active);
+                 console.warn(`⚠️ ${t.active}`);
                  return;
                }
                
@@ -3075,7 +3301,7 @@
                
                if (activeWork) {
                  const t = supervisorTranslations[window.supervisorLanguage];
-                 alert(`${t.anotherActive} (ID: ${activeWork.seq_no})`);
+                 console.warn(`⚠️ ${t.anotherActive} (ID: ${activeWork.seq_no})`);
                  return;
                }
                
@@ -3128,7 +3354,71 @@
                } catch (error) {
                  console.error('Error starting work:', error);
                  const t = supervisorTranslations[window.supervisorLanguage];
-                 alert(window.supervisorLanguage === 'en' ? 'Error starting work' : 'Error al iniciar trabajo');
+                 console.warn(`⚠️ ${window.supervisorLanguage === 'en' ? 'Error starting work' : 'Error al iniciar trabajo'}`);
+               }
+             }
+
+             // 작업 취소 (시작 시간 삭제)
+            async function cancelSupervisorWork(sequenceNumber) {
+              const item = window.supervisorScheduleData.find(s => s.seq_no === sequenceNumber);
+              if (!item) return;
+               
+               if (!item.work_start_time || item.work_start_time.trim() === '') {
+                 const t = supervisorTranslations[window.supervisorLanguage];
+                 alert(t.waiting);
+                 return;
+               }
+               
+               if (item.work_end_time && item.work_end_time.trim() !== '') {
+                 const t = supervisorTranslations[window.supervisorLanguage];
+                 alert(t.completed);
+                 return;
+               }
+               
+               try {
+                 if (!window.supabase || typeof window.supabase.from !== 'function') {
+                   throw new Error('Supabase not available');
+                 }
+                 
+                 const { error } = await window.supabase
+                   .from('tm_packaging_schedule')
+                   .update({ 
+                     work_start_time: null,
+                     work_status: 'waiting'
+                   })
+                   .eq('work_date', item.work_date)
+                   .eq('seq_no', item.seq_no);
+                 
+                 if (error) throw error;
+                 console.log('✅ Work start time cancelled in Supabase');
+                  
+                 // 로컬 데이터 업데이트
+                 const index = window.supervisorScheduleData.findIndex(s => s.seq_no === sequenceNumber);
+                 window.supervisorScheduleData[index].work_start_time = null;
+                 window.supervisorScheduleData[index].work_status = 'waiting';
+                  
+                 // 현재 작업이 취소된 경우 타이머 중지
+                 if (window.supervisorCurrentWork && window.supervisorCurrentWork.seq_no === sequenceNumber) {
+                   window.supervisorCurrentWork = null;
+                   window.supervisorWorkStartTime = null;
+                   stopSupervisorTimer();
+                   console.log(`⏹️ Timer stopped for cancelled work sequence ${sequenceNumber}`);
+                 }
+                  
+                 displaySupervisorIdSelector();
+                 displaySupervisorScheduleTable();
+                 updateSupervisorCurrentStatus();
+                 
+                 // 선택된 작업이 취소된 경우 업데이트
+                 if (window.supervisorSelectedTaskId === sequenceNumber) {
+                   selectSupervisorTask(sequenceNumber);
+                 }
+                  
+                 console.log(`Work cancelled: ${item.part_no}`);
+               } catch (error) {
+                 console.error('Error cancelling work:', error);
+                 const t = supervisorTranslations[window.supervisorLanguage];
+                 alert(window.supervisorLanguage === 'en' ? 'Error cancelling work' : 'Error al cancelar trabajo');
                }
              }
 
@@ -3138,12 +3428,12 @@
               if (!item) return;
                
                if (!item.work_start_time || item.work_start_time.trim() === '') {
-                 alert('시작 시간이 없습니다.');
+                 console.warn('⚠️ 시작 시간이 없습니다.');
                  return;
                }
                
                if (item.work_end_time && item.work_end_time.trim() !== '') {
-                 alert('이 작업은 이미 종료되었습니다.');
+                 console.warn('⚠️ 이 작업은 이미 종료되었습니다.');
                  return;
                }
                
@@ -3320,6 +3610,35 @@
                loadSupervisorScheduleData();
              }
 
+             // Supervisor 자동 새로고침 토글
+             function toggleSupervisorAutoRefresh() {
+               if (window.supervisorAutoRefreshInterval) {
+                 // 자동 새로고침 중지
+                 clearInterval(window.supervisorAutoRefreshInterval);
+                 window.supervisorAutoRefreshInterval = null;
+                 
+                 const btn = document.getElementById('supervisorAutoRefreshBtn');
+                 if (btn) {
+                   btn.textContent = '⏸️ AUTO: OFF';
+                   btn.className = 'bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-semibold';
+                 }
+                 console.log('⏹️ Supervisor auto-refresh stopped');
+               } else {
+                 // 자동 새로고침 시작
+                 window.supervisorAutoRefreshInterval = setInterval(() => {
+                   console.log('🔄 Auto-refreshing Supervisor data...');
+                   loadSupervisorScheduleData();
+                 }, 30000); // 30초마다
+                 
+                 const btn = document.getElementById('supervisorAutoRefreshBtn');
+                 if (btn) {
+                   btn.textContent = '🔄 AUTO: ON';
+                   btn.className = 'bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-semibold';
+                 }
+                 console.log('🚀 Supervisor auto-refresh started (30s interval)');
+               }
+             }
+
              // ===== LIVE DISPLAY NEW WINDOW FUNCTIONS =====
 
              // ===== LIVE DISPLAY PAGE FUNCTIONS =====
@@ -3335,18 +3654,34 @@
                window.displayScheduleData = [];
                window.displayTimerInterval = null;
                
+               // 날짜 표시 초기화
+               updateDisplayDate();
+               
                // 스케줄 데이터 로드
                loadDisplayScheduleData();
                
                // 자동 리프래시 시작
                startDisplayAutoRefresh();
+               
+               // 날짜 자동 업데이트 시작 (1분마다)
+               startDisplayDateUpdate();
              }
              
              // 스케줄 데이터 로드 (Supabase + Mock 데이터)
             async function loadDisplayScheduleData() {
               try {
+                // Supabase가 준비될 때까지 대기
+                let retries = 0;
+                const maxRetries = 10;
+                
+                while ((!window.supabase || typeof window.supabase.from !== 'function') && retries < maxRetries) {
+                  console.log(`⏳ Waiting for Supabase... (attempt ${retries + 1}/${maxRetries})`);
+                  await new Promise(resolve => setTimeout(resolve, 200));
+                  retries++;
+                }
+                
                 if (!window.supabase || typeof window.supabase.from !== 'function') {
-                  throw new Error('Supabase not available');
+                  throw new Error('Supabase not available after waiting');
                 }
                 
                 const today = new Date().toISOString().split('T')[0];
@@ -3386,6 +3721,48 @@
                if (window.displayRefreshInterval) {
                  clearInterval(window.displayRefreshInterval);
                  window.displayRefreshInterval = null;
+               }
+             }
+
+             // 날짜 업데이트 (새벽 3시까지는 이전 날짜 유지)
+             function updateDisplayDate() {
+               const now = new Date();
+               let displayDate = new Date(now);
+               
+               // 새벽 3시 이전이면 이전 날짜 사용
+               if (now.getHours() < 3) {
+                 displayDate.setDate(now.getDate() - 1);
+               }
+               
+               const todayString = displayDate.toLocaleDateString('ko-KR', {
+                 year: 'numeric',
+                 month: '2-digit',
+                 day: '2-digit',
+                 weekday: 'long'
+               });
+               
+               const displayDateEl = document.getElementById('displayDate');
+               if (displayDateEl) {
+                 displayDateEl.textContent = todayString;
+               }
+             }
+
+             // 날짜 자동 업데이트 시작
+             function startDisplayDateUpdate() {
+               // 1분마다 날짜 업데이트 (새벽 3시까지는 이전 날짜 유지)
+               if (window.displayDateInterval) {
+                 clearInterval(window.displayDateInterval);
+               }
+               window.displayDateInterval = setInterval(() => {
+                 updateDisplayDate();
+               }, 60000); // 1분마다
+             }
+
+             // 날짜 자동 업데이트 중지
+             function stopDisplayDateUpdate() {
+               if (window.displayDateInterval) {
+                 clearInterval(window.displayDateInterval);
+                 window.displayDateInterval = null;
                }
              }
              
@@ -3554,6 +3931,7 @@
                  }
                }, 1000);
              }
+
 
     console.log('✅ TM System loaded successfully');
   </script>
