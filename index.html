@@ -2600,9 +2600,9 @@
              
              // 시간 간격 계산 (8시 기준 및 작업 간 간격, 점심시간 고려)
              function calculateGapTime(item, sortedData, index) {
-               // 이미 저장된 간격 데이터가 있으면 그것을 사용
+               // 이미 저장된 간격 데이터가 있으면 그것을 사용 (상태 보존)
                if (item.gapTimes && item.gapTimes.length > 0) {
-                 console.log(`📊 ${item.seq_no}번 작업 기존 간격 사용:`, item.gapTimes);
+                 console.log(`📊 ${item.seq_no}번 작업 기존 간격 사용 (상태 보존):`, item.gapTimes);
                  return item.gapTimes;
                }
                
@@ -2617,12 +2617,14 @@
                  
                  if (gapMinutes > 0) {
                    // 8시부터 시작시간까지의 간격 - 기본적으로 체크 안됨
-                   gaps.push({
+                   const gap = {
                      type: 'start_gap',
                      text: `+${gapMinutes}분 (8시~${item.work_start_time})`,
                      minutes: gapMinutes,
-                     isLunchTime: false
-                   });
+                     isLunchTime: false,
+                     excludeFromLunch: false // 체크박스 상태 저장
+                   };
+                   gaps.push(gap);
                    
                    console.log(`🔍 8시 기준 간격: ${gapMinutes}분, 점심시간: false`);
                  }
@@ -2638,12 +2640,14 @@
                    
                    if (gapMinutes > 0) {
                      // 작업간 간격 - 기본적으로 체크 안됨
-                     gaps.push({
+                     const gap = {
                        type: 'between_gap',
                        text: `+${gapMinutes}분 (${prevItem.work_end_time}~${item.work_start_time})`,
                        minutes: gapMinutes,
-                       isLunchTime: false
-                     });
+                       isLunchTime: false,
+                       excludeFromLunch: false // 체크박스 상태 저장
+                     };
+                     gaps.push(gap);
                      
                      console.log(`🔍 작업간 간격: ${gapMinutes}분, 점심시간: false`);
                    }
