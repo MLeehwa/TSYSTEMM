@@ -208,12 +208,9 @@
                 html += `
                     <div class="schedule-item bg-gray-700 rounded-lg p-4 border-l-4 ${workStatus === 'active' ? 'border-yellow-400 status-active' : workStatus === 'completed' ? 'border-green-400' : 'border-gray-500'} ${opacityClass}">
                         <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-4">
+                            <div class="flex items-center space-x-6">
                                 <div class="text-2xl font-bold text-white">${item.seq_no}</div>
-                                <div class="text-xl text-blue-300">${item.part_no || '-'}</div>
-                                <div class="text-lg text-gray-300">
-                                    ${item.work_start_time || '-'} ~ ${item.work_end_time || '-'}
-                                </div>
+                                <div class="text-4xl font-bold text-blue-300">${item.part_no || '-'}</div>
                             </div>
                             <div class="flex items-center space-x-4">
                                 <span class="px-3 py-1 rounded-full text-sm font-semibold ${statusColor} text-white">
