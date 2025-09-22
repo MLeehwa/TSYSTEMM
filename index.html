@@ -268,6 +268,7 @@
              window.openLiveDisplayInNewTab = openLiveDisplayInNewTab;
              window.zoomIn = zoomIn;
              window.zoomOut = zoomOut;
+             window.toggleLunchTimeExclusion = toggleLunchTimeExclusion;
       
       console.log('✅ TM System 초기화 완료');
     });
@@ -2296,6 +2297,45 @@
                const [hours, minutes] = timeStr.split(':').map(Number);
                return hours * 60 + minutes;
              }
+             
+             // 점심시간 제외 토글 함수
+             function toggleLunchTimeExclusion(checkbox) {
+               const itemIndex = parseInt(checkbox.dataset.itemIndex);
+               const gapIndex = parseInt(checkbox.dataset.gapIndex);
+               
+               if (!window.adminScheduleData[itemIndex]) return;
+               
+               // 해당 항목의 간격 데이터 업데이트
+               const item = window.adminScheduleData[itemIndex];
+               if (!item.gapTimes) {
+                 item.gapTimes = [];
+               }
+               
+               // 간격 데이터가 없으면 현재 간격을 계산해서 저장
+               if (!item.gapTimes[gapIndex]) {
+                 const sortedData = [...window.adminScheduleData].sort((a, b) => (a.seq_no || 0) - (b.seq_no || 0));
+                 const currentGaps = calculateGapTime(item, sortedData, sortedData.indexOf(item));
+                 if (currentGaps && currentGaps[gapIndex]) {
+                   item.gapTimes[gapIndex] = currentGaps[gapIndex];
+                 }
+               }
+               
+               if (item.gapTimes[gapIndex]) {
+                 item.gapTimes[gapIndex].excludeFromLunch = checkbox.checked;
+                 
+                 // 시각적 업데이트
+                 const gapSpan = checkbox.closest('.flex').querySelector('span');
+                 if (checkbox.checked) {
+                   gapSpan.className = gapSpan.className.replace('bg-red-100 text-red-800', 'bg-yellow-100 text-yellow-800');
+                   gapSpan.innerHTML = gapSpan.innerHTML.replace(/(\+.*?분)/, '$1 🍽️');
+                 } else {
+                   gapSpan.className = gapSpan.className.replace('bg-yellow-100 text-yellow-800', 'bg-red-100 text-red-800');
+                   gapSpan.innerHTML = gapSpan.innerHTML.replace(/(\+.*?분) 🍽️/, '$1');
+                 }
+                 
+                 console.log(`🍽️ 점심시간 제외 ${checkbox.checked ? '활성화' : '비활성화'}: ${item.gapTimes[gapIndex].text}`);
+               }
+             }
 
              // Admin 페이지 초기화
              function initializeAdminPage() {
@@ -2411,11 +2451,22 @@
                          <input type="text" value="${item.work_note || ''}" placeholder="비고 입력" 
                                 class="w-40 px-3 py-2 text-sm border border-gray-300 rounded" 
                                 onchange="updateScheduleData(${sortedData.indexOf(item)}, 'work_note', this.value)">
-                         ${gapTime ? gapTime.map(gap => `
+                         ${gapTime ? gapTime.map((gap, gapIndex) => `
                            <div class="flex items-center space-x-2">
                              <span class="px-2 py-1 text-xs font-medium ${gap.isLunchTime ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'} rounded-full">
                                ${gap.text}${gap.isLunchTime ? ' 🍽️' : ''}
                              </span>
+                             ${gap.minutes >= 60 ? `
+                               <label class="flex items-center space-x-1 text-xs text-gray-600">
+                                 <input type="checkbox" 
+                                        class="lunch-time-checkbox" 
+                                        data-item-index="${sortedData.indexOf(item)}" 
+                                        data-gap-index="${gapIndex}"
+                                        onchange="toggleLunchTimeExclusion(this)"
+                                        ${gap.isLunchTime ? 'checked' : ''}>
+                                 <span>점심시간</span>
+                               </label>
+                             ` : ''}
                            </div>
                          `).join('') : ''}
                        </div>
