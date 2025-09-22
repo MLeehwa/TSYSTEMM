@@ -2316,17 +2316,26 @@
                const gapSpan = checkbox.closest('.flex').querySelector('span');
                if (gapSpan) {
                  const originalText = gapSpan.textContent;
+                 console.log('🔍 원본 텍스트:', originalText);
+                 
                  const timeMatch = originalText.match(/\+(\d+)분/);
                  if (timeMatch) {
                    const originalMinutes = parseInt(timeMatch[1]);
                    const adjustedMinutes = checkbox.checked ? Math.max(0, originalMinutes - 60) : originalMinutes;
                    const newText = originalText.replace(/\+(\d+)분/, `+${adjustedMinutes}분`);
                    
+                   console.log(`🔍 시간 변경: ${originalMinutes}분 → ${adjustedMinutes}분`);
+                   console.log('🔍 새 텍스트:', newText);
+                   
                    gapSpan.textContent = newText;
                    gapSpan.className = checkbox.checked ? 
                      'px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full' :
                      'px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full';
+                 } else {
+                   console.log('❌ 시간 패턴을 찾을 수 없음:', originalText);
                  }
+               } else {
+                 console.log('❌ gapSpan을 찾을 수 없음');
                }
                
                console.log(`🍽️ 점심시간 제외 ${checkbox.checked ? '활성화' : '비활성화'}`);
