@@ -2460,8 +2460,10 @@
                          <input type="text" value="${item.work_note || ''}" placeholder="비고 입력" 
                                 class="w-40 px-3 py-2 text-sm border border-gray-300 rounded" 
                                 onchange="updateScheduleData(${sortedData.indexOf(item)}, 'work_note', this.value)">
-                         ${gapTime && Array.isArray(gapTime) && gapTime.length > 0 ? gapTime.map((gap, gapIndex) => {
-                           console.log(`🔍 ${item.seq_no}번 작업 gap ${gapIndex}:`, gap, `minutes: ${gap.minutes}, isLunchTime: ${gap.isLunchTime}`);
+                         ${gapTime && Array.isArray(gapTime) && gapTime.length > 0 ? (() => {
+                           const gap = gapTime[0]; // 첫 번째 간격만 사용
+                           const gapIndex = 0; // 첫 번째 간격의 인덱스
+                           console.log(`🔍 ${item.seq_no}번 작업 gap:`, gap, `minutes: ${gap.minutes}, isLunchTime: ${gap.isLunchTime}`);
                            
                            // 체크박스 상태에 따라 동적으로 계산
                            const isChecked = gap.isLunchTime; // 점심시간이면 기본 체크됨
@@ -2483,8 +2485,8 @@
                                <span>점심시간</span>
                              </label>
                            </div>
-                         `;
-                         }).join('') : ''}
+                           `;
+                         })() : ''}
                        </div>
                      </td>
                      <td class="px-3 py-2 whitespace-nowrap">
