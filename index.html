@@ -3988,6 +3988,18 @@
                sortedData.forEach(item => {
                  const calculatedStatus = getCalculatedStatus(item);
                  
+                 // 디버깅: 완료된 작업 데이터 확인
+                 if (calculatedStatus === 'completed') {
+                   console.log('🔍 Completed task data:', {
+                     seq_no: item.seq_no,
+                     part_no: item.part_no,
+                     work_status: item.work_status,
+                     work_start_time: item.work_start_time,
+                     work_end_time: item.work_end_time,
+                     calculatedStatus: calculatedStatus
+                   });
+                 }
+                 
                  const itemDiv = document.createElement('div');
                  itemDiv.className = `flex justify-between items-center p-4 rounded-lg mb-2 ${
                    calculatedStatus === 'active' ? 'work_status-active' :
@@ -4012,15 +4024,18 @@
                      const endTime = parseTimeToMinutes(item.work_end_time);
                      elapsedMinutes = endTime - startTime;
                      elapsedTimeText = formatElapsedTime(elapsedMinutes);
+                     console.log(`⏰ ${item.seq_no}번 작업 실제 시간: ${elapsedTimeText}`);
                    } else {
                      // 시간 정보가 없는 경우 기본값 표시 (예: 1시간)
                      elapsedMinutes = 60; // 기본 1시간
                      elapsedTimeText = '01:00';
+                     console.log(`⏰ ${item.seq_no}번 작업 기본 시간: ${elapsedTimeText}`);
                    }
                    
                    workDurationText = elapsedTimeText;
                    // 1시간 미만은 초록색, 1시간 이상은 빨간색
                    workDurationColor = elapsedMinutes < 60 ? 'text-green-300' : 'text-red-300';
+                   console.log(`🎨 ${item.seq_no}번 작업 색상: ${workDurationColor}, 텍스트: ${workDurationText}`);
                  } else if (item.work_start_time && calculatedStatus === 'active') {
                    // 진행중인 작업: 시작시간부터 현재까지의 경과시간
                    const startTime = parseTimeToMinutes(item.work_start_time);
