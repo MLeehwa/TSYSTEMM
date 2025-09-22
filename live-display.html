@@ -200,9 +200,6 @@
                                  workStatus === 'active' ? 'IN PROGRESS' :
                                  'WAITING';
                 
-                const elapsedTime = workStatus === 'active' && item.work_start_time ? 
-                    calculateElapsedTime(item.work_start_time) : '';
-                
                 // 완료된 항목은 투명도 적용
                 const opacityClass = workStatus === 'completed' ? 'opacity-60' : '';
                 
@@ -217,7 +214,6 @@
                                 <span class="px-3 py-1 rounded-full text-sm font-semibold bg-gray-700 text-white">
                                     ${statusText}
                                 </span>
-                                ${elapsedTime ? `<span class="text-lg text-red-300 font-mono">${elapsedTime}</span>` : ''}
                             </div>
                         </div>
                     </div>
@@ -337,22 +333,6 @@
             }
         }
 
-        // 경과 시간 계산
-        function calculateElapsedTime(startTime) {
-            if (!startTime) return '';
-            
-            const now = new Date();
-            const today = new Date();
-            const [hours, minutes] = startTime.split(':');
-            const startDateTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(hours), parseInt(minutes));
-            
-            const elapsed = Math.floor((now - startDateTime) / 1000);
-            const hoursElapsed = Math.floor(elapsed / 3600);
-            const minutesElapsed = Math.floor((elapsed % 3600) / 60);
-            const secondsElapsed = elapsed % 60;
-            
-            return `${hoursElapsed.toString().padStart(2, '0')}:${minutesElapsed.toString().padStart(2, '0')}:${secondsElapsed.toString().padStart(2, '0')}`;
-        }
 
         // 자동 새로고침 시작
         function startDisplayAutoRefresh() {
