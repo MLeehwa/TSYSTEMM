@@ -2347,7 +2347,7 @@
                  // 상태 저장을 위해 테이블 다시 렌더링하지 않고 현재 상태만 업데이트
                  console.log(`💾 저장된 상태:`, item.gapTimes[gapIndex]);
                  
-                 // 테이블을 다시 렌더링하지 않도록 함
+                 // 테이블을 다시 렌더링하지 않도록 함 - updateScheduleData 호출하지 않음
                  return;
                }
              }
@@ -2555,8 +2555,22 @@
                   .eq('work_date', window.adminSelectedDate);
                 
                 if (error) throw error;
-                window.adminScheduleData = data || [];
-                console.log('✅ Admin schedule data loaded from Supabase:', window.adminScheduleData);
+                
+                // 기존 데이터의 gapTimes 상태 보존
+                const existingData = window.adminScheduleData || [];
+                const newData = data || [];
+                
+                // 기존 데이터의 gapTimes 상태를 새 데이터에 복사
+                newData.forEach(newItem => {
+                  const existingItem = existingData.find(existing => existing.seq_no === newItem.seq_no);
+                  if (existingItem && existingItem.gapTimes) {
+                    newItem.gapTimes = existingItem.gapTimes;
+                    console.log(`🔄 ${newItem.seq_no}번 작업 gapTimes 상태 복원:`, newItem.gapTimes);
+                  }
+                });
+                
+                window.adminScheduleData = newData;
+                console.log('✅ Admin schedule data loaded from Supabase with preserved states:', window.adminScheduleData);
                 
                 renderAdminTable();
                 updateAdminStatistics();
