@@ -2323,7 +2323,7 @@
                if (item.gapTimes[gapIndex]) {
                  item.gapTimes[gapIndex].excludeFromLunch = checkbox.checked;
                  
-                // 60분 제외 계산 (원래 시간 기준) - 최대 60분까지만 차감
+                // 60분 제외 계산 (원래 시간 기준) - 체크하면 60분 차감, 해제하면 원래 시간
                 const originalMinutes = item.gapTimes[gapIndex].minutes;
                 const adjustedMinutes = checkbox.checked ? Math.max(0, originalMinutes - 60) : originalMinutes;
                  
@@ -2473,14 +2473,12 @@
                              <span class="px-2 py-1 text-xs font-medium ${isChecked ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'} rounded-full">
                                ${displayText}${isChecked ? ' 🍽️' : ''}
                              </span>
-                             ${gap.minutes >= 60 ? `
-                               <input type="checkbox" 
-                                      class="lunch-time-checkbox ml-2" 
-                                      data-item-index="${sortedData.indexOf(item)}" 
-                                      data-gap-index="${gapIndex}"
-                                      onchange="toggleLunchTimeExclusion(this)"
-                                      ${isChecked ? 'checked' : ''}>
-                             ` : ''}
+                             <input type="checkbox" 
+                                    class="lunch-time-checkbox ml-2" 
+                                    data-item-index="${sortedData.indexOf(item)}" 
+                                    data-gap-index="${gapIndex}"
+                                    onchange="toggleLunchTimeExclusion(this)"
+                                    ${isChecked ? 'checked' : ''}>
                            </div>
                          `;
                          }).join('') : ''}
