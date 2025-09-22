@@ -135,7 +135,7 @@
                 Packaging Schedule
               </div>
               <ul class="space-y-1 ml-2">
-                <li><button onclick="loadPage('pages/schedule/display.html')" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
+                <li><button onclick="openLiveDisplayInNewTab()" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
                   <span class="text-lg mr-3">📺</span>
                   Live Display
                 </button></li>
@@ -280,6 +280,7 @@
              // 전역 함수 등록
              window.loadPage = loadPage;
              window.openStatusInNewTab = openStatusInNewTab;
+             window.openLiveDisplayInNewTab = openLiveDisplayInNewTab;
              window.zoomIn = zoomIn;
              window.zoomOut = zoomOut;
              window.toggleSidebar = toggleSidebar;
@@ -2296,6 +2297,13 @@
                // 로컬과 동일하게 작동하도록 상대 경로 사용
                const statusUrl = './pages/truck/status.html';
                window.open(statusUrl, '_blank');
+             }
+             
+             // Live Display 페이지를 새 탭에서 열기
+             function openLiveDisplayInNewTab() {
+               // Live Display 전용 HTML 파일 생성
+               const liveDisplayUrl = './live-display.html';
+               window.open(liveDisplayUrl, '_blank');
              }
              
              // 사이드바 토글 함수

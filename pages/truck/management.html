@@ -41,7 +41,7 @@
         
         .header h1 {
             color: #333;
-            font-size: 2.5rem;
+            font-size: 2.2rem;
             margin-bottom: 10px;
         }
         
@@ -128,9 +128,9 @@
             background: white;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 20px;
-            margin-top: 20px;
-            min-height: 700px; /* 최소 높이 증가 */
+            padding: 15px;
+            margin-top: 15px;
+            min-height: 600px; /* 최소 높이 조정 */
             overflow-x: hidden; /* 가로 스크롤 방지 */
         }
         
@@ -271,8 +271,8 @@
         /* 테이블 전체 크기 조정 */
         #truckTable {
             width: 100% !important;
-            height: 600px !important;
-            min-height: 600px;
+            height: 500px !important;
+            min-height: 500px;
             overflow-x: hidden !important; /* 가로 스크롤 방지 */
         }
         
@@ -1049,7 +1049,7 @@
                          }
                     ],
                 width: '100%',
-                height: 600, // 높이를 600px로 증가
+                height: 500, // 높이를 500px로 조정
                 minSpareRows: 1,
                 stretchH: 'last', // 마지막 컬럼을 늘려서 가로 스크롤 방지
                 autoWrapRow: true,
@@ -1138,7 +1138,7 @@
                                      console.log('🔄 Auto-saving changes...');
                                      saveAllChanges();
                                  }
-                             }, 5000); // 5초 후 자동 저장
+                             }, 3000); // 3초 후 자동 저장
                          }
                      }
                 });
