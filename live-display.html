@@ -191,9 +191,10 @@
             let html = '';
             sortedData.forEach((item, index) => {
                 const workStatus = calculateStatus(item);
-                const statusColor = workStatus === 'completed' ? 'bg-green-500' :
-                                  workStatus === 'active' ? 'bg-yellow-500' :
-                                  'bg-gray-500';
+                // 상태별 배경색 설정
+                const bgColor = workStatus === 'completed' ? 'bg-gray-600' :
+                               workStatus === 'active' ? 'bg-green-500' :
+                               'bg-orange-500';
                 
                 const statusText = workStatus === 'completed' ? 'COMPLETED' :
                                  workStatus === 'active' ? 'IN PROGRESS' :
@@ -206,14 +207,14 @@
                 const opacityClass = workStatus === 'completed' ? 'opacity-60' : '';
                 
                 html += `
-                    <div class="schedule-item bg-gray-700 rounded-lg p-4 border-l-4 ${workStatus === 'active' ? 'border-yellow-400 status-active' : workStatus === 'completed' ? 'border-green-400' : 'border-gray-500'} ${opacityClass}">
+                    <div class="schedule-item ${bgColor} rounded-lg p-4 border-l-4 ${workStatus === 'active' ? 'border-green-300 status-active' : workStatus === 'completed' ? 'border-gray-400' : 'border-orange-300'} ${opacityClass}">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center space-x-6">
                                 <div class="text-2xl font-bold text-white">${item.seq_no}</div>
-                                <div class="text-4xl font-bold text-blue-300">${item.part_no || '-'}</div>
+                                <div class="text-4xl font-bold text-white">${item.part_no || '-'}</div>
                             </div>
                             <div class="flex items-center space-x-4">
-                                <span class="px-3 py-1 rounded-full text-sm font-semibold ${statusColor} text-white">
+                                <span class="px-3 py-1 rounded-full text-sm font-semibold bg-gray-700 text-white">
                                     ${statusText}
                                 </span>
                                 ${elapsedTime ? `<span class="text-lg text-red-300 font-mono">${elapsedTime}</span>` : ''}
