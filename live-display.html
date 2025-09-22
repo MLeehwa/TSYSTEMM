@@ -120,7 +120,7 @@
             
             // 오늘 날짜 표시
             const today = new Date();
-            const dateStr = today.toLocaleDateString('ko-KR', {
+            const dateStr = today.toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
@@ -158,7 +158,7 @@
                 
             } catch (error) {
                 console.error('Error loading display schedule data:', error);
-                console.warn('⚠️ 데이터를 불러올 수 없습니다. Supabase 연결을 확인해주세요.');
+                console.warn('⚠️ Unable to load data. Please check Supabase connection.');
                 displayScheduleData = [];
                 displaySchedule();
             }
@@ -170,26 +170,43 @@
             if (!scheduleList) return;
             
             if (displayScheduleData.length === 0) {
-                scheduleList.innerHTML = '<div class="text-center text-gray-400 py-8">오늘의 스케줄이 없습니다.</div>';
+                scheduleList.innerHTML = '<div class="text-center text-gray-400 py-8">No schedule for today</div>';
                 return;
             }
             
+            // 완료된 항목을 아래로 정렬
+            const sortedData = [...displayScheduleData].sort((a, b) => {
+                const statusA = calculateStatus(a);
+                const statusB = calculateStatus(b);
+                
+                // 진행중 > 대기 > 완료 순서로 정렬
+                if (statusA === 'active' && statusB !== 'active') return -1;
+                if (statusA !== 'active' && statusB === 'active') return 1;
+                if (statusA === 'waiting' && statusB === 'completed') return -1;
+                if (statusA === 'completed' && statusB === 'waiting') return 1;
+                
+                return (a.seq_no || 0) - (b.seq_no || 0);
+            });
+            
             let html = '';
-            displayScheduleData.forEach((item, index) => {
+            sortedData.forEach((item, index) => {
                 const workStatus = calculateStatus(item);
                 const statusColor = workStatus === 'completed' ? 'bg-green-500' :
                                   workStatus === 'active' ? 'bg-yellow-500' :
                                   'bg-gray-500';
                 
-                const statusText = workStatus === 'completed' ? '완료' :
-                                 workStatus === 'active' ? '진행중' :
-                                 '대기';
+                const statusText = workStatus === 'completed' ? 'COMPLETED' :
+                                 workStatus === 'active' ? 'IN PROGRESS' :
+                                 'WAITING';
                 
                 const elapsedTime = workStatus === 'active' && item.work_start_time ? 
                     calculateElapsedTime(item.work_start_time) : '';
                 
+                // 완료된 항목은 투명도 적용
+                const opacityClass = workStatus === 'completed' ? 'opacity-60' : '';
+                
                 html += `
-                    <div class="schedule-item bg-gray-700 rounded-lg p-4 border-l-4 ${workStatus === 'active' ? 'border-yellow-400 status-active' : 'border-gray-500'}">
+                    <div class="schedule-item bg-gray-700 rounded-lg p-4 border-l-4 ${workStatus === 'active' ? 'border-yellow-400 status-active' : workStatus === 'completed' ? 'border-green-400' : 'border-gray-500'} ${opacityClass}">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center space-x-4">
                                 <div class="text-2xl font-bold text-white">${item.seq_no}</div>
