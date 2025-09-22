@@ -2300,6 +2300,7 @@
              
              // 점심시간 제외 토글 함수
              function toggleLunchTimeExclusion(checkbox) {
+               console.log('🔍 toggleLunchTimeExclusion 호출됨');
                const itemIndex = parseInt(checkbox.dataset.itemIndex);
                const gapIndex = parseInt(checkbox.dataset.gapIndex);
                
@@ -2379,6 +2380,7 @@
 
              // Admin 테이블 렌더링
              function renderAdminTable() {
+               console.log('🔨 renderAdminTable 호출됨 - 스택 트레이스:', new Error().stack);
                const container = document.getElementById('scheduleTable');
                if (!container) {
                  console.error('❌ Schedule table container not found');
