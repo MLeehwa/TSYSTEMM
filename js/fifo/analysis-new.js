@@ -708,7 +708,7 @@ async function exportAdvancedShippingPlan() {
     console.log('🚛 FIFO ANALYSIS: Exporting shipping plan by quantity and date...');
     
     if (!window.filteredData || window.filteredData.length === 0) {
-      alert('No data available for export');
+      console.warn('⚠️ No data available for export');
       return;
     }
     
@@ -721,14 +721,14 @@ async function exportAdvancedShippingPlan() {
     // 🆕 현재 적용된 필터 조건으로 데이터 필터링
     const filteredData = applyCurrentFilters();
     if (!filteredData || filteredData.length === 0) {
-      alert('No data available with current filters. Please adjust your search criteria.');
+      console.warn('⚠️ No data available with current filters. Please adjust your search criteria.');
       return;
     }
     
     // 필터링된 데이터로 팔렛 분석 실행
     const palletAnalysis = analyzePalletsByTMCount(filteredData);
     if (!palletAnalysis || palletAnalysis.length === 0) {
-      alert('No pallet data available for analysis with current filters');
+      console.warn('⚠️ No pallet data available for analysis with current filters');
       return;
     }
     
@@ -1239,7 +1239,7 @@ async function exportPartData(palletNo) {
     const palletData = window.filteredData.filter(item => item.pallet_no === palletNo);
     
     if (palletData.length === 0) {
-      alert('No data found for this pallet number');
+      console.warn('⚠️ No data found for this pallet number');
       return;
     }
     

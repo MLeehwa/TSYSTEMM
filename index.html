@@ -1350,7 +1350,7 @@
                console.log('📊 Exporting Analysis data...');
                
                if (!window.lastAnalysisResults || window.lastAnalysisResults.length === 0) {
-                 alert('내보낼 데이터가 없습니다. 먼저 분석을 실행해주세요.');
+                 console.warn('⚠️ 내보낼 데이터가 없습니다. 먼저 분석을 실행해주세요.');
                  return;
                }
                
@@ -1979,7 +1979,7 @@
                console.log('📊 Exporting Packaging data...');
                
                if (!window.packagingLastResults || window.packagingLastResults.length === 0) {
-                 alert('내보낼 데이터가 없습니다. 먼저 분석을 실행해주세요.');
+                 console.warn('⚠️ 내보낼 데이터가 없습니다. 먼저 분석을 실행해주세요.');
                  return;
                }
                
@@ -2437,7 +2437,7 @@
                 updateAdminStatistics();
               } catch (error) {
                 console.error('Error loading admin schedule data:', error);
-                alert('데이터를 불러올 수 없습니다. Supabase 연결을 확인해주세요.');
+                console.warn('⚠️ 데이터를 불러올 수 없습니다. Supabase 연결을 확인해주세요.');
                 window.adminScheduleData = [];
                 renderAdminTable();
                 updateAdminStatistics();
@@ -2658,7 +2658,7 @@
                const allData = window.adminScheduleData;
                
                if (allData.length === 0) {
-                 alert('저장할 데이터가 없습니다.');
+                 console.warn('⚠️ 저장할 데이터가 없습니다.');
                  return;
                }
                
@@ -2699,11 +2699,11 @@
                  }
                  
                  console.log('✅ Schedule saved to Supabase');
-                 alert(`스케줄이 성공적으로 저장되었습니다. (${allData.length}개 항목)`);
+                 console.log(`✅ 스케줄이 성공적으로 저장되었습니다. (${allData.length}개 항목)`);
                  updateAdminStatistics();
                } catch (error) {
                  console.error('Error saving schedule:', error);
-                 alert('스케줄 저장 중 오류가 발생했습니다: ' + error.message);
+                 console.warn('⚠️ 스케줄 저장 중 오류가 발생했습니다: ' + error.message);
                }
              }
 
@@ -3365,13 +3365,13 @@
                
                if (!item.work_start_time || item.work_start_time.trim() === '') {
                  const t = supervisorTranslations[window.supervisorLanguage];
-                 alert(t.waiting);
+                 console.warn('⚠️ ' + t.waiting);
                  return;
                }
                
                if (item.work_end_time && item.work_end_time.trim() !== '') {
                  const t = supervisorTranslations[window.supervisorLanguage];
-                 alert(t.completed);
+                 console.warn('⚠️ ' + t.completed);
                  return;
                }
                
@@ -3418,7 +3418,7 @@
                } catch (error) {
                  console.error('Error cancelling work:', error);
                  const t = supervisorTranslations[window.supervisorLanguage];
-                 alert(window.supervisorLanguage === 'en' ? 'Error cancelling work' : 'Error al cancelar trabajo');
+                 console.warn('⚠️ ' + (window.supervisorLanguage === 'en' ? 'Error cancelling work' : 'Error al cancelar trabajo'));
                }
              }
 
@@ -3486,7 +3486,7 @@
                  console.log(`Work ended: ${item.part_no} at ${timeString}`);
                } catch (error) {
                  console.error('Error ending work:', error);
-                 alert('작업 종료 중 오류가 발생했습니다.');
+                 console.warn('⚠️ 작업 종료 중 오류가 발생했습니다.');
                }
              }
 
@@ -3698,7 +3698,7 @@
                 displaySchedule();
               } catch (error) {
                 console.error('Error loading display schedule data:', error);
-                alert('데이터를 불러올 수 없습니다. Supabase 연결을 확인해주세요.');
+                console.warn('⚠️ 데이터를 불러올 수 없습니다. Supabase 연결을 확인해주세요.');
                 window.displayScheduleData = [];
                 displaySchedule();
               }
@@ -3706,14 +3706,14 @@
              
              // 자동 리프래시 시작
              function startDisplayAutoRefresh() {
-               // 30초마다 데이터 새로고침
+               // 10초마다 데이터 새로고침
                if (window.displayRefreshInterval) {
                  clearInterval(window.displayRefreshInterval);
                }
                window.displayRefreshInterval = setInterval(() => {
                  console.log('🔄 Auto-refreshing Live Display data...');
                  loadDisplayScheduleData();
-               }, 30000);
+               }, 10000);
              }
              
              // 자동 리프래시 중지

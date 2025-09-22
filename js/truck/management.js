@@ -16,12 +16,12 @@ function openExcelModal() {
                 if (window.truckSystem) {
                     window.truckSystem.openExcelModal();
                 } else {
-                    alert('Failed to initialize truck system. Please refresh the page.');
+                    console.warn('⚠️ Failed to initialize truck system. Please refresh the page.');
                 }
             }, 100);
         } catch (error) {
             console.error('❌ Failed to create truck system:', error);
-            alert('Failed to initialize truck system: ' + error.message);
+            console.warn('⚠️ Failed to initialize truck system: ' + error.message);
         }
     }
 }
@@ -133,11 +133,11 @@ if (typeof window.TruckManagementSystem === 'undefined') {
                 }
             } else {
                 console.error('❌ Modal element not found');
-                alert('Modal element not found. Please refresh the page.');
+                console.warn('⚠️ Modal element not found. Please refresh the page.');
             }
         } catch (error) {
             console.error('Error in openExcelModal:', error);
-            alert('Error opening modal: ' + error.message);
+            console.warn('⚠️ Error opening modal: ' + error.message);
         }
     }
 
@@ -641,7 +641,7 @@ if (typeof window.TruckManagementSystem === 'undefined') {
              console.log('💾 Saving all trucks...');
              
              if (!this.currentHotTable) {
-                 alert('No table data to save');
+                 console.warn('⚠️ No table data to save');
                  return;
              }
 
@@ -649,14 +649,14 @@ if (typeof window.TruckManagementSystem === 'undefined') {
              const selectedDate = document.getElementById('modalDate').value;
              
              if (!selectedDate) {
-                 alert('Please select a date');
+                 console.warn('⚠️ Please select a date');
                  return;
              }
 
              // 모든 행을 저장 (Delivery No가 있는 행만)
              const validData = this.validateTruckData(data, selectedDate);
              if (validData.length === 0) {
-                 alert('저장할 수 있는 유효한 데이터가 없습니다. Delivery No를 입력해주세요.');
+                 console.warn('⚠️ 저장할 수 있는 유효한 데이터가 없습니다. Delivery No를 입력해주세요.');
                  return;
              }
 
@@ -779,7 +779,7 @@ if (typeof window.TruckManagementSystem === 'undefined') {
 
              if (error) {
                  console.error('Error inserting trucks:', error);
-                 alert('Error saving trucks: ' + error.message);
+                 console.warn('⚠️ Error saving trucks: ' + error.message);
              } else {
                  console.log('✅ Trucks saved successfully:', data);
                  this.showStatus(`${trucks.length}개 트럭이 성공적으로 저장되었습니다!`, 'success');

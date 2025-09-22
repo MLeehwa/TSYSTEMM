@@ -413,7 +413,7 @@ async function exportPackagingData() {
     
     const results = window.PackagingAnalysis.lastAnalysisResults;
     if (!results || results.length === 0) {
-      alert('내보낼 데이터가 없습니다.');
+      console.warn('⚠️ 내보낼 데이터가 없습니다.');
       return;
     }
     

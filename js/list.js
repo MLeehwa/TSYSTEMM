@@ -506,7 +506,7 @@ function showError(message) {
 // 필터된 데이터 내보내기
 function exportFilteredData() {
     if (filteredData.length === 0) {
-        alert('내보낼 데이터가 없습니다.');
+        console.warn('⚠️ 내보낼 데이터가 없습니다.');
         return;
     }
     

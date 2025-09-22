@@ -1217,13 +1217,13 @@
                  // 마지막 행 삭제
          function deleteLastRow() {
              if (!hot) {
-                 alert('테이블이 로드되지 않았습니다.');
+                 console.warn('⚠️ 테이블이 로드되지 않았습니다.');
                  return;
              }
              
              const currentTableData = hot.getData();
              if (currentTableData.length <= 1) {
-                 alert('최소 1행은 유지해야 합니다.');
+                 console.warn('⚠️ 최소 1행은 유지해야 합니다.');
                  return;
              }
              
@@ -1505,7 +1505,7 @@
          // 새 행 추가
          function addNewRow() {
             if (!hot) {
-                alert('테이블이 로드되지 않았습니다.');
+                console.warn('⚠️ 테이블이 로드되지 않았습니다.');
                 return;
             }
             
@@ -1538,13 +1538,13 @@
         async function saveAllChanges() {
             try {
                 if (!hot) {
-                    alert('테이블이 로드되지 않았습니다.');
+                    console.warn('⚠️ 테이블이 로드되지 않았습니다.');
                     return;
                 }
                 
                 const data = hot.getData();
                 if (!data || data.length === 0) {
-                    alert('저장할 데이터가 없습니다.');
+                    console.warn('⚠️ 저장할 데이터가 없습니다.');
                     return;
                 }
                 
@@ -1559,7 +1559,7 @@
                 });
                 
                 if (validData.length === 0) {
-                    alert('저장할 데이터가 없습니다. ETD 시간을 입력해주세요.');
+                    console.warn('⚠️ 저장할 데이터가 없습니다. ETD 시간을 입력해주세요.');
                     return;
                 }
                 
@@ -1664,7 +1664,7 @@
                 }
                 
                 console.log('✅ All changes saved successfully');
-                alert(`저장 완료! ${successCount}개 항목이 처리되었습니다.`);
+                console.log(`✅ 저장 완료! ${successCount}개 항목이 처리되었습니다.`);
                 
                 // 데이터 새로고침
                 await autoFilterByDate();
@@ -1673,7 +1673,7 @@
                 
             } catch (error) {
                 console.error('❌ Save error:', error);
-                alert('저장 실패: ' + error.message);
+                console.warn('⚠️ 저장 실패: ' + error.message);
             }
         }
         
@@ -1705,13 +1705,13 @@
                 if (error) throw error;
                 
                 console.log('✅ Truck deleted successfully');
-                alert('트럭이 삭제되었습니다!');
+                console.log('✅ 트럭이 삭제되었습니다!');
                 
                 await loadTruckData();
                 
             } catch (error) {
                 console.error('❌ Delete error:', error);
-                alert('삭제 실패: ' + error.message);
+                console.warn('⚠️ 삭제 실패: ' + error.message);
              }
          }
 
@@ -1729,13 +1729,13 @@
                 if (error) throw error;
 
                 console.log('✅ Empty row deleted successfully');
-                alert('빈 행이 삭제되었습니다!');
+                console.log('✅ 빈 행이 삭제되었습니다!');
 
                 await loadTruckData();
 
             } catch (error) {
                 console.error('❌ Delete error:', error);
-                alert('빈 행 삭제 실패: ' + error.message);
+                console.warn('⚠️ 빈 행 삭제 실패: ' + error.message);
             }
         }
         
