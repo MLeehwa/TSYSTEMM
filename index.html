@@ -3695,6 +3695,8 @@
                 window.displayScheduleData = data || [];
                 console.log('✅ Display schedule data loaded from Supabase:', window.displayScheduleData);
                 
+                // 데이터 로드 후 현재 상태 업데이트 (타이머 유지)
+                updateDisplayCurrentStatus();
                 displaySchedule();
               } catch (error) {
                 console.error('Error loading display schedule data:', error);
@@ -3875,24 +3877,37 @@
                 document.getElementById('currentId').textContent = `NO ${window.displayCurrentId}`;
                 document.getElementById('currentPart').textContent = window.displayCurrentPart;
                  
-                 // Start timer if not already started
+                 // Start timer if not already started and work has started
                  if (!window.displayStartTime && activeItem.work_start_time) {
                    // 시작 시간을 Date 객체로 변환 (오늘 날짜 + 시작 시간)
                    const today = new Date();
                    const [hours, minutes] = activeItem.work_start_time.split(':');
                    window.displayStartTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(hours), parseInt(minutes));
+                   console.log('⏰ Timer started for work:', activeItem.seq_no, 'at', activeItem.work_start_time);
                    startDisplayTimer();
                  }
-               } else {
-                 document.getElementById('currentId').textContent = '-';
-                 document.getElementById('currentPart').textContent = '-';
-                 document.getElementById('elapsedTime').textContent = '00:00:00';
                  
-                 if (window.displayTimerInterval) {
-                   clearInterval(window.displayTimerInterval);
-                   window.displayTimerInterval = null;
+                 // 이미 타이머가 시작되었고 같은 작업이면 타이머 유지
+                 if (window.displayStartTime && window.displayCurrentId === activeItem.seq_no) {
+                   // 타이머는 계속 실행됨
+                   console.log('⏰ Timer continuing for work:', activeItem.seq_no);
                  }
-                 window.displayStartTime = null;
+               } else {
+                 // 활성 작업이 없을 때만 타이머 중지
+                 if (window.displayCurrentId) {
+                   console.log('⏰ No active work, stopping timer');
+                   document.getElementById('currentId').textContent = '-';
+                   document.getElementById('currentPart').textContent = '-';
+                   document.getElementById('elapsedTime').textContent = '00:00:00';
+                   
+                   if (window.displayTimerInterval) {
+                     clearInterval(window.displayTimerInterval);
+                     window.displayTimerInterval = null;
+                   }
+                   window.displayStartTime = null;
+                   window.displayCurrentId = null;
+                   window.displayCurrentPart = null;
+                 }
                }
              }
              
@@ -3901,6 +3916,8 @@
                if (window.displayTimerInterval) {
                  clearInterval(window.displayTimerInterval);
                }
+               
+               console.log('⏰ Display timer started');
                
                window.displayTimerInterval = setInterval(() => {
                  if (window.displayStartTime) {
@@ -3926,8 +3943,15 @@
                      }
                    }
                    
+                   // 디버깅을 위한 로그 (10초마다)
+                   if (seconds % 10 === 0) {
+                     console.log(`⏰ Display Timer update: Elapsed: ${timeString}`);
+                   }
+                   
                    // 스케줄 목록의 진행중인 작업 경과시간도 업데이트
                    displaySchedule();
+                 } else {
+                   console.log('⏰ Display timer stopped - no start time');
                  }
                }, 1000);
              }
