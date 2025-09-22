@@ -2316,16 +2316,27 @@
                  }
                  item.lunchExcluded[gapIndex] = checkbox.checked;
                  
-                 // 배지 찾기
+                 // 배지 찾기 - 더 안전한 방법
                  const flexContainer = checkbox.closest('.flex');
                  if (!flexContainer) {
                    console.log('❌ flex 컨테이너를 찾을 수 없음');
                    return;
                  }
                  
-                 const gapSpan = flexContainer.querySelector('span:first-child');
+                 // 모든 span 요소를 찾아서 시간 패턴이 있는 것 선택
+                 const allSpans = flexContainer.querySelectorAll('span');
+                 let gapSpan = null;
+                 
+                 for (let span of allSpans) {
+                   if (span.textContent && span.textContent.includes('분')) {
+                     gapSpan = span;
+                     break;
+                   }
+                 }
+                 
                  if (!gapSpan) {
                    console.log('❌ 시간 배지를 찾을 수 없음');
+                   console.log('🔍 사용 가능한 span들:', Array.from(allSpans).map(s => s.textContent));
                    return;
                  }
                  
