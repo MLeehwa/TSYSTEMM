@@ -2396,7 +2396,7 @@
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시작 시간</th>
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">종료 시간</th>
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
-                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">비고</th>
+                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">비고 / 간격</th>
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작업</th>
                        </tr>
                      </thead>
@@ -2473,12 +2473,15 @@
                              <span class="px-2 py-1 text-xs font-medium ${isChecked ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'} rounded-full">
                                ${displayText}${isChecked ? ' 🍽️' : ''}
                              </span>
-                             <input type="checkbox" 
-                                    class="lunch-time-checkbox ml-2" 
-                                    data-item-index="${sortedData.indexOf(item)}" 
-                                    data-gap-index="${gapIndex}"
-                                    onchange="toggleLunchTimeExclusion(this)"
-                                    ${isChecked ? 'checked' : ''}>
+                             <label class="flex items-center space-x-1 text-xs text-gray-600">
+                               <input type="checkbox" 
+                                      class="lunch-time-checkbox" 
+                                      data-item-index="${sortedData.indexOf(item)}" 
+                                      data-gap-index="${gapIndex}"
+                                      onchange="toggleLunchTimeExclusion(this)"
+                                      ${isChecked ? 'checked' : ''}>
+                               <span>점심시간</span>
+                             </label>
                            </div>
                          `;
                          }).join('') : ''}
@@ -2580,14 +2583,12 @@
                  const gapMinutes = currentMinutes - baseMinutes;
                  
                  if (gapMinutes > 0) {
-                   // 8시부터 시작시간까지의 간격도 점심시간인지 확인
-                   const isLunch = isLunchTime(baseTime, item.work_start_time);
-                   
+                   // 8시부터 시작시간까지의 간격 - 기본적으로 체크 안됨
                    gaps.push({
                      type: 'start_gap',
                      text: `+${gapMinutes}분 (8시~${item.work_start_time})`,
                      minutes: gapMinutes,
-                     isLunchTime: isLunch
+                     isLunchTime: false
                    });
                    
                    console.log(`🔍 8시 기준 간격: ${gapMinutes}분, 점심시간: ${isLunch}`);
@@ -2603,17 +2604,15 @@
                    const gapMinutes = currentStartMinutes - prevEndMinutes;
                    
                    if (gapMinutes > 0) {
-                     // 점심시간인지 확인
-                     const isLunch = isLunchTime(prevItem.work_end_time, item.work_start_time);
-                     
+                     // 작업간 간격 - 기본적으로 체크 안됨
                      gaps.push({
                        type: 'between_gap',
                        text: `+${gapMinutes}분 (${prevItem.work_end_time}~${item.work_start_time})`,
                        minutes: gapMinutes,
-                       isLunchTime: isLunch
+                       isLunchTime: false
                      });
                      
-                     console.log(`🔍 작업간 간격: ${gapMinutes}분, 점심시간: ${isLunch}`);
+                     console.log(`🔍 작업간 간격: ${gapMinutes}분, 점심시간: false`);
                    }
                  }
                }
