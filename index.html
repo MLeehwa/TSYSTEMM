@@ -2413,8 +2413,8 @@
                                 onchange="updateScheduleData(${sortedData.indexOf(item)}, 'work_note', this.value)">
                          ${gapTime ? gapTime.map(gap => `
                            <div class="flex items-center space-x-2">
-                             <span class="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">
-                               ${gap.text}
+                             <span class="px-2 py-1 text-xs font-medium ${gap.isLunchTime ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'} rounded-full">
+                               ${gap.text}${gap.isLunchTime ? ' 🍽️' : ''}
                              </span>
                            </div>
                          `).join('') : ''}
@@ -2487,7 +2487,24 @@
                }
              }
 
-             // 시간 간격 계산 (8시 기준 및 작업 간 간격)
+             // 점심시간 확인 함수
+             function isLunchTime(startTime, endTime) {
+               if (!startTime || !endTime) return false;
+               
+               const startMinutes = timeToMinutes(startTime);
+               const endMinutes = timeToMinutes(endTime);
+               
+               // 11:30 ~ 13:30 사이의 간격을 점심시간으로 간주
+               const lunchStart = timeToMinutes('11:30');
+               const lunchEnd = timeToMinutes('13:30');
+               
+               // 시작 시간이 점심시간 범위에 포함되는지 확인
+               return (startMinutes >= lunchStart && startMinutes <= lunchEnd) ||
+                      (endMinutes >= lunchStart && endMinutes <= lunchEnd) ||
+                      (startMinutes <= lunchStart && endMinutes >= lunchEnd);
+             }
+             
+             // 시간 간격 계산 (8시 기준 및 작업 간 간격, 점심시간 고려)
              function calculateGapTime(item, sortedData, index) {
                const gaps = [];
                
@@ -2516,10 +2533,20 @@
                    const gapMinutes = currentStartMinutes - prevEndMinutes;
                    
                    if (gapMinutes > 0) {
+                     // 점심시간인지 확인
+                     const isLunch = isLunchTime(prevItem.work_end_time, item.work_start_time);
+                     
+                     if (isLunch && gapMinutes >= 60) {
+                       // 점심시간이고 1시간 이상인 경우 제외
+                       console.log(`🍽️ 점심시간 간격 제외: ${prevItem.work_end_time}~${item.work_start_time} (${gapMinutes}분)`);
+                       return null;
+                     }
+                     
                      gaps.push({
                        type: 'between_gap',
                        text: `+${gapMinutes}분 (${prevItem.work_end_time}~${item.work_start_time})`,
-                       minutes: gapMinutes
+                       minutes: gapMinutes,
+                       isLunchTime: isLunch
                      });
                    }
                  }
