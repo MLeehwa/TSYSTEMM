@@ -241,9 +241,9 @@
               persistSession: true       // 세션 지속
             }
           });
-          window.sb = sb;
+        window.sb = sb;
           window.supabase = sb;
-          console.log('✅ Supabase 클라이언트 생성 완료');
+        console.log('✅ Supabase 클라이언트 생성 완료');
         } catch (error) {
           console.error('❌ Supabase 클라이언트 생성 실패:', error);
         }
@@ -847,146 +847,100 @@
                              <button onclick="zoomOut()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-lg font-semibold" title="Zoom Out">
                                ➖
                              </button>
-                             <span id="zoomLevel" class="text-sm font-bold text-gray-700 min-w-[60px] text-center">150%</span>
+                             <span id="zoomLevel" class="text-sm font-bold text-gray-700 min-w-[60px] text-center">110%</span>
                              <button onclick="zoomIn()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-lg font-semibold" title="Zoom In">
                                ➕
-                             </button>
-                           </div>
-                         </div>
+                           </button>
+                       </div>
+                       </div>
                        </div>
                      </div>
 
-                     <!-- Current Work Dashboard -->
-                     <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl shadow-xl p-6 mb-4 text-white">
-                       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                         <!-- Current Work -->
-                         <div class="lg:col-span-2">
-                           <h2 class="text-xl font-bold mb-4 flex items-center">
-                             <span class="mr-2">⚡</span>
-                             <span id="currentWorkTitle">Current Work</span>
-                           </h2>
-                           <div class="bg-white bg-opacity-20 rounded-lg p-4">
-                             <div class="grid grid-cols-2 gap-4">
-                               <div>
-                                 <div class="text-sm opacity-80 mb-1" id="currentIdLabel">Task ID</div>
-                                 <div class="text-3xl font-bold" id="currentRound">-</div>
-                               </div>
-                               <div>
-                                 <div class="text-sm opacity-80 mb-1" id="currentPartLabel">Part Number</div>
-                                 <div class="text-3xl font-bold" id="currentPart">-</div>
-                               </div>
-                               <div>
-                                 <div class="text-sm opacity-80 mb-1" id="elapsedTimeLabel">Elapsed Time</div>
-                                 <div class="text-3xl font-bold text-yellow-300 timer-display" id="elapsedTime">00:00:00</div>
-                               </div>
-                               <div>
-                                 <div class="text-sm opacity-80 mb-1" id="todayDateLabel">Today's Date</div>
-                                 <div class="text-lg font-bold" id="todayDate">-</div>
-                               </div>
-                             </div>
-                           </div>
-                         </div>
+        <!-- Current Work Dashboard -->
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl shadow-xl p-6 mb-3 text-white">
+          <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Current Work -->
+            <div class="lg:col-span-3">
+              <h2 class="text-2xl font-bold mb-4 flex items-center">
+                <span class="mr-2 text-3xl">⚡</span>
+                <span id="currentWorkTitle">Current Work</span>
+              </h2>
+              <div class="bg-white bg-opacity-25 rounded-xl p-4">
+                <div class="grid grid-cols-4 gap-4">
+                  <div class="text-center">
+                    <div class="text-sm opacity-90 mb-1 font-semibold" id="currentIdLabel">Task ID</div>
+                    <div class="text-3xl font-bold" id="currentRound">-</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-sm opacity-90 mb-1 font-semibold" id="currentPartLabel">Part Number</div>
+                    <div class="text-3xl font-bold" id="currentPart">-</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-sm opacity-90 mb-1 font-semibold" id="elapsedTimeLabel">Elapsed Time</div>
+                    <div class="text-3xl font-bold text-yellow-300 timer-display" id="elapsedTime">00:00:00</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-sm opacity-90 mb-1 font-semibold" id="todayDateLabel">Today's Date</div>
+                    <div class="text-lg font-bold" id="todayDate">-</div>
+                  </div>
+                </div>
+                
+                <!-- Control Buttons -->
+                <div class="mt-4 flex justify-center space-x-3">
+                  <button id="startWorkBtn" onclick="startSelectedWork()"
+                          class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-lg transition-all disabled:bg-gray-400 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105">
+                    <span id="startWorkText">🚀 Start Work</span>
+                  </button>
+                  <button id="cancelWorkBtn" onclick="cancelSelectedWork()"
+                          class="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold text-lg transition-all disabled:bg-gray-400 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105">
+                    <span id="cancelWorkText">❌ Cancel</span>
+                  </button>
+                  <button id="endWorkBtn" onclick="endSelectedWork()"
+                          class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-lg transition-all disabled:bg-gray-400 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105">
+                    <span id="endWorkText">⏹️ End Work</span>
+                  </button>
+                </div>
+              </div>
+            </div>
                          
                          <!-- Next Work Preview -->
                          <div>
                            <h2 class="text-xl font-bold mb-4 flex items-center">
-                             <span class="mr-2">⏭️</span>
+                             <span class="mr-2 text-2xl">⏭️</span>
                              <span id="nextWorkTitle">Next Work</span>
                            </h2>
-                           <div class="bg-white bg-opacity-20 rounded-lg p-4">
-                             <div class="space-y-3" id="nextWorkPreview">
-                               <div class="text-center text-gray-300" id="noNextWork">No upcoming work</div>
+                           <div class="bg-white bg-opacity-25 rounded-xl p-4">
+                             <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="nextWorkPreview">
+                               <div class="text-center text-gray-300 text-sm" id="noNextWork">No upcoming work</div>
                              </div>
                            </div>
                          </div>
+                         </div>
                        </div>
-                     </div>
 
                      <!-- Main Content -->
                      <div class="flex-1 flex flex-col">
                        <!-- ID Selection -->
-                       <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-md border-2 border-blue-200 p-4 mb-3">
-                         <h2 class="text-lg font-bold text-blue-800 mb-3 flex items-center" id="idSelectionTitle">
-                           <span class="mr-2">🎯</span>
+                       <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-md border-2 border-blue-200 p-3 mb-3">
+                         <h2 class="text-base font-bold text-blue-800 mb-2 flex items-center" id="idSelectionTitle">
+                           <span class="mr-1">🎯</span>
                            Task ID Selection
                          </h2>
-                         <div class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2" id="idSelector">
+                         <div class="grid grid-cols-8 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-16 gap-1" id="idSelector">
                            <!-- ID buttons will be populated here -->
                          </div>
                        </div>
 
-                       <!-- Selected Task Control -->
-                       <div class="bg-white rounded-lg shadow-sm border p-5 mb-3" id="taskControl" style="display: none;">
-                         <h2 class="text-xl font-bold text-gray-900 mb-4" id="taskControlTitle">Selected Task Control</h2>
-                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                           <!-- Task Info -->
-                           <div class="space-y-4">
-                             <div class="bg-gray-50 rounded-lg p-4">
-                               <div class="text-sm text-gray-600 mb-2" id="selectedIdLabel">Selected ID</div>
-                               <div class="text-2xl font-bold text-blue-600" id="selectedId">-</div>
-                             </div>
-                             <div class="bg-gray-50 rounded-lg p-4">
-                               <div class="text-sm text-gray-600 mb-2" id="selectedPartLabel">Part Number</div>
-                               <div class="text-2xl font-bold text-green-600" id="selectedPart">-</div>
-                             </div>
-                             <div class="bg-gray-50 rounded-lg p-4">
-                               <div class="text-sm text-gray-600 mb-2" id="currentStatusLabel">Current Status</div>
-                               <div class="text-2xl font-bold" id="selectedStatus">-</div>
-                             </div>
-                           </div>
-                           
-                           <!-- Control Buttons -->
-                           <div class="space-y-4">
-                             <div class="bg-gray-50 rounded-lg p-4">
-                               <div class="text-sm text-gray-600 mb-3" id="workControlLabel">Work Control</div>
-                               <div class="space-y-3">
-                                 <button id="startWorkBtn" onclick="startSelectedWork()" 
-                                         class="w-full px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-lg transition-all disabled:bg-gray-300 disabled:cursor-not-allowed">
-                                   <span id="startWorkText">🚀 Start Work</span>
-                                 </button>
-                                 <button id="cancelWorkBtn" onclick="cancelSelectedWork()" 
-                                         class="w-full px-6 py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold text-lg transition-all disabled:bg-gray-300 disabled:cursor-not-allowed">
-                                   <span id="cancelWorkText">❌ Cancel Start</span>
-                                 </button>
-                                 <button id="endWorkBtn" onclick="endSelectedWork()" 
-                                         class="w-full px-6 py-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-lg transition-all disabled:bg-gray-300 disabled:cursor-not-allowed">
-                                   <span id="endWorkText">⏹️ End Work</span>
-                                 </button>
-                               </div>
-                             </div>
-                             <div class="bg-gray-50 rounded-lg p-4">
-                               <div class="text-sm text-gray-600 mb-2" id="startTimeLabel">Start Time</div>
-                               <div class="text-xl font-bold text-gray-900" id="selectedStartTime">-</div>
-                             </div>
-                             <div class="bg-gray-50 rounded-lg p-4">
-                               <div class="text-sm text-gray-600 mb-2" id="endTimeLabel">End Time</div>
-                               <div class="text-xl font-bold text-gray-900" id="selectedEndTime">-</div>
-                             </div>
-                           </div>
-                         </div>
-                       </div>
 
-                       <!-- Today's Schedule Table -->
+                       <!-- Part Summary Dashboard -->
                        <div class="bg-white rounded-lg shadow-sm border flex-1 flex flex-col">
-                         <div class="p-4 border-b border-gray-200">
-                           <h2 class="text-lg font-bold text-gray-900" id="scheduleTableTitle">Today's Schedule</h2>
+                         <div class="p-3 border-b border-gray-200">
+                           <h2 class="text-base font-bold text-gray-900" id="partSummaryTitle">Part Summary</h2>
+                           <p class="text-xs text-gray-600 mt-1">Remaining work by part number</p>
                          </div>
-                         <div class="flex-1 overflow-hidden">
-                           <div class="h-full overflow-y-auto">
-                             <table class="w-full text-sm">
-                               <thead class="sticky top-0 bg-gray-50">
-                                 <tr class="border-b border-gray-200">
-                                   <th class="text-left py-2 px-3 font-semibold text-gray-700">ID</th>
-                                   <th class="text-left py-2 px-3 font-semibold text-gray-700" id="partHeader">Part</th>
-                                   <th class="text-left py-2 px-3 font-semibold text-gray-700" id="startHeader">Start</th>
-                                   <th class="text-left py-2 px-3 font-semibold text-gray-700" id="endHeader">End</th>
-                                   <th class="text-left py-2 px-3 font-semibold text-gray-700" id="work_statusHeader">Status</th>
-                                 </tr>
-                               </thead>
-                               <tbody id="scheduleTable">
-                                 <!-- Schedule items will be populated here -->
-                               </tbody>
-                             </table>
+                         <div class="flex-1 p-3">
+                           <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2" id="partSummaryGrid">
+                             <!-- Part summary cards will be populated here -->
                            </div>
                          </div>
                        </div>
@@ -2793,7 +2747,7 @@
              window.selectedSupervisorTask = null;
              
              // 줌 레벨 관리
-             window.supervisorZoomLevel = 1.5;
+             window.supervisorZoomLevel = 1.1;
              
              // 줌 인 함수
              function zoomIn() {
@@ -2840,11 +2794,6 @@
                  currentWork: 'Current Work',
                  nextWork: 'Next Work',
                  idSelection: '🎯 Task ID Selection',
-                 taskControl: 'Selected Task Control',
-                 selectedId: 'Selected ID',
-                 partNumber: 'Part Number',
-                 currentStatus: 'Current Status',
-                 workControl: 'Work Control',
                  startWork: '🚀 Start Work',
                  cancelWork: '❌ Cancel Start',
                  endWork: '⏹️ End Work',
@@ -2871,11 +2820,6 @@
                  currentWork: 'Trabajo Actual',
                  nextWork: 'Siguiente Trabajo',
                  idSelection: '🎯 Selección de ID de Tarea',
-                 taskControl: 'Control de Tarea Seleccionada',
-                 selectedId: 'ID Seleccionado',
-                 partNumber: 'Número de Parte',
-                 currentStatus: 'Estado Actual',
-                 workControl: 'Control de Trabajo',
                  startWork: '🚀 Iniciar Trabajo',
                  cancelWork: '❌ Cancelar Inicio',
                  endWork: '⏹️ Finalizar Trabajo',
@@ -2938,23 +2882,13 @@
                // ID 선택
                document.getElementById('idSelectionTitle').innerHTML = t.idSelection;
                
-               // 작업 제어
-               document.getElementById('taskControlTitle').textContent = t.taskControl;
-               document.getElementById('selectedIdLabel').textContent = t.selectedId;
-               document.getElementById('selectedPartLabel').textContent = t.partNumber;
-               document.getElementById('currentStatusLabel').textContent = t.currentStatus;
-               document.getElementById('workControlLabel').textContent = t.workControl;
+               // 작업 제어 버튼 (현재 작업 대시보드 내)
                document.getElementById('startWorkText').textContent = t.startWork;
+               document.getElementById('cancelWorkText').textContent = t.cancelWork;
                document.getElementById('endWorkText').textContent = t.endWork;
-               document.getElementById('startTimeLabel').textContent = t.startTime;
-               document.getElementById('endTimeLabel').textContent = t.endTime;
                
-               // 스케줄 테이블
-               document.getElementById('scheduleTableTitle').textContent = t.scheduleTable;
-               document.getElementById('partHeader').textContent = t.part;
-               document.getElementById('startHeader').textContent = t.start;
-               document.getElementById('endHeader').textContent = t.end;
-               document.getElementById('work_statusHeader').textContent = t.work_status;
+               // 파트 요약
+               document.getElementById('partSummaryTitle').textContent = 'Part Summary';
              }
              
              // Supervisor 페이지 초기화
@@ -3152,21 +3086,20 @@
                 } else {
                   // 일반 버튼 스타일
                   work_statusColor = work_status === 'completed' ? 
-                    'bg-gradient-to-br from-green-100 to-green-200 text-green-800 border-2 border-green-400 shadow-sm hover:shadow-lg' :
-                    work_status === 'active' ? 
-                    'bg-gradient-to-br from-yellow-100 to-yellow-200 text-yellow-800 border-2 border-yellow-400 shadow-sm hover:shadow-lg animate-pulse' :
-                    shouldDisable ?
-                    'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-500 border-2 border-gray-300 shadow-sm cursor-not-allowed' :
-                    'bg-gradient-to-br from-blue-100 to-blue-200 text-blue-800 border-2 border-blue-400 shadow-sm hover:shadow-lg';
+                  'bg-gradient-to-br from-green-100 to-green-200 text-green-800 border-2 border-green-400 shadow-sm hover:shadow-lg' :
+                  work_status === 'active' ? 
+                  'bg-gradient-to-br from-yellow-100 to-yellow-200 text-yellow-800 border-2 border-yellow-400 shadow-sm hover:shadow-lg animate-pulse' :
+                  shouldDisable ?
+                  'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-500 border-2 border-gray-300 shadow-sm cursor-not-allowed' :
+                  'bg-gradient-to-br from-blue-100 to-blue-200 text-blue-800 border-2 border-blue-400 shadow-sm hover:shadow-lg';
                 }
                 
                 return `
                   <button onclick="selectSupervisorTask(${item.seq_no})" 
-                          class="p-5 rounded-xl font-bold text-xl transition-all duration-200 transform ${shouldDisable ? 'cursor-not-allowed opacity-60' : 'hover:scale-105'} ${work_statusColor} min-h-[80px]"
+                          class="p-2 rounded-md font-bold text-lg transition-all duration-200 transform ${shouldDisable ? 'cursor-not-allowed opacity-60' : 'hover:scale-105'} ${work_statusColor} min-h-[40px]"
                           ${shouldDisable ? 'disabled' : ''}>
                     <div class="text-center">
-                      <div class="text-2xl font-bold mb-2">${item.seq_no}</div>
-                      <div class="text-sm font-medium opacity-80">${item.part_no || '-'}</div>
+                      <div class="text-xl font-bold">${item.part_no || '-'}</div>
                     </div>
                   </button>
                 `;
@@ -3219,76 +3152,10 @@
                 return;
               }
               
-              // 선택된 작업 정보 업데이트
-              const selectedIdEl = document.getElementById('selectedId');
-              const selectedPartEl = document.getElementById('selectedPart');
-              const selectedStatusEl = document.getElementById('selectedStatus');
-              const selectedStartTimeEl = document.getElementById('selectedStartTime');
-              const selectedEndTimeEl = document.getElementById('selectedEndTime');
-              
-              if (selectedIdEl) selectedIdEl.textContent = item.seq_no;
-               if (selectedPartEl) selectedPartEl.textContent = item.part_no;
-               
-               const work_status = calculateSupervisorStatus(item);
-               const t = supervisorTranslations[window.supervisorLanguage];
-               const work_statusText = work_status === 'completed' ? t.completed : 
-                                work_status === 'active' ? t.active : t.waiting;
-               const work_statusColor = work_status === 'completed' ? 'text-green-600' :
-                                 work_status === 'active' ? 'text-yellow-600' : 'text-gray-600';
-               
-               if (selectedStatusEl) {
-                 selectedStatusEl.textContent = work_statusText;
-                 selectedStatusEl.className = `text-xl font-bold ${work_statusColor}`;
-               }
-               
-               if (selectedStartTimeEl) selectedStartTimeEl.textContent = item.work_start_time || '-';
-               if (selectedEndTimeEl) selectedEndTimeEl.textContent = item.work_end_time || '-';
+              // 선택된 작업 정보는 현재 작업 대시보드에서 자동으로 업데이트됨
                
                // 버튼 상태 업데이트
-               const hasStartTime = item.work_start_time && item.work_start_time.trim() !== '';
-               const hasEndTime = item.work_end_time && item.work_end_time.trim() !== '';
-               const isCompleted = work_status === 'completed';
-               
-               const startBtn = document.getElementById('startWorkBtn');
-               const cancelBtn = document.getElementById('cancelWorkBtn');
-               const endBtn = document.getElementById('endWorkBtn');
-               
-               if (startBtn) {
-                 if (hasStartTime) {
-                   startBtn.disabled = true;
-                   startBtn.textContent = t.active;
-                 } else {
-                   startBtn.disabled = false;
-                   startBtn.textContent = t.startWork;
-                 }
-               }
-               
-               if (cancelBtn) {
-                 // 완료된 작업이거나 시작 시간이 없으면 취소 버튼 비활성화
-                 if (isCompleted || !hasStartTime) {
-                   cancelBtn.disabled = true;
-                   cancelBtn.textContent = isCompleted ? t.completed : t.waiting;
-                 } else {
-                   cancelBtn.disabled = false;
-                   cancelBtn.textContent = t.cancelWork;
-                 }
-               }
-               
-               if (endBtn) {
-                 if (!hasStartTime || hasEndTime) {
-                   endBtn.disabled = true;
-                   endBtn.textContent = hasEndTime ? t.completed : t.waiting;
-                 } else {
-                   endBtn.disabled = false;
-                   endBtn.textContent = t.endWork;
-                 }
-               }
-               
-               // 작업 제어 패널 표시
-               const taskControlEl = document.getElementById('taskControl');
-               if (taskControlEl) {
-                 taskControlEl.style.display = 'block';
-               }
+               updateControlButtons(item);
                
                // ID 선택기 다시 렌더링 (선택된 버튼 강조 표시)
                displaySupervisorIdSelector();
@@ -3524,40 +3391,72 @@
 
              // 스케줄 테이블 표시
             function displaySupervisorScheduleTable() {
-              const tbody = document.getElementById('scheduleTable');
-              if (!tbody) return;
+              const partSummaryGrid = document.getElementById('partSummaryGrid');
+              if (!partSummaryGrid) return;
               
-              const sortedData = [...window.supervisorScheduleData].sort((a, b) => (a.seq_no || 0) - (b.seq_no || 0));
+              // 파트별로 그룹화하여 통계 계산
+              const partStats = {};
               
-              tbody.innerHTML = sortedData.map(item => {
+              window.supervisorScheduleData.forEach(item => {
+                const partNo = item.part_no || 'Unknown';
+                if (!partStats[partNo]) {
+                  partStats[partNo] = {
+                    total: 0,
+                    completed: 0,
+                    active: 0,
+                    waiting: 0
+                  };
+                }
+                
+                partStats[partNo].total++;
                 const work_status = calculateSupervisorStatus(item);
-                const work_statusColor = work_status === 'completed' ? 'bg-green-100 text-green-800' :
-                                  work_status === 'active' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-gray-100 text-gray-800';
                 
-                const t = supervisorTranslations[window.supervisorLanguage];
-                const work_statusText = work_status === 'completed' ? t.completed : 
-                                 work_status === 'active' ? t.active : t.waiting;
+                if (work_status === 'completed') {
+                  partStats[partNo].completed++;
+                } else if (work_status === 'active') {
+                  partStats[partNo].active++;
+                } else {
+                  partStats[partNo].waiting++;
+                }
+              });
+              
+              // 파트별 카드 생성
+              partSummaryGrid.innerHTML = Object.entries(partStats).map(([partNo, stats]) => {
+                const remaining = stats.waiting + stats.active;
+                const progressPercent = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
                 
-                let rowClass = "border-b border-gray-100 hover:bg-gray-50 cursor-pointer";
-                if (work_status === 'active') {
-                  rowClass = "border-b border-gray-100 bg-yellow-50 border-l-4 border-l-yellow-500 cursor-pointer";
-                } else if (work_status === 'completed') {
-                  rowClass = "border-b border-gray-100 bg-green-50 border-l-4 border-l-green-500 cursor-pointer";
+                let cardColor = 'bg-gray-50 border-gray-200';
+                let textColor = 'text-gray-700';
+                let progressColor = 'bg-gray-300';
+                
+                if (stats.active > 0) {
+                  cardColor = 'bg-yellow-50 border-yellow-200';
+                  textColor = 'text-yellow-800';
+                  progressColor = 'bg-yellow-400';
+                } else if (remaining === 0) {
+                  cardColor = 'bg-green-50 border-green-200';
+                  textColor = 'text-green-800';
+                  progressColor = 'bg-green-400';
+                } else if (remaining > 0) {
+                  cardColor = 'bg-blue-50 border-blue-200';
+                  textColor = 'text-blue-800';
+                  progressColor = 'bg-blue-400';
                 }
                 
                 return `
-                  <tr class="${rowClass}" onclick="selectSupervisorTask(${item.seq_no})">
-                    <td class="py-2 px-2 font-semibold text-sm">${item.seq_no}</td>
-                    <td class="py-2 px-2 font-semibold text-sm">${item.part_no}</td>
-                    <td class="py-2 px-2 text-sm">${item.work_start_time || '-'}</td>
-                    <td class="py-2 px-2 text-sm">${item.work_end_time || '-'}</td>
-                    <td class="py-2 px-2">
-                      <span class="px-2 py-1 rounded-full text-xs font-semibold ${work_statusColor}">
-                        ${work_statusText}
-                      </span>
-                    </td>
-                  </tr>
+                  <div class="bg-white rounded-lg border-2 ${cardColor} p-2 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="text-center">
+                      <div class="text-sm font-bold ${textColor} mb-1">${partNo}</div>
+                      <div class="text-xl font-bold ${textColor} mb-1">${remaining}</div>
+                      <div class="text-xs text-gray-600 mb-2">remaining</div>
+                      
+                      <!-- Progress Bar -->
+                      <div class="w-full bg-gray-200 rounded-full h-1 mb-1">
+                        <div class="h-1 rounded-full ${progressColor}" style="width: ${progressPercent}%"></div>
+                      </div>
+                      
+                    </div>
+                  </div>
                 `;
               }).join('');
             }
@@ -3583,13 +3482,69 @@
               if (activeItem) {
                 if (currentRoundEl) currentRoundEl.textContent = `ID ${activeItem.seq_no}`;
                 if (currentPartEl) currentPartEl.textContent = activeItem.part_no;
+                
+                // 선택된 작업이 활성 작업과 같으면 버튼 상태 업데이트
+                if (window.selectedSupervisorTask === activeItem.seq_no) {
+                  updateControlButtons(activeItem);
+                }
                } else {
                  if (currentRoundEl) currentRoundEl.textContent = '-';
                  if (currentPartEl) currentPartEl.textContent = '-';
+                 
+                 // 선택된 작업이 있으면 해당 작업의 버튼 상태 업데이트
+                 if (window.selectedSupervisorTask) {
+                   const selectedItem = window.supervisorScheduleData.find(item => item.seq_no === window.selectedSupervisorTask);
+                   if (selectedItem) {
+                     updateControlButtons(selectedItem);
+                   }
+                 }
                }
                
                // 다음 작업 미리보기 업데이트
                updateNextWorkPreview();
+             }
+             
+             // 제어 버튼 상태 업데이트
+             function updateControlButtons(item) {
+               const work_status = calculateSupervisorStatus(item);
+               const hasStartTime = item.work_start_time && item.work_start_time.trim() !== '';
+               const hasEndTime = item.work_end_time && item.work_end_time.trim() !== '';
+               const isCompleted = work_status === 'completed';
+               const t = supervisorTranslations[window.supervisorLanguage];
+               
+               const startBtn = document.getElementById('startWorkBtn');
+               const cancelBtn = document.getElementById('cancelWorkBtn');
+               const endBtn = document.getElementById('endWorkBtn');
+               
+               if (startBtn) {
+                 if (hasStartTime) {
+                   startBtn.disabled = true;
+                   startBtn.innerHTML = `<span id="startWorkText">${t.active}</span>`;
+                 } else {
+                   startBtn.disabled = false;
+                   startBtn.innerHTML = `<span id="startWorkText">${t.startWork}</span>`;
+                 }
+               }
+               
+               if (cancelBtn) {
+                 if (isCompleted || !hasStartTime) {
+                   cancelBtn.disabled = true;
+                   cancelBtn.innerHTML = `<span id="cancelWorkText">${isCompleted ? t.completed : t.waiting}</span>`;
+                 } else {
+                   cancelBtn.disabled = false;
+                   cancelBtn.innerHTML = `<span id="cancelWorkText">${t.cancelWork}</span>`;
+                 }
+               }
+               
+               if (endBtn) {
+                 if (!hasStartTime || hasEndTime) {
+                   endBtn.disabled = true;
+                   endBtn.innerHTML = `<span id="endWorkText">${hasEndTime ? t.completed : t.waiting}</span>`;
+                 } else {
+                   endBtn.disabled = false;
+                   endBtn.innerHTML = `<span id="endWorkText">${t.endWork}</span>`;
+                 }
+               }
              }
              
              // 다음 작업 미리보기 업데이트
@@ -3604,7 +3559,7 @@
                  .slice(0, 3); // 최대 3개만 표시
                
                if (waitingItems.length === 0) {
-                 nextWorkPreview.innerHTML = '<div class="text-center text-gray-300" id="noNextWork">No upcoming work</div>';
+                 nextWorkPreview.innerHTML = '<div class="text-center text-gray-300 text-sm col-span-full" id="noNextWork">No upcoming work</div>';
                  return;
                }
                
@@ -3612,16 +3567,12 @@
                waitingItems.forEach((item, index) => {
                  const isNext = index === 0;
                  html += `
-                   <div class="bg-white bg-opacity-30 rounded-lg p-3 ${isNext ? 'border-2 border-yellow-300' : ''}">
-                     <div class="flex justify-between items-center">
-                       <div>
-                         <div class="text-sm opacity-80">Task ${item.seq_no}</div>
-                         <div class="text-lg font-bold">${item.part_no || '-'}</div>
-                       </div>
-                       <div class="text-right">
-                         <div class="text-xs opacity-80">${isNext ? 'NEXT' : 'UPCOMING'}</div>
-                         <div class="text-sm font-semibold">${item.work_start_time || '-'}</div>
-                       </div>
+                   <div class="bg-white bg-opacity-30 rounded-lg p-3 ${isNext ? 'border-2 border-yellow-300 shadow-lg' : 'border border-white border-opacity-30'}">
+                     <div class="text-center">
+                       <div class="text-sm font-semibold opacity-90 mb-1">Task ${item.seq_no}</div>
+                       <div class="text-xl font-bold mb-1">${item.part_no || '-'}</div>
+                       <div class="text-xs opacity-80 mb-1">${isNext ? 'NEXT' : 'UPCOMING'}</div>
+                       <div class="text-xs font-semibold">${item.work_start_time || '-'}</div>
                      </div>
                    </div>
                  `;
@@ -3946,12 +3897,12 @@
               if (activeItem) {
                 // 새로운 활성 작업이거나 기존 작업과 다른 경우에만 업데이트
                 if (window.displayCurrentId !== activeItem.seq_no) {
-                  window.displayCurrentId = activeItem.seq_no;
-                  window.displayCurrentPart = activeItem.part_no;
-                  
-                  document.getElementById('currentId').textContent = `NO ${window.displayCurrentId}`;
-                  document.getElementById('currentPart').textContent = window.displayCurrentPart;
-                  
+                window.displayCurrentId = activeItem.seq_no;
+                window.displayCurrentPart = activeItem.part_no;
+                
+                document.getElementById('currentId').textContent = `NO ${window.displayCurrentId}`;
+                document.getElementById('currentPart').textContent = window.displayCurrentPart;
+                 
                   console.log('🔄 Active work changed to:', activeItem.seq_no);
                 }
                  
@@ -3974,15 +3925,15 @@
                  // 활성 작업이 없을 때만 타이머 중지 (기존에 활성 작업이 있었던 경우에만)
                  if (window.displayCurrentId && window.displayStartTime) {
                    console.log('⏰ No active work, stopping timer');
-                   document.getElementById('currentId').textContent = '-';
-                   document.getElementById('currentPart').textContent = '-';
-                   document.getElementById('elapsedTime').textContent = '00:00:00';
-                   
-                   if (window.displayTimerInterval) {
-                     clearInterval(window.displayTimerInterval);
-                     window.displayTimerInterval = null;
-                   }
-                   window.displayStartTime = null;
+                 document.getElementById('currentId').textContent = '-';
+                 document.getElementById('currentPart').textContent = '-';
+                 document.getElementById('elapsedTime').textContent = '00:00:00';
+                 
+                 if (window.displayTimerInterval) {
+                   clearInterval(window.displayTimerInterval);
+                   window.displayTimerInterval = null;
+                 }
+                 window.displayStartTime = null;
                    window.displayCurrentId = null;
                    window.displayCurrentPart = null;
                  }
@@ -4028,7 +3979,7 @@
                    
                    // 스케줄 목록의 진행중인 작업 경과시간도 업데이트 (5초마다만)
                    if (seconds % 5 === 0) {
-                     displaySchedule();
+                   displaySchedule();
                    }
                  } else {
                    // 타이머가 중지된 경우에만 로그 출력
