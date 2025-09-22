@@ -268,7 +268,6 @@
              window.openLiveDisplayInNewTab = openLiveDisplayInNewTab;
              window.zoomIn = zoomIn;
              window.zoomOut = zoomOut;
-             window.toggleLunchTimeExclusion = toggleLunchTimeExclusion;
       
       console.log('✅ TM System 초기화 완료');
     });
@@ -2298,71 +2297,6 @@
                return hours * 60 + minutes;
              }
              
-             // 점심시간 제외 토글 함수 (안전한 버전)
-             function toggleLunchTimeExclusion(checkbox) {
-               try {
-                 const itemIndex = parseInt(checkbox.dataset.itemIndex);
-                 const gapIndex = parseInt(checkbox.dataset.gapIndex);
-                 
-                 if (!window.adminScheduleData || !window.adminScheduleData[itemIndex]) {
-                   console.log('❌ 데이터를 찾을 수 없음');
-                   return;
-                 }
-                 
-                 // 상태 저장
-                 const item = window.adminScheduleData[itemIndex];
-                 if (!item.lunchExcluded) {
-                   item.lunchExcluded = {};
-                 }
-                 item.lunchExcluded[gapIndex] = checkbox.checked;
-                 
-                 // 배지 찾기 - 더 안전한 방법
-                 const flexContainer = checkbox.closest('.flex');
-                 if (!flexContainer) {
-                   console.log('❌ flex 컨테이너를 찾을 수 없음');
-                   return;
-                 }
-                 
-                 // 모든 span 요소를 찾아서 시간 패턴이 있는 것 선택
-                 const allSpans = flexContainer.querySelectorAll('span');
-                 let gapSpan = null;
-                 
-                 for (let span of allSpans) {
-                   if (span.textContent && span.textContent.includes('분')) {
-                     gapSpan = span;
-                     break;
-                   }
-                 }
-                 
-                 if (!gapSpan) {
-                   console.log('❌ 시간 배지를 찾을 수 없음');
-                   console.log('🔍 사용 가능한 span들:', Array.from(allSpans).map(s => s.textContent));
-                   return;
-                 }
-                 
-                 // 텍스트 업데이트
-                 const originalText = gapSpan.textContent;
-                 const timeMatch = originalText.match(/\+(\d+)분/);
-                 
-                 if (timeMatch) {
-                   const originalMinutes = parseInt(timeMatch[1]);
-                   const adjustedMinutes = checkbox.checked ? Math.max(0, originalMinutes - 60) : originalMinutes;
-                   const newText = originalText.replace(/\+(\d+)분/, `+${adjustedMinutes}분`);
-                   
-                   gapSpan.textContent = newText;
-                   gapSpan.className = checkbox.checked ? 
-                     'px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full' :
-                     'px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full';
-                   
-                   console.log(`✅ 시간 변경: ${originalMinutes}분 → ${adjustedMinutes}분`);
-                 } else {
-                   console.log('❌ 시간 패턴을 찾을 수 없음:', originalText);
-                 }
-                 
-               } catch (error) {
-                 console.error('❌ toggleLunchTimeExclusion 오류:', error);
-               }
-             }
 
              // Admin 페이지 초기화
              function initializeAdminPage() {
@@ -2415,8 +2349,7 @@
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">파트</th>
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시작 시간</th>
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">종료 시간</th>
-                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작업 시간</th>
-                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태 / 작업 시간</th>
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">비고 / 간격</th>
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작업</th>
                        </tr>
@@ -2484,10 +2417,13 @@
                        ${item.work_end_time || '-'}
                      </td>
                      <td class="px-3 py-2 whitespace-nowrap">
-                       <span class="px-2 py-1 text-xs font-semibold rounded-full ${work_statusColor}">
-                         ${isGapTime ? '공백' :
-                           isPartSelected ? (work_status === 'completed' ? '완료' : work_status === 'active' ? '진행중' : '대기') : '미선택'}
-                       </span>
+                       <div class="flex flex-col space-y-1">
+                         <span class="px-2 py-1 text-xs font-semibold rounded-full ${work_statusColor}">
+                           ${isGapTime ? '공백' :
+                             isPartSelected ? (work_status === 'completed' ? '완료' : work_status === 'active' ? '진행중' : '대기') : '미선택'}
+                         </span>
+                         <span class="text-sm text-gray-600">${workDuration}</span>
+                       </div>
                      </td>
                      <td class="px-3 py-2 whitespace-nowrap">
                        <div class="flex items-center space-x-3">
@@ -2496,28 +2432,12 @@
                                 onchange="updateScheduleData(${sortedData.indexOf(item)}, 'work_note', this.value)">
                          ${gapTime && Array.isArray(gapTime) && gapTime.length > 0 ? (() => {
                            const gap = gapTime[0]; // 첫 번째 간격만 사용
-                           const gapIndex = 0; // 첫 번째 간격의 인덱스
-                           
-                           // 간단한 상태 확인
-                           const isChecked = item.lunchExcluded && item.lunchExcluded[gapIndex] ? true : false;
-                           const displayMinutes = isChecked ? Math.max(0, gap.minutes - 60) : gap.minutes;
-                           const displayText = `+${displayMinutes}분 (${gap.text.match(/\(([^)]+)\)/)[1]})`;
+                           const displayText = `+${gap.minutes}분 (${gap.text.match(/\(([^)]+)\)/)[1]})`;
                            
                            return `
-                           <div class="flex items-center space-x-2">
-                             <span class="px-2 py-1 text-xs font-medium ${isChecked ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'} rounded-full">
-                               ${displayText}${isChecked ? ' 🍽️' : ''}
-                             </span>
-                             <label class="flex items-center space-x-1 text-xs text-gray-600">
-                               <input type="checkbox" 
-                                      class="lunch-time-checkbox" 
-                                      data-item-index="${sortedData.indexOf(item)}" 
-                                      data-gap-index="${gapIndex}"
-                                      onchange="toggleLunchTimeExclusion(this)"
-                                      ${isChecked ? 'checked' : ''}>
-                               <span>점심시간</span>
-                             </label>
-                           </div>
+                           <span class="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                             ${displayText}
+                           </span>
                            `;
                          })() : ''}
                        </div>
