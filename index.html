@@ -2323,17 +2323,25 @@
                if (item.gapTimes[gapIndex]) {
                  item.gapTimes[gapIndex].excludeFromLunch = checkbox.checked;
                  
+                // 60분 제외 계산 (원래 시간 기준) - 최대 60분까지만 차감
+                const originalMinutes = item.gapTimes[gapIndex].minutes;
+                const adjustedMinutes = checkbox.checked ? Math.max(0, originalMinutes - 60) : originalMinutes;
+                 
                  // 시각적 업데이트
                  const gapSpan = checkbox.closest('.flex').querySelector('span');
+                 const timeRange = item.gapTimes[gapIndex].text.match(/\(([^)]+)\)/);
+                 const newText = `+${adjustedMinutes}분 (${timeRange ? timeRange[1] : '시간 범위'})`;
+                 
+                 // 색상과 이모지 업데이트
                  if (checkbox.checked) {
-                   gapSpan.className = gapSpan.className.replace('bg-red-100 text-red-800', 'bg-yellow-100 text-yellow-800');
-                   gapSpan.innerHTML = gapSpan.innerHTML.replace(/(\+.*?분)/, '$1 🍽️');
+                   gapSpan.className = 'px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full';
+                   gapSpan.innerHTML = newText + ' 🍽️';
                  } else {
-                   gapSpan.className = gapSpan.className.replace('bg-yellow-100 text-yellow-800', 'bg-red-100 text-red-800');
-                   gapSpan.innerHTML = gapSpan.innerHTML.replace(/(\+.*?분) 🍽️/, '$1');
+                   gapSpan.className = 'px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full';
+                   gapSpan.innerHTML = newText;
                  }
                  
-                 console.log(`🍽️ 점심시간 제외 ${checkbox.checked ? '활성화' : '비활성화'}: ${item.gapTimes[gapIndex].text}`);
+                 console.log(`🍽️ 점심시간 제외 ${checkbox.checked ? '활성화' : '비활성화'}: ${originalMinutes}분 → ${adjustedMinutes}분`);
                }
              }
 
@@ -2451,24 +2459,28 @@
                          <input type="text" value="${item.work_note || ''}" placeholder="비고 입력" 
                                 class="w-40 px-3 py-2 text-sm border border-gray-300 rounded" 
                                 onchange="updateScheduleData(${sortedData.indexOf(item)}, 'work_note', this.value)">
-                         ${gapTime ? gapTime.map((gap, gapIndex) => `
+                         ${gapTime && Array.isArray(gapTime) ? gapTime.map((gap, gapIndex) => {
+                           // 체크박스 상태에 따라 동적으로 계산
+                           const isChecked = gap.isLunchTime; // 점심시간이면 기본 체크됨
+                           const displayMinutes = isChecked ? Math.max(0, gap.minutes - 60) : gap.minutes;
+                           const displayText = `+${displayMinutes}분 (${gap.text.match(/\(([^)]+)\)/)[1]})`;
+                           
+                           return `
                            <div class="flex items-center space-x-2">
-                             <span class="px-2 py-1 text-xs font-medium ${gap.isLunchTime ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'} rounded-full">
-                               ${gap.text}${gap.isLunchTime ? ' 🍽️' : ''}
+                             <span class="px-2 py-1 text-xs font-medium ${isChecked ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'} rounded-full">
+                               ${displayText}${isChecked ? ' 🍽️' : ''}
                              </span>
                              ${gap.minutes >= 60 ? `
-                               <label class="flex items-center space-x-1 text-xs text-gray-600">
-                                 <input type="checkbox" 
-                                        class="lunch-time-checkbox" 
-                                        data-item-index="${sortedData.indexOf(item)}" 
-                                        data-gap-index="${gapIndex}"
-                                        onchange="toggleLunchTimeExclusion(this)"
-                                        ${gap.isLunchTime ? 'checked' : ''}>
-                                 <span>점심시간</span>
-                               </label>
+                               <input type="checkbox" 
+                                      class="lunch-time-checkbox ml-2" 
+                                      data-item-index="${sortedData.indexOf(item)}" 
+                                      data-gap-index="${gapIndex}"
+                                      onchange="toggleLunchTimeExclusion(this)"
+                                      ${isChecked ? 'checked' : ''}>
                              ` : ''}
                            </div>
-                         `).join('') : ''}
+                         `;
+                         }).join('') : ''}
                        </div>
                      </td>
                      <td class="px-3 py-2 whitespace-nowrap">
@@ -2545,9 +2557,9 @@
                const startMinutes = timeToMinutes(startTime);
                const endMinutes = timeToMinutes(endTime);
                
-               // 11:30 ~ 13:30 사이의 간격을 점심시간으로 간주
-               const lunchStart = timeToMinutes('11:30');
-               const lunchEnd = timeToMinutes('13:30');
+               // 11:00 ~ 14:00 사이의 간격을 점심시간으로 간주 (더 유연하게)
+               const lunchStart = timeToMinutes('11:00');
+               const lunchEnd = timeToMinutes('14:00');
                
                // 시작 시간이 점심시간 범위에 포함되는지 확인
                return (startMinutes >= lunchStart && startMinutes <= lunchEnd) ||
@@ -2567,10 +2579,14 @@
                  const gapMinutes = currentMinutes - baseMinutes;
                  
                  if (gapMinutes > 0) {
+                   // 8시부터 시작시간까지의 간격도 점심시간인지 확인
+                   const isLunch = isLunchTime(baseTime, item.work_start_time);
+                   
                    gaps.push({
                      type: 'start_gap',
                      text: `+${gapMinutes}분 (8시~${item.work_start_time})`,
-                     minutes: gapMinutes
+                     minutes: gapMinutes,
+                     isLunchTime: isLunch
                    });
                  }
                }
@@ -2586,12 +2602,6 @@
                    if (gapMinutes > 0) {
                      // 점심시간인지 확인
                      const isLunch = isLunchTime(prevItem.work_end_time, item.work_start_time);
-                     
-                     if (isLunch && gapMinutes >= 60) {
-                       // 점심시간이고 1시간 이상인 경우 제외
-                       console.log(`🍽️ 점심시간 간격 제외: ${prevItem.work_end_time}~${item.work_start_time} (${gapMinutes}분)`);
-                       return null;
-                     }
                      
                      gaps.push({
                        type: 'between_gap',
