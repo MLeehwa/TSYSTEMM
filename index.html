@@ -2321,11 +2321,12 @@
                }
                
                if (item.gapTimes[gapIndex]) {
+                 // 체크박스 상태를 영구적으로 저장
                  item.gapTimes[gapIndex].excludeFromLunch = checkbox.checked;
                  
-                // 60분 제외 계산 (원래 시간 기준) - 체크하면 60분 차감, 해제하면 원래 시간
-                const originalMinutes = item.gapTimes[gapIndex].minutes;
-                const adjustedMinutes = checkbox.checked ? Math.max(0, originalMinutes - 60) : originalMinutes;
+                 // 60분 제외 계산 (원래 시간 기준) - 체크하면 60분 차감, 해제하면 원래 시간
+                 const originalMinutes = item.gapTimes[gapIndex].minutes;
+                 const adjustedMinutes = checkbox.checked ? Math.max(0, originalMinutes - 60) : originalMinutes;
                  
                  // 시각적 업데이트
                  const gapSpan = checkbox.closest('.flex').querySelector('span');
@@ -2342,6 +2343,9 @@
                  }
                  
                  console.log(`🍽️ 점심시간 제외 ${checkbox.checked ? '활성화' : '비활성화'}: ${originalMinutes}분 → ${adjustedMinutes}분`);
+                 
+                 // 상태 저장을 위해 테이블 다시 렌더링하지 않고 현재 상태만 업데이트
+                 console.log(`💾 저장된 상태:`, item.gapTimes[gapIndex]);
                }
              }
 
@@ -2463,10 +2467,14 @@
                          ${gapTime && Array.isArray(gapTime) && gapTime.length > 0 ? (() => {
                            const gap = gapTime[0]; // 첫 번째 간격만 사용
                            const gapIndex = 0; // 첫 번째 간격의 인덱스
-                           console.log(`🔍 ${item.seq_no}번 작업 gap:`, gap, `minutes: ${gap.minutes}, isLunchTime: ${gap.isLunchTime}`);
+                           
+                           // 저장된 상태가 있으면 사용, 없으면 기본값
+                           const savedState = item.gapTimes && item.gapTimes[gapIndex];
+                           const isChecked = savedState ? savedState.excludeFromLunch : false;
+                           
+                           console.log(`🔍 ${item.seq_no}번 작업 gap:`, gap, `minutes: ${gap.minutes}, savedState:`, savedState, `isChecked: ${isChecked}`);
                            
                            // 체크박스 상태에 따라 동적으로 계산
-                           const isChecked = gap.isLunchTime; // 점심시간이면 기본 체크됨
                            const displayMinutes = isChecked ? Math.max(0, gap.minutes - 60) : gap.minutes;
                            const displayText = `+${displayMinutes}분 (${gap.text.match(/\(([^)]+)\)/)[1]})`;
                            
@@ -2575,6 +2583,12 @@
              
              // 시간 간격 계산 (8시 기준 및 작업 간 간격, 점심시간 고려)
              function calculateGapTime(item, sortedData, index) {
+               // 이미 저장된 간격 데이터가 있으면 그것을 사용
+               if (item.gapTimes && item.gapTimes.length > 0) {
+                 console.log(`📊 ${item.seq_no}번 작업 기존 간격 사용:`, item.gapTimes);
+                 return item.gapTimes;
+               }
+               
                const gaps = [];
                
                // 8시 기준 첫 번째 작업과의 간격
@@ -2599,7 +2613,7 @@
                
                // 이전 작업과의 간격
                if (index > 0) {
-               const prevItem = sortedData[index - 1];
+                 const prevItem = sortedData[index - 1];
                  if (prevItem && prevItem.work_end_time && item.work_start_time) {
                    const prevEndMinutes = timeToMinutes(prevItem.work_end_time);
                    const currentStartMinutes = timeToMinutes(item.work_start_time);
@@ -2617,6 +2631,11 @@
                      console.log(`🔍 작업간 간격: ${gapMinutes}분, 점심시간: false`);
                    }
                  }
+               }
+               
+               // 계산된 간격을 아이템에 저장
+               if (gaps.length > 0) {
+                 item.gapTimes = gaps;
                }
                
                console.log(`📊 ${item.seq_no}번 작업 간격:`, gaps);
