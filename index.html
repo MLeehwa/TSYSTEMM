@@ -276,96 +276,6 @@
         console.warn('⚠️ Supabase 라이브러리가 로드되지 않았습니다');
       }
       
-             // 공백 시간 추가 모달 열기
-             function addGapRow() {
-               const gaps = detectTimeGaps();
-               if (gaps.length === 0) {
-                 console.warn('⚠️ 감지된 공백이 없습니다.');
-                 alert('감지된 공백이 없습니다. 시간 간격이 있는 스케줄을 먼저 입력해주세요.');
-                 return;
-               }
-               
-               // 첫 번째 공백을 기본값으로 설정
-               const firstGap = gaps[0];
-               const modal = document.getElementById('gapTimeModal');
-               const startTimeInput = document.getElementById('gapStartTime');
-               const endTimeInput = document.getElementById('gapEndTime');
-               const gapInfo = document.getElementById('detectedGapInfo');
-               
-               // 감지된 공백 정보 표시
-               gapInfo.textContent = `${firstGap.startTime} ~ ${firstGap.endTime} (${firstGap.duration}분)`;
-               
-               // 기본값 설정
-               startTimeInput.value = firstGap.startTime;
-               endTimeInput.value = firstGap.endTime;
-               document.getElementById('gapRemarks').value = '';
-               
-               modal.classList.remove('hidden');
-               modal.classList.add('flex');
-             }
-             
-             // 공백 시간 추가 모달 닫기
-             function closeGapTimeModal() {
-               const modal = document.getElementById('gapTimeModal');
-               modal.classList.add('hidden');
-               modal.classList.remove('flex');
-             }
-             
-             // 공백 시간 저장
-             async function saveGapTime() {
-               const startTime = document.getElementById('gapStartTime').value;
-               const endTime = document.getElementById('gapEndTime').value;
-               const remarks = document.getElementById('gapRemarks').value;
-               
-               if (!startTime || !endTime) {
-                 alert('시작 시간과 종료 시간을 모두 입력해주세요.');
-                 return;
-               }
-               
-               // 시간 유효성 검사
-               if (startTime >= endTime) {
-                 alert('종료 시간은 시작 시간보다 늦어야 합니다.');
-                 return;
-               }
-               
-               // 새로운 공백 행 생성
-               const maxSeq = Math.max(0, ...window.adminScheduleData.map(item => item.seq_no || 0));
-               const newGapRow = {
-                 seq_no: maxSeq + 1,
-                 part_no: 'GAP', // 공백 표시
-                 work_start_time: startTime,
-                 work_end_time: endTime,
-                 work_status: 'gap', // 공백 상태
-                 remarks: remarks || '공백 시간',
-                 work_date: window.adminSelectedDate,
-                 created_at: new Date().toISOString()
-               };
-               
-               try {
-                 // Supabase에 저장
-                 const { data, error } = await window.supabase
-                   .from('tm_packaging_schedule')
-                   .insert([newGapRow])
-                   .select();
-                 
-                 if (error) throw error;
-                 
-                 // 로컬 데이터 업데이트
-                 window.adminScheduleData.push(newGapRow);
-                 
-                 console.log('✅ Gap time added successfully:', newGapRow);
-                 
-                 // 테이블 새로고침
-                 renderAdminTable();
-                 updateAdminStatistics();
-                 
-                 closeGapTimeModal();
-                 
-               } catch (error) {
-                 console.error('❌ Error adding gap time:', error);
-                 alert('공백 시간 추가에 실패했습니다: ' + error.message);
-               }
-             }
              
              // 전역 함수 등록
              window.loadPage = loadPage;
@@ -374,9 +284,6 @@
              window.zoomOut = zoomOut;
              window.toggleSidebar = toggleSidebar;
              window.toggleFullscreenMode = toggleFullscreenMode;
-             window.addGapRow = addGapRow;
-             window.closeGapTimeModal = closeGapTimeModal;
-             window.saveGapTime = saveGapTime;
       
       console.log('✅ TM System 초기화 완료');
     });
@@ -896,9 +803,6 @@
                              <button onclick="addNewRow()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-semibold">
                                + 행 추가
                              </button>
-                             <button onclick="addGapRow()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-semibold">
-                               ⏰ 빈 시간 추가
-                             </button>
                              <button onclick="loadScheduleToTable()" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg text-sm font-semibold">
                                🔄 새로고침
                              </button>
@@ -943,39 +847,6 @@
                        </div>
                      </div>
 
-                     <!-- 공백 시간 추가 모달 -->
-                     <div id="gapTimeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-                       <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-                         <h3 class="text-xl font-bold text-gray-900 mb-4">공백 시간 추가</h3>
-                         <div class="space-y-4">
-                           <div class="bg-blue-50 p-3 rounded-lg">
-                             <p class="text-sm text-blue-800">
-                               <strong>감지된 공백:</strong> <span id="detectedGapInfo">-</span>
-                             </p>
-                           </div>
-                           <div>
-                             <label class="block text-sm font-medium text-gray-700 mb-2">시작 시간</label>
-                             <input type="time" id="gapStartTime" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                           </div>
-                           <div>
-                             <label class="block text-sm font-medium text-gray-700 mb-2">종료 시간</label>
-                             <input type="time" id="gapEndTime" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                           </div>
-                           <div>
-                             <label class="block text-sm font-medium text-gray-700 mb-2">비고 (선택사항)</label>
-                             <input type="text" id="gapRemarks" placeholder="예: 휴식, 점검, 대기, 준비 등" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                           </div>
-                           <div class="flex justify-end space-x-2">
-                             <button onclick="closeGapTimeModal()" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
-                               취소
-                             </button>
-                             <button onclick="saveGapTime()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                               추가
-                             </button>
-                           </div>
-                         </div>
-                       </div>
-                     </div>
 
                      <!-- Hidden schedule container for compatibility -->
                      <div id="scheduleContainer" style="display: none;"></div>
@@ -2466,74 +2337,11 @@
                }
              }
 
-             // 시간 간격 감지 및 공백 표시 함수
-             function detectTimeGaps() {
-               if (!window.adminScheduleData || window.adminScheduleData.length === 0) return [];
-               
-               const gaps = [];
-               const sortedData = [...window.adminScheduleData].sort((a, b) => {
-                 const timeA = a.work_start_time ? a.work_start_time : '23:59';
-                 const timeB = b.work_start_time ? b.work_start_time : '23:59';
-                 return timeA.localeCompare(timeB);
-               });
-               
-               // 8시 기준 시작 시간 계산
-               const baseTime = '08:00';
-               const baseMinutes = timeToMinutes(baseTime);
-               
-               for (let i = 0; i < sortedData.length; i++) {
-                 const current = sortedData[i];
-                 const next = sortedData[i + 1];
-                 
-                 if (current.work_start_time) {
-                   const currentMinutes = timeToMinutes(current.work_start_time);
-                   const gapMinutes = currentMinutes - baseMinutes;
-                   
-                   // 8시 이후 시작하는 경우 공백 추가
-                   if (gapMinutes > 0 && i === 0) {
-                     gaps.push({
-                       type: 'start_gap',
-                       startTime: baseTime,
-                       endTime: current.work_start_time,
-                       duration: gapMinutes,
-                       position: 'before_first'
-                     });
-                   }
-                   
-                   // 다음 항목과의 간격 확인
-                   if (next && next.work_start_time) {
-                     const nextMinutes = timeToMinutes(next.work_start_time);
-                     const currentEndMinutes = current.work_end_time ? timeToMinutes(current.work_end_time) : currentMinutes;
-                     const gapBetween = nextMinutes - currentEndMinutes;
-                     
-                     if (gapBetween > 0) {
-                       gaps.push({
-                         type: 'between_gaps',
-                         startTime: current.work_end_time || current.work_start_time,
-                         endTime: next.work_start_time,
-                         duration: gapBetween,
-                         position: `between_${current.seq_no}_${next.seq_no}`
-                       });
-                     }
-                   }
-                 }
-               }
-               
-               return gaps;
-             }
-             
              // 시간을 분으로 변환하는 함수
              function timeToMinutes(timeStr) {
                if (!timeStr) return 0;
                const [hours, minutes] = timeStr.split(':').map(Number);
                return hours * 60 + minutes;
-             }
-             
-             // 분을 시간 문자열로 변환하는 함수
-             function minutesToTime(minutes) {
-               const hours = Math.floor(minutes / 60);
-               const mins = minutes % 60;
-               return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
              }
              
              // Admin 페이지 초기화
@@ -2650,14 +2458,13 @@
                          <input type="text" value="${item.work_note || ''}" placeholder="비고 입력" 
                                 class="w-40 px-3 py-2 text-sm border border-gray-300 rounded" 
                                 onchange="updateScheduleData(${sortedData.indexOf(item)}, 'work_note', this.value)">
-                         ${gapTime ? `
+                         ${gapTime ? gapTime.map(gap => `
                            <div class="flex items-center space-x-2">
-                             <span class="text-sm text-red-600 font-medium">${gapTime}</span>
-                             <input type="text" value="${item.delay_reason || ''}" placeholder="공백 이유" 
-                                    class="w-32 px-2 py-2 text-sm border border-gray-300 rounded" 
-                                    onchange="updateScheduleData(${sortedData.indexOf(item)}, 'delay_reason', this.value)">
+                             <span class="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">
+                               ${gap.text}
+                             </span>
                            </div>
-                         ` : ''}
+                         `).join('') : ''}
                        </div>
                      </td>
                      <td class="px-3 py-2 whitespace-nowrap">
@@ -2727,24 +2534,45 @@
                }
              }
 
-             // 시간 간격 계산
+             // 시간 간격 계산 (8시 기준 및 작업 간 간격)
              function calculateGapTime(item, sortedData, index) {
-               if (index === 0) return null;
+               const gaps = [];
                
-               const prevItem = sortedData[index - 1];
-               if (!prevItem || prevItem.part_no !== item.part_no) return null;
-               
-               if (prevItem.work_end_time && item.work_start_time) {
-                 const prevEnd = new Date(`2000-01-01 ${prevItem.work_end_time}`);
-                 const currentStart = new Date(`2000-01-01 ${item.work_start_time}`);
-                 const diffMinutes = (currentStart - prevEnd) / (1000 * 60);
+               // 8시 기준 첫 번째 작업과의 간격
+               if (index === 0 && item.work_start_time) {
+                 const baseTime = '08:00';
+                 const baseMinutes = timeToMinutes(baseTime);
+                 const currentMinutes = timeToMinutes(item.work_start_time);
+                 const gapMinutes = currentMinutes - baseMinutes;
                  
-                 if (diffMinutes > 0) {
-                   return `+${Math.round(diffMinutes)}분`;
+                 if (gapMinutes > 0) {
+                   gaps.push({
+                     type: 'start_gap',
+                     text: `+${gapMinutes}분 (8시~${item.work_start_time})`,
+                     minutes: gapMinutes
+                   });
                  }
                }
                
-               return null;
+               // 이전 작업과의 간격
+               if (index > 0) {
+                 const prevItem = sortedData[index - 1];
+                 if (prevItem && prevItem.work_end_time && item.work_start_time) {
+                   const prevEndMinutes = timeToMinutes(prevItem.work_end_time);
+                   const currentStartMinutes = timeToMinutes(item.work_start_time);
+                   const gapMinutes = currentStartMinutes - prevEndMinutes;
+                   
+                   if (gapMinutes > 0) {
+                     gaps.push({
+                       type: 'between_gap',
+                       text: `+${gapMinutes}분 (${prevItem.work_end_time}~${item.work_start_time})`,
+                       minutes: gapMinutes
+                     });
+                   }
+                 }
+               }
+               
+               return gaps.length > 0 ? gaps : null;
              }
 
              // 시간 수정 모달 열기
