@@ -3871,11 +3871,16 @@
               const activeItem = window.displayScheduleData.find(item => item.work_status === 'active');
               
               if (activeItem) {
-                window.displayCurrentId = activeItem.seq_no;
-                window.displayCurrentPart = activeItem.part_no;
-                
-                document.getElementById('currentId').textContent = `NO ${window.displayCurrentId}`;
-                document.getElementById('currentPart').textContent = window.displayCurrentPart;
+                // 새로운 활성 작업이거나 기존 작업과 다른 경우에만 업데이트
+                if (window.displayCurrentId !== activeItem.seq_no) {
+                  window.displayCurrentId = activeItem.seq_no;
+                  window.displayCurrentPart = activeItem.part_no;
+                  
+                  document.getElementById('currentId').textContent = `NO ${window.displayCurrentId}`;
+                  document.getElementById('currentPart').textContent = window.displayCurrentPart;
+                  
+                  console.log('🔄 Active work changed to:', activeItem.seq_no);
+                }
                  
                  // Start timer if not already started and work has started
                  if (!window.displayStartTime && activeItem.work_start_time) {
@@ -3889,12 +3894,12 @@
                  
                  // 이미 타이머가 시작되었고 같은 작업이면 타이머 유지
                  if (window.displayStartTime && window.displayCurrentId === activeItem.seq_no) {
-                   // 타이머는 계속 실행됨
-                   console.log('⏰ Timer continuing for work:', activeItem.seq_no);
+                   // 타이머는 계속 실행됨 - 아무것도 하지 않음
+                   // console.log('⏰ Timer continuing for work:', activeItem.seq_no);
                  }
                } else {
-                 // 활성 작업이 없을 때만 타이머 중지
-                 if (window.displayCurrentId) {
+                 // 활성 작업이 없을 때만 타이머 중지 (기존에 활성 작업이 있었던 경우에만)
+                 if (window.displayCurrentId && window.displayStartTime) {
                    console.log('⏰ No active work, stopping timer');
                    document.getElementById('currentId').textContent = '-';
                    document.getElementById('currentPart').textContent = '-';
@@ -3943,15 +3948,20 @@
                      }
                    }
                    
-                   // 디버깅을 위한 로그 (10초마다)
-                   if (seconds % 10 === 0) {
+                   // 디버깅을 위한 로그 (30초마다 - 로그 스팸 방지)
+                   if (seconds % 30 === 0) {
                      console.log(`⏰ Display Timer update: Elapsed: ${timeString}`);
                    }
                    
-                   // 스케줄 목록의 진행중인 작업 경과시간도 업데이트
-                   displaySchedule();
+                   // 스케줄 목록의 진행중인 작업 경과시간도 업데이트 (5초마다만)
+                   if (seconds % 5 === 0) {
+                     displaySchedule();
+                   }
                  } else {
-                   console.log('⏰ Display timer stopped - no start time');
+                   // 타이머가 중지된 경우에만 로그 출력
+                   if (window.displayTimerInterval) {
+                     console.log('⏰ Display timer stopped - no start time');
+                   }
                  }
                }, 1000);
              }
