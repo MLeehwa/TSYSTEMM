@@ -2437,7 +2437,7 @@
                      <td class="px-3 py-2 whitespace-nowrap">
                        <div class="flex items-center space-x-3">
                          <input type="text" value="${item.work_note || ''}" placeholder="비고 입력" 
-                                class="w-40 px-3 py-2 text-sm border border-gray-300 rounded" 
+                                class="w-64 px-3 py-2 text-sm border border-gray-300 rounded" 
                                 onchange="updateScheduleData(${sortedData.indexOf(item)}, 'work_note', this.value)">
                          ${gapTime && Array.isArray(gapTime) && gapTime.length > 0 ? (() => {
                            const gap = gapTime[0]; // 첫 번째 간격만 사용
