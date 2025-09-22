@@ -262,9 +262,9 @@
       }
       
       
-             // 전역 함수 등록
-             window.loadPage = loadPage;
-             window.openStatusInNewTab = openStatusInNewTab;
+      // 전역 함수 등록
+      window.loadPage = loadPage;
+      window.openStatusInNewTab = openStatusInNewTab;
              window.openLiveDisplayInNewTab = openLiveDisplayInNewTab;
              window.zoomIn = zoomIn;
              window.zoomOut = zoomOut;
@@ -2459,7 +2459,7 @@
                          <input type="text" value="${item.work_note || ''}" placeholder="비고 입력" 
                                 class="w-40 px-3 py-2 text-sm border border-gray-300 rounded" 
                                 onchange="updateScheduleData(${sortedData.indexOf(item)}, 'work_note', this.value)">
-                         ${gapTime && Array.isArray(gapTime) ? gapTime.map((gap, gapIndex) => {
+                         ${gapTime && Array.isArray(gapTime) && gapTime.length > 0 ? gapTime.map((gap, gapIndex) => {
                            // 체크박스 상태에 따라 동적으로 계산
                            const isChecked = gap.isLunchTime; // 점심시간이면 기본 체크됨
                            const displayMinutes = isChecked ? Math.max(0, gap.minutes - 60) : gap.minutes;
@@ -2477,7 +2477,7 @@
                                       data-gap-index="${gapIndex}"
                                       onchange="toggleLunchTimeExclusion(this)"
                                       ${isChecked ? 'checked' : ''}>
-                             ` : ''}
+                         ` : ''}
                            </div>
                          `;
                          }).join('') : ''}
@@ -2588,12 +2588,14 @@
                      minutes: gapMinutes,
                      isLunchTime: isLunch
                    });
+                   
+                   console.log(`🔍 8시 기준 간격: ${gapMinutes}분, 점심시간: ${isLunch}`);
                  }
                }
                
                // 이전 작업과의 간격
                if (index > 0) {
-                 const prevItem = sortedData[index - 1];
+               const prevItem = sortedData[index - 1];
                  if (prevItem && prevItem.work_end_time && item.work_start_time) {
                    const prevEndMinutes = timeToMinutes(prevItem.work_end_time);
                    const currentStartMinutes = timeToMinutes(item.work_start_time);
@@ -2609,11 +2611,14 @@
                        minutes: gapMinutes,
                        isLunchTime: isLunch
                      });
+                     
+                     console.log(`🔍 작업간 간격: ${gapMinutes}분, 점심시간: ${isLunch}`);
                    }
                  }
                }
                
-               return gaps.length > 0 ? gaps : null;
+               console.log(`📊 ${item.seq_no}번 작업 간격:`, gaps);
+               return gaps; // null 대신 빈 배열 반환
              }
 
              // 시간 수정 모달 열기
