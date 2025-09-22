@@ -2312,8 +2312,8 @@
                }
                item.lunchExcluded[gapIndex] = checkbox.checked;
                
-               // 기존 배지 업데이트
-               const gapSpan = checkbox.closest('.flex').querySelector('span');
+               // 기존 배지 업데이트 - 첫 번째 span (시간 배지) 선택
+               const gapSpan = checkbox.closest('.flex').querySelector('span:first-child');
                if (gapSpan) {
                  const originalText = gapSpan.textContent;
                  console.log('🔍 원본 텍스트:', originalText);
