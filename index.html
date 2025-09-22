@@ -856,23 +856,49 @@
                        </div>
                      </div>
 
-                     <!-- Current Status -->
-                     <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-3">
-                       <div class="bg-white rounded-lg shadow-sm border p-4">
-                         <div class="text-xs text-gray-600 mb-1" id="todayDateLabel">Today's Date</div>
-                         <div class="text-lg font-bold text-blue-600" id="todayDate">-</div>
-                       </div>
-                       <div class="bg-white rounded-lg shadow-sm border p-4">
-                         <div class="text-xs text-gray-600 mb-1" id="currentIdLabel">Current ID</div>
-                         <div class="text-lg font-bold text-blue-600" id="currentRound">-</div>
-                       </div>
-                       <div class="bg-white rounded-lg shadow-sm border p-4">
-                         <div class="text-xs text-gray-600 mb-1" id="currentPartLabel">Current Part</div>
-                         <div class="text-lg font-bold text-green-600" id="currentPart">-</div>
-                       </div>
-                       <div class="bg-white rounded-lg shadow-sm border p-4">
-                         <div class="text-xs text-gray-600 mb-1" id="elapsedTimeLabel">Elapsed Time</div>
-                         <div class="text-lg font-bold text-red-600 timer-display" id="elapsedTime">00:00:00</div>
+                     <!-- Current Work Dashboard -->
+                     <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl shadow-xl p-6 mb-4 text-white">
+                       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                         <!-- Current Work -->
+                         <div class="lg:col-span-2">
+                           <h2 class="text-xl font-bold mb-4 flex items-center">
+                             <span class="mr-2">⚡</span>
+                             <span id="currentWorkTitle">Current Work</span>
+                           </h2>
+                           <div class="bg-white bg-opacity-20 rounded-lg p-4">
+                             <div class="grid grid-cols-2 gap-4">
+                               <div>
+                                 <div class="text-sm opacity-80 mb-1" id="currentIdLabel">Task ID</div>
+                                 <div class="text-3xl font-bold" id="currentRound">-</div>
+                               </div>
+                               <div>
+                                 <div class="text-sm opacity-80 mb-1" id="currentPartLabel">Part Number</div>
+                                 <div class="text-3xl font-bold" id="currentPart">-</div>
+                               </div>
+                               <div>
+                                 <div class="text-sm opacity-80 mb-1" id="elapsedTimeLabel">Elapsed Time</div>
+                                 <div class="text-3xl font-bold text-yellow-300 timer-display" id="elapsedTime">00:00:00</div>
+                               </div>
+                               <div>
+                                 <div class="text-sm opacity-80 mb-1" id="todayDateLabel">Today's Date</div>
+                                 <div class="text-lg font-bold" id="todayDate">-</div>
+                               </div>
+                             </div>
+                           </div>
+                         </div>
+                         
+                         <!-- Next Work Preview -->
+                         <div>
+                           <h2 class="text-xl font-bold mb-4 flex items-center">
+                             <span class="mr-2">⏭️</span>
+                             <span id="nextWorkTitle">Next Work</span>
+                           </h2>
+                           <div class="bg-white bg-opacity-20 rounded-lg p-4">
+                             <div class="space-y-3" id="nextWorkPreview">
+                               <div class="text-center text-gray-300" id="noNextWork">No upcoming work</div>
+                             </div>
+                           </div>
+                         </div>
                        </div>
                      </div>
 
@@ -2811,6 +2837,8 @@
                  currentId: 'Current ID',
                  currentPart: 'Current Part',
                  elapsedTime: 'Elapsed Time',
+                 currentWork: 'Current Work',
+                 nextWork: 'Next Work',
                  idSelection: '🎯 Task ID Selection',
                  taskControl: 'Selected Task Control',
                  selectedId: 'Selected ID',
@@ -2840,6 +2868,8 @@
                  currentId: 'ID Actual',
                  currentPart: 'Parte Actual',
                  elapsedTime: 'Tiempo Transcurrido',
+                 currentWork: 'Trabajo Actual',
+                 nextWork: 'Siguiente Trabajo',
                  idSelection: '🎯 Selección de ID de Tarea',
                  taskControl: 'Control de Tarea Seleccionada',
                  selectedId: 'ID Seleccionado',
@@ -2897,7 +2927,9 @@
                document.getElementById('supervisorSubtitle').textContent = t.subtitle;
                document.getElementById('currentTimeLabel').textContent = t.currentTime;
                
-               // 현재 상태
+               // 현재 작업 대시보드
+               document.getElementById('currentWorkTitle').textContent = t.currentWork;
+               document.getElementById('nextWorkTitle').textContent = t.nextWork;
                document.getElementById('todayDateLabel').textContent = t.todayDate;
                document.getElementById('currentIdLabel').textContent = t.currentId;
                document.getElementById('currentPartLabel').textContent = t.currentPart;
@@ -3555,6 +3587,47 @@
                  if (currentRoundEl) currentRoundEl.textContent = '-';
                  if (currentPartEl) currentPartEl.textContent = '-';
                }
+               
+               // 다음 작업 미리보기 업데이트
+               updateNextWorkPreview();
+             }
+             
+             // 다음 작업 미리보기 업데이트
+             function updateNextWorkPreview() {
+               const nextWorkPreview = document.getElementById('nextWorkPreview');
+               if (!nextWorkPreview) return;
+               
+               // 대기 중인 작업들을 시간순으로 정렬
+               const waitingItems = window.supervisorScheduleData
+                 .filter(item => item.work_status === 'waiting')
+                 .sort((a, b) => a.seq_no - b.seq_no)
+                 .slice(0, 3); // 최대 3개만 표시
+               
+               if (waitingItems.length === 0) {
+                 nextWorkPreview.innerHTML = '<div class="text-center text-gray-300" id="noNextWork">No upcoming work</div>';
+                 return;
+               }
+               
+               let html = '';
+               waitingItems.forEach((item, index) => {
+                 const isNext = index === 0;
+                 html += `
+                   <div class="bg-white bg-opacity-30 rounded-lg p-3 ${isNext ? 'border-2 border-yellow-300' : ''}">
+                     <div class="flex justify-between items-center">
+                       <div>
+                         <div class="text-sm opacity-80">Task ${item.seq_no}</div>
+                         <div class="text-lg font-bold">${item.part_no || '-'}</div>
+                       </div>
+                       <div class="text-right">
+                         <div class="text-xs opacity-80">${isNext ? 'NEXT' : 'UPCOMING'}</div>
+                         <div class="text-sm font-semibold">${item.work_start_time || '-'}</div>
+                       </div>
+                     </div>
+                   </div>
+                 `;
+               });
+               
+               nextWorkPreview.innerHTML = html;
              }
 
              // 타이머 시작
