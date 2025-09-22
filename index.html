@@ -3991,12 +3991,22 @@
                  // 경과 시간 계산
                  let elapsedTimeText = '';
                  let elapsedMinutes = 0;
+                 let workDurationText = '';
+                 let workDurationColor = '';
+                 
                  if (item.work_start_time && item.work_end_time) {
                    // 완료된 작업: 시작시간부터 종료시간까지의 경과시간
                    const startTime = parseTimeToMinutes(item.work_start_time);
                    const endTime = parseTimeToMinutes(item.work_end_time);
                    elapsedMinutes = endTime - startTime;
                    elapsedTimeText = formatElapsedTime(elapsedMinutes);
+                   
+                   // 완료된 작업의 경우 작업 시간 표시
+                   if (item.work_status === 'completed') {
+                     workDurationText = elapsedTimeText;
+                     // 1시간 미만은 초록색, 1시간 이상은 빨간색
+                     workDurationColor = elapsedMinutes < 60 ? 'text-green-300' : 'text-red-300';
+                   }
                  } else if (item.work_start_time && item.work_status === 'active') {
                    // 진행중인 작업: 시작시간부터 현재까지의 경과시간
                    const startTime = parseTimeToMinutes(item.work_start_time);
@@ -4016,7 +4026,9 @@
                      }">${work_statusText}</span>
                    </div>
                    <div class="text-xl font-bold">
-                     ${elapsedTimeText ? 
+                     ${item.work_status === 'completed' && workDurationText ?
+                       `<span class="${workDurationColor}">${workDurationText}</span>` :
+                       elapsedTimeText ? 
                        `<span class="${getElapsedTimeColor(elapsedMinutes)}">ELAPSED: ${elapsedTimeText}</span>` : 
                        '<span class="text-white">WAITING</span>'
                      }
