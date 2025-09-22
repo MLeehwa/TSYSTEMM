@@ -2328,7 +2328,7 @@
                  const originalMinutes = item.gapTimes[gapIndex].minutes;
                  const adjustedMinutes = checkbox.checked ? Math.max(0, originalMinutes - 60) : originalMinutes;
                  
-                 // 시각적 업데이트
+                 // 시각적 업데이트 - 기존 배지의 텍스트만 변경
                  const gapSpan = checkbox.closest('.flex').querySelector('span');
                  const timeRange = item.gapTimes[gapIndex].text.match(/\(([^)]+)\)/);
                  const newText = `+${adjustedMinutes}분 (${timeRange ? timeRange[1] : '시간 범위'})`;
@@ -2336,16 +2336,19 @@
                  // 색상과 이모지 업데이트
                  if (checkbox.checked) {
                    gapSpan.className = 'px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full';
-                   gapSpan.innerHTML = newText + ' 🍽️';
+                   gapSpan.textContent = newText + ' 🍽️';
                  } else {
                    gapSpan.className = 'px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full';
-                   gapSpan.innerHTML = newText;
+                   gapSpan.textContent = newText;
                  }
                  
                  console.log(`🍽️ 점심시간 제외 ${checkbox.checked ? '활성화' : '비활성화'}: ${originalMinutes}분 → ${adjustedMinutes}분`);
                  
                  // 상태 저장을 위해 테이블 다시 렌더링하지 않고 현재 상태만 업데이트
                  console.log(`💾 저장된 상태:`, item.gapTimes[gapIndex]);
+                 
+                 // 테이블을 다시 렌더링하지 않도록 함
+                 return;
                }
              }
 
@@ -2399,6 +2402,7 @@
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">파트</th>
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시작 시간</th>
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">종료 시간</th>
+                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작업 시간</th>
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">비고 / 간격</th>
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작업</th>
@@ -2420,6 +2424,19 @@
                  console.log(`🔍 ${item.seq_no}번 작업 gapTime:`, gapTime);
                  const isPartSelected = item.part_no && item.part_no.trim() !== '';
                  const isCompleted = work_status === 'completed';
+                 
+                 // 작업 시간 계산 (종료 시간 - 시작 시간)
+                 let workDuration = '-';
+                 if (item.work_start_time && item.work_end_time) {
+                   const startMinutes = timeToMinutes(item.work_start_time);
+                   const endMinutes = timeToMinutes(item.work_end_time);
+                   const durationMinutes = endMinutes - startMinutes;
+                   if (durationMinutes > 0) {
+                     const hours = Math.floor(durationMinutes / 60);
+                     const minutes = durationMinutes % 60;
+                     workDuration = hours > 0 ? `${hours}시간 ${minutes}분` : `${minutes}분`;
+                   }
+                 }
                  const rowClass = isGapTime ? 'bg-blue-50 hover:bg-blue-100' :
                                  isPartSelected ? 'hover:bg-gray-50' : 'bg-gray-100 hover:bg-gray-200';
                  
