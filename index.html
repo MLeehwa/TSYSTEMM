@@ -773,6 +773,14 @@
                          <div class="text-2xl font-bold text-yellow-600" id="activeRounds">0</div>
                          <div class="text-sm text-gray-600">진행 중인 차수</div>
                        </div>
+                       <div class="bg-white rounded-lg shadow-sm border p-4">
+                         <div class="text-2xl font-bold text-purple-600" id="totalWorkTime">0시간 0분</div>
+                         <div class="text-sm text-gray-600">작업 시간 총합</div>
+                       </div>
+                       <div class="bg-white rounded-lg shadow-sm border p-4">
+                         <div class="text-2xl font-bold text-red-600" id="totalDelayTime">0시간 0분</div>
+                         <div class="text-sm text-gray-600">지연시간 총합</div>
+                       </div>
                      </div>
 
                      <!-- Schedule Management -->
@@ -2349,7 +2357,8 @@
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">파트</th>
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시작 시간</th>
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">종료 시간</th>
-                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태 / 작업 시간</th>
+                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작업 시간</th>
+                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">비고 / 간격</th>
                          <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작업</th>
                        </tr>
@@ -2416,14 +2425,14 @@
                      <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
                        ${item.work_end_time || '-'}
                      </td>
+                     <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                       ${workDuration}
+                     </td>
                      <td class="px-3 py-2 whitespace-nowrap">
-                       <div class="flex flex-col space-y-1">
-                         <span class="px-2 py-1 text-xs font-semibold rounded-full ${work_statusColor}">
-                           ${isGapTime ? '공백' :
-                             isPartSelected ? (work_status === 'completed' ? '완료' : work_status === 'active' ? '진행중' : '대기') : '미선택'}
-                         </span>
-                         <span class="text-sm text-gray-600">${workDuration}</span>
-                       </div>
+                       <span class="px-2 py-1 text-xs font-semibold rounded-full ${work_statusColor}">
+                         ${isGapTime ? '공백' :
+                           isPartSelected ? (work_status === 'completed' ? '완료' : work_status === 'active' ? '진행중' : '대기') : '미선택'}
+                       </span>
                      </td>
                      <td class="px-3 py-2 whitespace-nowrap">
                        <div class="flex items-center space-x-3">
@@ -2660,13 +2669,49 @@
                const completedItems = workItems.filter(item => calculateStatus(item) === 'completed').length;
                const activeItems = workItems.filter(item => calculateStatus(item) === 'active').length;
                
+               // 작업 시간 총합 계산
+               let totalWorkMinutes = 0;
+               workItems.forEach(item => {
+                 if (item.work_start_time && item.work_end_time) {
+                   const startMinutes = timeToMinutes(item.work_start_time);
+                   const endMinutes = timeToMinutes(item.work_end_time);
+                   const durationMinutes = endMinutes - startMinutes;
+                   if (durationMinutes > 0) {
+                     totalWorkMinutes += durationMinutes;
+                   }
+                 }
+               });
+               
+               // 지연시간 총합 계산 (간격 시간)
+               let totalDelayMinutes = 0;
+               const sortedData = [...window.adminScheduleData].sort((a, b) => (a.seq_no || 0) - (b.seq_no || 0));
+               sortedData.forEach((item, index) => {
+                 const gapTime = calculateGapTime(item, sortedData, index);
+                 if (gapTime && gapTime.length > 0) {
+                   gapTime.forEach(gap => {
+                     totalDelayMinutes += gap.minutes;
+                   });
+                 }
+               });
+               
+               // 시간 포맷팅
+               const formatTime = (minutes) => {
+                 const hours = Math.floor(minutes / 60);
+                 const mins = minutes % 60;
+                 return hours > 0 ? `${hours}시간 ${mins}분` : `${mins}분`;
+               };
+               
                const totalRoundsEl = document.getElementById('totalRounds');
                const completedRoundsEl = document.getElementById('completedRounds');
                const activeRoundsEl = document.getElementById('activeRounds');
+               const totalWorkTimeEl = document.getElementById('totalWorkTime');
+               const totalDelayTimeEl = document.getElementById('totalDelayTime');
                
                if (totalRoundsEl) totalRoundsEl.textContent = totalItems;
                if (completedRoundsEl) completedRoundsEl.textContent = completedItems;
                if (activeRoundsEl) activeRoundsEl.textContent = activeItems;
+               if (totalWorkTimeEl) totalWorkTimeEl.textContent = formatTime(totalWorkMinutes);
+               if (totalDelayTimeEl) totalDelayTimeEl.textContent = formatTime(totalDelayMinutes);
              }
 
              // Admin 함수들
