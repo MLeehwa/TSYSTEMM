@@ -54,20 +54,29 @@
         <div class="bg-gray-800 rounded-xl shadow-xl p-6 mb-4">
             <div class="text-center">
                 <h3 class="text-3xl font-bold mb-6 text-green-300">CURRENT PROGRESS</h3>
-                <div class="grid grid-cols-3 gap-6">
+                <div class="grid grid-cols-4 gap-6">
                     <!-- Current NO -->
-                    <div class="bg-gray-700 rounded-lg p-6 border-2 border-gray-600 flex items-center justify-center">
+                    <div class="bg-gray-700 rounded-lg p-6 border-2 border-gray-600 flex flex-col items-center justify-center">
                         <div class="text-8xl font-bold text-yellow-300" id="currentId">-</div>
+                        <div class="text-sm text-gray-400 mt-2">CURRENT ID</div>
                     </div>
                     
                     <!-- Current Part -->
-                    <div class="bg-gray-700 rounded-lg p-6 border-2 border-gray-600 flex items-center justify-center">
+                    <div class="bg-gray-700 rounded-lg p-6 border-2 border-gray-600 flex flex-col items-center justify-center">
                         <div class="text-8xl font-bold text-blue-300" id="currentPart">-</div>
+                        <div class="text-sm text-gray-400 mt-2">PART NO</div>
                     </div>
                     
                     <!-- Elapsed Time -->
-                    <div class="bg-gray-700 rounded-lg p-6 border-2 border-gray-600 flex items-center justify-center">
+                    <div class="bg-gray-700 rounded-lg p-6 border-2 border-gray-600 flex flex-col items-center justify-center">
                         <div class="text-8xl font-bold text-red-300 timer-display" id="elapsedTime">00:00:00</div>
+                        <div class="text-sm text-gray-400 mt-2">ELAPSED TIME</div>
+                    </div>
+                    
+                    <!-- Average Packing Time -->
+                    <div class="bg-gray-700 rounded-lg p-6 border-2 border-gray-600 flex flex-col items-center justify-center">
+                        <div class="text-8xl font-bold text-purple-300" id="averagePackingTime">00:00</div>
+                        <div class="text-sm text-gray-400 mt-2">AVG PACKING TIME</div>
                     </div>
                 </div>
             </div>
@@ -240,6 +249,9 @@
             });
             
             scheduleList.innerHTML = html;
+            
+            // 평균 포장 시간 업데이트
+            updateAveragePackingTime();
         }
 
         // 현재 상태 업데이트
@@ -365,6 +377,47 @@
             const hours = Math.floor(minutes / 60);
             const mins = minutes % 60;
             return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+        }
+
+        // 평균 포장 시간 계산 및 업데이트
+        function updateAveragePackingTime() {
+            const completedItems = displayScheduleData.filter(item => {
+                const status = calculateStatus(item);
+                return status === 'completed' && item.work_start_time && item.work_end_time;
+            });
+
+            if (completedItems.length === 0) {
+                document.getElementById('averagePackingTime').textContent = '00:00';
+                return;
+            }
+
+            let totalMinutes = 0;
+            completedItems.forEach(item => {
+                const startTime = parseTimeToMinutes(item.work_start_time);
+                const endTime = parseTimeToMinutes(item.work_end_time);
+                const duration = endTime - startTime;
+                if (duration > 0) {
+                    totalMinutes += duration;
+                }
+            });
+
+            const averageMinutes = Math.round(totalMinutes / completedItems.length);
+            const averageTimeText = formatElapsedTime(averageMinutes);
+            
+            // 색상 설정 (1시간 기준)
+            const averagePackingTimeEl = document.getElementById('averagePackingTime');
+            averagePackingTimeEl.textContent = averageTimeText;
+            averagePackingTimeEl.className = averagePackingTimeEl.className.replace(/text-(green|red|purple)-300/, '');
+            
+            if (averageMinutes < 60) {
+                averagePackingTimeEl.classList.add('text-green-300');
+            } else if (averageMinutes < 90) {
+                averagePackingTimeEl.classList.add('text-yellow-300');
+            } else {
+                averagePackingTimeEl.classList.add('text-red-300');
+            }
+
+            console.log(`📊 Average packing time: ${averageTimeText} (${completedItems.length} completed items)`);
         }
 
 
