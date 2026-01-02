@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LEEHWA VW TM System</title>
+  
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.6/dist/umd/supabase.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
@@ -64,10 +65,83 @@
       margin-left: 0 !important;
       width: 100% !important;
     }
+    
+    /* 모드 선택 화면 스타일 */
+    #modeSelector {
+      animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+    
+    .mode-btn {
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .mode-btn:active {
+      transform: scale(0.95);
+    }
+    
+    /* 모바일 반응형 */
+    @media (max-width: 768px) {
+      .mode-btn {
+        min-height: 150px;
+        padding: 1.5rem !important;
+      }
+      
+      .mode-btn .text-5xl {
+        font-size: 3rem;
+      }
+      
+      .mode-btn h3 {
+        font-size: 1.5rem;
+      }
+    }
+    
+    /* 터치 디바이스 최적화 */
+    @media (hover: none) and (pointer: coarse) {
+      .mode-btn {
+        min-height: 180px;
+      }
+    }
   </style>
 </head>
 <body class="bg-gray-50">
-  <div class="flex h-screen">
+  <!-- Mode Selector Overlay -->
+  <div id="modeSelector" class="fixed inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 md:p-12 max-w-3xl w-full mx-4">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-2">LEEHWA VW TM System</h1>
+        <p class="text-lg text-gray-600">시스템 모드를 선택하세요</p>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Desktop Mode -->
+        <button onclick="selectMode('desktop')" class="mode-btn group bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white p-10 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 hover:shadow-2xl">
+          <div class="text-6xl mb-4">🖥️</div>
+          <h3 class="text-3xl font-bold mb-3">DESKTOP</h3>
+        </button>
+        
+        <!-- PDA Mode -->
+        <button onclick="selectMode('pda')" class="mode-btn group bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white p-10 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 hover:shadow-2xl">
+          <div class="text-6xl mb-4">📱</div>
+          <h3 class="text-3xl font-bold mb-3">PDA</h3>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex h-screen" id="mainApp" style="display: none;">
     <!-- Sidebar -->
     <aside id="sidebar" class="w-64 bg-white shadow-lg border-r border-gray-200">
       <div class="p-6">
@@ -75,6 +149,12 @@
           <span class="text-3xl mr-2">🔄</span>
           LEEHWA VW TM System
         </h2>
+        
+        <!-- Home Button -->
+        <button onclick="goToHome()" class="w-full mb-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-3 rounded-lg font-semibold shadow-md transition-all duration-200 flex items-center justify-center">
+          <span class="text-xl mr-2">🏠</span>
+          <span>홈으로</span>
+        </button>
         
         <nav>
           <ul class="space-y-2">
@@ -103,7 +183,7 @@
                 Truck Status
               </div>
               <ul class="space-y-1 ml-2">
-                <li><button onclick="loadPage('pages/truck/status.html')" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
+                <li><button onclick="openStatusInNewTab()" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
                    <span class="text-lg mr-3">📺</span>
                    Live Status Display
                  </button></li>
@@ -124,6 +204,14 @@
                   <span class="text-lg mr-3">📺</span>
                   Live Display
                 </button></li>
+                <li><button onclick="openForkliftDisplay()" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
+                  <span class="text-lg mr-3">🚛</span>
+                  Forklift Display
+                </button></li>
+                <li><button onclick="openTruckStatusDisplay()" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
+                  <span class="text-lg mr-3">🚚</span>
+                  Live Truck Status
+                </button></li>
                 <li><button onclick="loadPage('pages/schedule/admin.html')" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
                   <span class="text-lg mr-3">⚙️</span>
                   Admin Schedule
@@ -131,6 +219,26 @@
                 <li><button onclick="loadPage('pages/schedule/supervisor.html')" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
                   <span class="text-lg mr-3">👨‍💼</span>
                   Supervisor Control
+                </button></li>
+              </ul>
+            </li>
+            
+            <li class="pt-4">
+              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-4">
+                Return TM Management
+              </div>
+              <ul class="space-y-1 ml-2">
+                <li><button onclick="loadPage('pages/return/pallet-generate.html')" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
+                  <span class="text-lg mr-3">📦</span>
+                  Pallet Generate
+                </button></li>
+                <li><button onclick="loadPage('pages/return/report.html')" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
+                  <span class="text-lg mr-3">📊</span>
+                  Report
+                </button></li>
+                <li><button onclick="loadPage('pages/return/mapping-history.html')" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors duration-200 flex items-center">
+                  <span class="text-lg mr-3">📜</span>
+                  Mapping History
                 </button></li>
               </ul>
             </li>
@@ -147,6 +255,13 @@
           <div class="flex items-center justify-between">
             <h1 class="text-2xl font-semibold text-gray-800" id="pageTitle">Welcome to TM System</h1>
             <div class="flex items-center space-x-4">
+              <button onclick="goToHome()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md flex items-center">
+                <span class="mr-2">🏠</span>
+                <span>홈</span>
+              </button>
+              <button onclick="showModeSelector()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md">
+                🔄 모드 변경
+              </button>
               <button onclick="toggleFullscreen()" id="fullscreenBtn" class="bg-red-500 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold text-lg shadow-lg">
                 <span id="fullscreenText">🖥️ FULLSCREEN</span>
               </button>
@@ -224,9 +339,100 @@
       }
     }
 
+    // 홈으로 돌아가기 (모드 선택 화면으로)
+    function goToHome() {
+      const modeSelector = document.getElementById('modeSelector');
+      const mainApp = document.getElementById('mainApp');
+      
+      if (modeSelector) {
+        modeSelector.style.display = 'flex';
+      }
+      if (mainApp) {
+        mainApp.style.display = 'none';
+      }
+      
+      // 저장된 모드 초기화
+      localStorage.removeItem('tmSystemMode');
+    }
+
+    // 모드 선택 화면 표시
+    function showModeSelector() {
+      if (confirm('모드를 변경하시겠습니까? 현재 작업 내용이 저장되지 않을 수 있습니다.')) {
+        const modeSelector = document.getElementById('modeSelector');
+        const mainApp = document.getElementById('mainApp');
+        
+        if (modeSelector) {
+          modeSelector.style.display = 'flex';
+        }
+        if (mainApp) {
+          mainApp.style.display = 'none';
+        }
+        
+        // 저장된 모드 초기화
+        localStorage.removeItem('tmSystemMode');
+      }
+    }
+
+    // 모드 선택 함수
+    function selectMode(mode) {
+      console.log('🎯 모드 선택:', mode);
+      const modeSelector = document.getElementById('modeSelector');
+      const mainApp = document.getElementById('mainApp');
+      
+      // 모드 선택 화면 숨기기
+      if (modeSelector) {
+        modeSelector.style.display = 'none';
+      }
+      
+      // 메인 앱 표시
+      if (mainApp) {
+        mainApp.style.display = 'flex';
+      }
+      
+      // 선택한 모드에 따라 초기화
+      if (mode === 'desktop') {
+        initializeDesktopMode();
+        // 모드 저장 (새로고침 시에도 유지)
+        localStorage.setItem('tmSystemMode', mode);
+      } else if (mode === 'pda') {
+        // PDA 모드는 별도 페이지로 이동
+        window.location.href = 'pda-index.html';
+        return;
+      }
+    }
+
+    // Desktop 모드 초기화
+    function initializeDesktopMode() {
+      console.log('🖥️ Desktop 모드 초기화');
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.getElementById('mainContent');
+      
+      if (sidebar && mainContent) {
+        sidebar.style.display = 'block';
+        mainContent.style.marginLeft = '256px';
+        mainContent.style.width = 'calc(100% - 256px)';
+      }
+    }
+
+
     // 페이지 로딩 완료 후 초기화
     document.addEventListener('DOMContentLoaded', function() {
       console.log('🚀 TM System 초기화 시작');
+      
+      // 저장된 모드 확인
+      const savedMode = localStorage.getItem('tmSystemMode');
+      
+      if (savedMode === 'pda') {
+        // PDA 모드는 별도 페이지로 이동
+        window.location.href = 'pda-index.html';
+        return;
+      } else if (savedMode === 'desktop') {
+        // 저장된 DESKTOP 모드가 있으면 바로 해당 모드로 전환
+        selectMode('desktop');
+      } else {
+        // 기본 모드를 DESKTOP으로 설정
+        selectMode('desktop');
+      }
       
       // 사이드바 상태 초기화
       const sidebar = document.getElementById('sidebar');
@@ -264,12 +470,18 @@
       
       // 전역 함수 등록
       window.loadPage = loadPage;
+      window.selectMode = selectMode;
+      window.showModeSelector = showModeSelector;
+      window.goToHome = goToHome;
       window.openStatusInNewTab = openStatusInNewTab;
-             window.openLiveDisplayInNewTab = openLiveDisplayInNewTab;
-             window.zoomIn = zoomIn;
-             window.zoomOut = zoomOut;
+            window.openLiveDisplayInNewTab = openLiveDisplayInNewTab;
+            window.openForkliftDisplay = openForkliftDisplay;
+            window.openTruckStatusDisplay = openTruckStatusDisplay;
+            window.zoomIn = zoomIn;
+            window.zoomOut = zoomOut;
       
       console.log('✅ TM System 초기화 완료');
+      
     });
 
              // 간단한 페이지 로더
@@ -302,6 +514,12 @@
                    pageTitle.textContent = 'Packaging Schedule - Admin';
                  } else if (path.includes('schedule/supervisor.html')) {
                    pageTitle.textContent = 'Packaging Schedule - Supervisor';
+                 } else if (path.includes('return/pallet-generate.html')) {
+                   pageTitle.textContent = 'Return TM Management - Pallet Generate';
+                 } else if (path.includes('return/report.html')) {
+                   pageTitle.textContent = 'Return TM Management - Report';
+                 } else if (path.includes('return/mapping-history.html')) {
+                   pageTitle.textContent = 'Return TM Management - Mapping History';
                  } else {
                    pageTitle.textContent = 'TM System';
                  }
@@ -851,6 +1069,27 @@
                    console.log('⏰ Admin page initialization timeout triggered');
                    initializeAdminPage();
                  }, 100);
+               } else if (path === 'pages/return/pallet-generate.html') {
+                 // Pallet Generate 페이지를 iframe으로 로드
+                 document.getElementById('mainContent').innerHTML = `
+                   <div class="w-full h-screen">
+                     <iframe src="${path}" class="w-full h-full border-0" frameborder="0"></iframe>
+                   </div>
+                 `;
+               } else if (path === 'pages/return/report.html') {
+                 // Report 페이지를 iframe으로 로드
+                 document.getElementById('mainContent').innerHTML = `
+                   <div class="w-full h-screen">
+                     <iframe src="${path}" class="w-full h-full border-0" frameborder="0"></iframe>
+                   </div>
+                 `;
+               } else if (path === 'pages/return/mapping-history.html') {
+                 // Mapping History 페이지를 iframe으로 로드
+                 document.getElementById('mainContent').innerHTML = `
+                   <div class="w-full h-screen">
+                     <iframe src="${path}" class="w-full h-full border-0" frameborder="0"></iframe>
+                   </div>
+                 `;
                } else if (path === 'pages/schedule/supervisor.html') {
                  // Supervisor 페이지 - 인라인으로 구현 (24인치 모니터용 대형 화면)
                  document.getElementById('mainContent').innerHTML = `
@@ -863,6 +1102,11 @@
                            <p class="text-gray-600 text-base" id="supervisorSubtitle">Supervisor Control Panel</p>
                          </div>
                          <div class="flex items-center space-x-6">
+                           <!-- Home Button -->
+                           <button onclick="goToHome()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md flex items-center">
+                             <span class="mr-2">🏠</span>
+                             <span>홈</span>
+                           </button>
                            <!-- Language Selector -->
                            <div class="flex space-x-2">
                              <button onclick="setSupervisorLanguage('en')" id="langEn" class="px-4 py-2 text-sm font-semibold rounded bg-gray-100 text-gray-600 border border-gray-300">EN</button>
@@ -963,6 +1207,20 @@
                            <span class="mr-1">🎯</span>
                            Task ID Selection
                          </h2>
+                         <!-- Round Numbers -->
+                         <div class="mb-2">
+                           <div class="grid grid-cols-8 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-16 gap-1">
+                             <div class="text-center text-sm font-bold text-gray-700" style="font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;">1</div>
+                             <div class="text-center text-sm font-bold text-gray-700" style="font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;">2</div>
+                             <div class="text-center text-sm font-bold text-gray-700" style="font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;">3</div>
+                             <div class="text-center text-sm font-bold text-gray-700" style="font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;">4</div>
+                             <div class="text-center text-sm font-bold text-gray-700" style="font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;">5</div>
+                             <div class="text-center text-sm font-bold text-gray-700" style="font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;">6</div>
+                             <div class="text-center text-sm font-bold text-gray-700" style="font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;">7</div>
+                             <div class="text-center text-sm font-bold text-gray-700" style="font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;">8</div>
+                           </div>
+                         </div>
+                         
                          <div class="grid grid-cols-8 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-16 gap-1" id="idSelector">
                            <!-- ID buttons will be populated here -->
                          </div>
@@ -2291,11 +2549,23 @@
              }
              
              // Live Display 페이지를 새 탭에서 열기
-             function openLiveDisplayInNewTab() {
-               // Live Display 전용 HTML 파일 생성
-               const liveDisplayUrl = './live-display.html';
-               window.open(liveDisplayUrl, '_blank');
-             }
+            function openLiveDisplayInNewTab() {
+              // Live Display 전용 HTML 파일 생성
+              const liveDisplayUrl = './live-display.html';
+              window.open(liveDisplayUrl, '_blank');
+            }
+
+            // 지게차 디스플레이 페이지를 새 탭에서 열기
+            function openForkliftDisplay() {
+              const forkliftDisplayUrl = './forklift-display.html';
+              window.open(forkliftDisplayUrl, '_blank');
+            }
+            
+            // 트럭 상태 디스플레이 페이지를 새 탭에서 열기
+            function openTruckStatusDisplay() {
+              const truckStatusDisplayUrl = './live-truck-status.html';
+              window.open(truckStatusDisplayUrl, '_blank');
+            }
              
 
              // 시간을 분으로 변환하는 함수
@@ -2991,7 +3261,7 @@
                  nextWork: 'Siguiente Trabajo',
                  idSelection: '🎯 Selección de ID de Tarea',
                  startWork: '🚀 Iniciar Trabajo',
-                 cancelWork: '❌ Cancelar Inicio',
+                 cancelWork: '❌ Cancelar',
                  endWork: '⏹️ Finalizar Trabajo',
                  startTime: 'Hora de Inicio',
                  endTime: 'Hora de Finalización',
@@ -3541,7 +3811,12 @@
                   window.supervisorWorkStartTime = null;
                   stopSupervisorTimer();
                   console.log(`⏹️ Timer stopped for work sequence ${sequenceNumber}`);
-                 }
+                }
+                
+                // FORKLIFT DISPLAY에 완료 알림 전송
+                if (window.showForkliftNotification) {
+                  window.showForkliftNotification(sequenceNumber);
+                }
                  
                  displaySupervisorIdSelector();
                  displaySupervisorScheduleTable();
@@ -4018,12 +4293,12 @@
                  
                  if (calculatedStatus === 'completed') {
                    // 완료된 작업: 작업 시간 표시
-                   if (item.work_start_time && item.work_end_time) {
+                 if (item.work_start_time && item.work_end_time) {
                      // 시작시간과 종료시간이 있는 경우 실제 작업 시간 계산
-                     const startTime = parseTimeToMinutes(item.work_start_time);
-                     const endTime = parseTimeToMinutes(item.work_end_time);
-                     elapsedMinutes = endTime - startTime;
-                     elapsedTimeText = formatElapsedTime(elapsedMinutes);
+                   const startTime = parseTimeToMinutes(item.work_start_time);
+                   const endTime = parseTimeToMinutes(item.work_end_time);
+                   elapsedMinutes = endTime - startTime;
+                   elapsedTimeText = formatElapsedTime(elapsedMinutes);
                      console.log(`⏰ ${item.seq_no}번 작업 실제 시간: ${elapsedTimeText}`);
                    } else {
                      // 시간 정보가 없는 경우 기본값 표시 (예: 1시간)

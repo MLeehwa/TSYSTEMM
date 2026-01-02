@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mapping History - Return TM Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.6/dist/umd/supabase.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    
+    .status-mapped {
+      background-color: #DBEAFE;
+      color: #1E40AF;
+    }
+    
+    .status-unmapped {
+      background-color: #FEF3C7;
+      color: #92400E;
+    }
+    
+    .status-shipped {
+      background-color: #D1FAE5;
+      color: #065F46;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <h2 class="text-2xl font-bold text-gray-900 mb-2">Mapping History</h2>
+      <p class="text-gray-600">Return TM Management - 맵핑 이력 조회 (통합)</p>
+    </div>
+
+    <!-- Search Section -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+      <h3 class="text-lg font-semibold text-gray-800 mb-4">검색 조건</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Pallet No -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Pallet No</label>
+          <input 
+            type="text" 
+            id="filterPalletNo" 
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="팔렛 번호 (예: VWRT0001)"
+            onkeypress="if(event.key === 'Enter') searchHistory()"
+          />
+        </div>
+        
+        <!-- TM No -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">TM No</label>
+          <input 
+            type="text" 
+            id="filterTMNo" 
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="TM 번호"
+            onkeypress="if(event.key === 'Enter') searchHistory()"
+          />
+        </div>
+        
+        <!-- Mapping Date -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Mapping Date</label>
+          <input 
+            type="date" 
+            id="filterMappingDate" 
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="flex justify-end gap-3 mt-4">
+        <button 
+          onclick="clearSearch()" 
+          class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-semibold transition-colors"
+        >
+          초기화
+        </button>
+        <button 
+          onclick="searchHistory()" 
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+        >
+          검색
+        </button>
+        <button 
+          onclick="exportToExcel()" 
+          class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors"
+        >
+          Excel 다운로드
+        </button>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+      <div id="loadingIndicator" class="hidden text-center py-8">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <p class="mt-2 text-gray-600">데이터를 불러오는 중...</p>
+      </div>
+      
+      <div id="emptyState" class="text-center py-12">
+        <div class="text-6xl mb-4">📜</div>
+        <h3 class="text-xl font-semibold text-gray-700 mb-2">검색 조건을 입력하세요</h3>
+        <p class="text-gray-600">팔렛 번호, TM 번호, 또는 맵핑 날짜를 입력하고 검색 버튼을 클릭하여 맵핑 이력을 조회하세요.</p>
+      </div>
+      
+      <div id="historyResults" class="hidden">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold text-gray-800">맵핑 이력</h3>
+          <div class="text-sm text-gray-600">
+            총 <span id="resultCount" class="font-bold text-blue-600">0</span> 건
+          </div>
+        </div>
+        
+        <!-- Status Message -->
+        <div id="statusMessage" class="hidden mb-4 p-3 rounded-lg"></div>
+        
+        <!-- History Table -->
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pallet No</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TM No</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mapping Date</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unmapping Date</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shipping Date</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody" class="bg-white divide-y divide-gray-200">
+              <!-- Data will be inserted here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Supabase 설정
+    const SUPABASE_URL = 'https://wfnihtmmaebgjtdmazmo.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmbmlodG1tYWViZ2p0ZG1hem1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3NTY3NTcsImV4cCI6MjA2NTMzMjc1N30.FYfdgSvOT1qUvANGlqXCEGvSR2JujggU7T_Sjzys3HQ';
+    
+    let supabaseClient = null;
+    
+    // Supabase 초기화
+    async function initSupabase() {
+      try {
+        if (typeof supabase !== 'undefined') {
+          supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+          console.log('✅ Supabase initialized');
+        } else {
+          console.error('Supabase library not loaded');
+        }
+      } catch (error) {
+        console.error('Error initializing Supabase:', error);
+      }
+    }
+    
+    // 상태 메시지 표시
+    function showStatus(message, type = 'info') {
+      const statusDiv = document.getElementById('statusMessage');
+      if (!statusDiv) return;
+      
+      statusDiv.classList.remove('hidden');
+      statusDiv.className = `mb-4 p-3 rounded-lg ${
+        type === 'success' ? 'bg-green-100 text-green-800' :
+        type === 'error' ? 'bg-red-100 text-red-800' :
+        'bg-blue-100 text-blue-800'
+      }`;
+      statusDiv.textContent = message;
+      
+      if (type === 'success' || type === 'error') {
+        setTimeout(() => {
+          statusDiv.classList.add('hidden');
+        }, 5000);
+      }
+    }
+    
+    function hideStatus() {
+      const statusDiv = document.getElementById('statusMessage');
+      if (statusDiv) {
+        statusDiv.classList.add('hidden');
+      }
+    }
+    
+    // 이력 검색
+    async function searchHistory() {
+      const palletNo = document.getElementById('filterPalletNo').value.trim();
+      const tmNo = document.getElementById('filterTMNo').value.trim();
+      const mappingDate = document.getElementById('filterMappingDate').value;
+      
+      // 검색 조건이 없으면 전체 데이터 조회
+      
+      try {
+        showLoading(true);
+        hideStatus();
+        
+        if (!supabaseClient) {
+          await initSupabase();
+        }
+        
+        // 1. 현재 맵핑 데이터 조회 (vwtm_mapping)
+        let currentQuery = supabaseClient
+          .from('vwtm_mapping')
+          .select('*');
+        
+        if (palletNo) {
+          currentQuery = currentQuery.eq('pallet_no', palletNo);
+        }
+        if (tmNo) {
+          currentQuery = currentQuery.eq('tm_no', tmNo);
+        }
+        if (mappingDate) {
+          const startDate = new Date(mappingDate);
+          startDate.setHours(0, 0, 0, 0);
+          const endDate = new Date(mappingDate);
+          endDate.setHours(23, 59, 59, 999);
+          currentQuery = currentQuery
+            .gte('mapping_date', startDate.toISOString())
+            .lte('mapping_date', endDate.toISOString());
+        }
+        
+        const { data: currentMappings, error: currentError } = await currentQuery
+          .order('mapping_date', { ascending: true });
+        
+        if (currentError) {
+          throw currentError;
+        }
+        
+        // 2. 히스토리 데이터 조회 (vwtm_mapping_history)
+        let historyQuery = supabaseClient
+          .from('vwtm_mapping_history')
+          .select('*');
+        
+        if (palletNo) {
+          historyQuery = historyQuery.eq('pallet_no', palletNo);
+        }
+        if (tmNo) {
+          historyQuery = historyQuery.eq('tm_no', tmNo);
+        }
+        if (mappingDate) {
+          const startDate = new Date(mappingDate);
+          startDate.setHours(0, 0, 0, 0);
+          const endDate = new Date(mappingDate);
+          endDate.setHours(23, 59, 59, 999);
+          historyQuery = historyQuery
+            .gte('mapping_date', startDate.toISOString())
+            .lte('mapping_date', endDate.toISOString());
+        }
+        
+        const { data: historyMappings, error: historyError } = await historyQuery
+          .order('mapping_date', { ascending: true });
+        
+        if (historyError) {
+          throw historyError;
+        }
+        
+        // 3. 데이터 통합 및 정렬
+        const allMappings = [];
+        
+        // 현재 맵핑 데이터 추가 (상태: mapped 또는 shipped)
+        if (currentMappings) {
+          currentMappings.forEach(item => {
+            allMappings.push({
+              ...item,
+              status: item.shipping_date ? 'shipped' : 'mapped',
+              source: 'current'
+            });
+          });
+        }
+        
+        // 히스토리 데이터 추가 (상태: unmapped)
+        if (historyMappings) {
+          historyMappings.forEach(item => {
+            allMappings.push({
+              ...item,
+              status: 'unmapped',
+              source: 'history'
+            });
+          });
+        }
+        
+        // 날짜순 정렬 (mapping_date 기준)
+        allMappings.sort((a, b) => {
+          const dateA = new Date(a.mapping_date || 0);
+          const dateB = new Date(b.mapping_date || 0);
+          return dateA - dateB;
+        });
+        
+        displayHistory(allMappings);
+        
+        if (allMappings.length === 0) {
+          const hasFilter = palletNo || tmNo || mappingDate;
+          if (hasFilter) {
+            let searchConditions = [];
+            if (palletNo) searchConditions.push(`팔렛: ${palletNo}`);
+            if (tmNo) searchConditions.push(`TM: ${tmNo}`);
+            if (mappingDate) searchConditions.push(`맵핑일: ${mappingDate}`);
+            showStatus(`검색 조건에 맞는 맵핑 이력이 없습니다. (${searchConditions.join(', ')})`, 'info');
+          } else {
+            showStatus('맵핑 이력이 없습니다.', 'info');
+          }
+        } else {
+          const hasFilter = palletNo || tmNo || mappingDate;
+          if (hasFilter) {
+            showStatus(`총 ${allMappings.length}건의 이력을 찾았습니다.`, 'success');
+          } else {
+            showStatus(`전체 ${allMappings.length}건의 이력을 조회했습니다.`, 'success');
+          }
+        }
+        
+      } catch (error) {
+        console.error('Error searching history:', error);
+        showStatus('이력 조회 중 오류가 발생했습니다: ' + error.message, 'error');
+        displayHistory([]);
+      } finally {
+        showLoading(false);
+      }
+    }
+    
+    // 현재 조회된 데이터 저장 (엑셀 다운로드용)
+    let currentHistoryData = [];
+    
+    // 이력 표시
+    function displayHistory(data) {
+      // 현재 데이터 저장 (엑셀 다운로드용)
+      currentHistoryData = data || [];
+      
+      const emptyState = document.getElementById('emptyState');
+      const historyResults = document.getElementById('historyResults');
+      const tableBody = document.getElementById('historyTableBody');
+      const resultCount = document.getElementById('resultCount');
+      
+      if (!data || data.length === 0) {
+        emptyState.classList.remove('hidden');
+        historyResults.classList.add('hidden');
+        if (resultCount) resultCount.textContent = '0';
+        return;
+      }
+      
+      emptyState.classList.add('hidden');
+      historyResults.classList.remove('hidden');
+      if (resultCount) resultCount.textContent = data.length;
+      
+      if (!tableBody) return;
+      
+      tableBody.innerHTML = data.map(item => {
+        const status = item.status;
+        const statusText = status === 'mapped' ? 'Mapped' : 
+                          status === 'unmapped' ? 'Unmapped' : 
+                          'Shipped';
+        const statusClass = status === 'mapped' ? 'status-mapped' : 
+                           status === 'unmapped' ? 'status-unmapped' : 
+                           'status-shipped';
+        
+        const mappingDate = item.mapping_date 
+          ? new Date(item.mapping_date).toLocaleString('ko-KR', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            })
+          : '-';
+        
+        const unmappingDate = item.unmapping_date 
+          ? new Date(item.unmapping_date).toLocaleString('ko-KR', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            })
+          : '-';
+        
+        const shippingDate = item.shipping_date 
+          ? new Date(item.shipping_date).toLocaleString('ko-KR', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            })
+          : '-';
+        
+        const batch = item.shipping_batch ? `${item.shipping_batch}차` : '-';
+        
+        return `
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3 whitespace-nowrap">
+              <span class="status-badge ${statusClass}">${statusText}</span>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${item.pallet_no || '-'}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${item.tm_no || '-'}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${mappingDate}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${unmappingDate}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${shippingDate}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${batch}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+    
+    // 로딩 표시
+    function showLoading(show) {
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      if (loadingIndicator) {
+        if (show) {
+          loadingIndicator.classList.remove('hidden');
+        } else {
+          loadingIndicator.classList.add('hidden');
+        }
+      }
+    }
+    
+    // 검색 초기화
+    function clearSearch() {
+      document.getElementById('filterPalletNo').value = '';
+      document.getElementById('filterTMNo').value = '';
+      document.getElementById('filterMappingDate').value = '';
+      document.getElementById('emptyState').classList.remove('hidden');
+      document.getElementById('historyResults').classList.add('hidden');
+      currentHistoryData = [];
+      hideStatus();
+    }
+    
+    // Excel 다운로드
+    async function exportToExcel() {
+      try {
+        // 필터가 없으면 전체 데이터 조회
+        const palletNo = document.getElementById('filterPalletNo').value.trim();
+        const tmNo = document.getElementById('filterTMNo').value.trim();
+        const mappingDate = document.getElementById('filterMappingDate').value;
+        
+        const hasFilter = palletNo || tmNo || mappingDate;
+        
+        let dataToExport = currentHistoryData;
+        
+        // 필터가 없으면 전체 데이터 조회
+        if (!hasFilter || !dataToExport || dataToExport.length === 0) {
+          showStatus('전체 데이터를 불러오는 중...', 'info');
+          
+          if (!supabaseClient) {
+            await initSupabase();
+          }
+          
+          // 1. 현재 맵핑 데이터 전체 조회
+          const { data: currentMappings, error: currentError } = await supabaseClient
+            .from('vwtm_mapping')
+            .select('*')
+            .order('mapping_date', { ascending: true });
+          
+          if (currentError) {
+            throw currentError;
+          }
+          
+          // 2. 히스토리 데이터 전체 조회
+          const { data: historyMappings, error: historyError } = await supabaseClient
+            .from('vwtm_mapping_history')
+            .select('*')
+            .order('mapping_date', { ascending: true });
+          
+          if (historyError) {
+            throw historyError;
+          }
+          
+          // 3. 데이터 통합 및 정렬
+          const allMappings = [];
+          
+          // 현재 맵핑 데이터 추가
+          if (currentMappings) {
+            currentMappings.forEach(item => {
+              allMappings.push({
+                ...item,
+                status: item.shipping_date ? 'shipped' : 'mapped',
+                source: 'current'
+              });
+            });
+          }
+          
+          // 히스토리 데이터 추가
+          if (historyMappings) {
+            historyMappings.forEach(item => {
+              allMappings.push({
+                ...item,
+                status: 'unmapped',
+                source: 'history'
+              });
+            });
+          }
+          
+          // 날짜순 정렬
+          allMappings.sort((a, b) => {
+            const dateA = new Date(a.mapping_date || 0);
+            const dateB = new Date(b.mapping_date || 0);
+            return dateA - dateB;
+          });
+          
+          dataToExport = allMappings;
+        }
+        
+        if (!dataToExport || dataToExport.length === 0) {
+          showStatus('다운로드할 데이터가 없습니다.', 'error');
+          return;
+        }
+        
+        showStatus('Excel 파일 생성 중...', 'info');
+        
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Mapping History');
+        
+        // 헤더 추가
+        const headers = ['Status', 'Pallet No', 'TM No', 'Mapping Date', 'Unmapping Date', 'Shipping Date', 'Batch'];
+        const headerRow = worksheet.addRow(headers);
+        headerRow.font = { bold: true };
+        headerRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE0E0E0' }
+        };
+        headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+        
+        // 데이터 추가
+        dataToExport.forEach(item => {
+          const status = item.status === 'mapped' ? 'Mapped' : 
+                        item.status === 'unmapped' ? 'Unmapped' : 
+                        'Shipped';
+          
+          const mappingDate = item.mapping_date 
+            ? new Date(item.mapping_date).toISOString().slice(0, 19).replace('T', ' ')
+            : '-';
+          
+          const unmappingDate = item.unmapping_date 
+            ? new Date(item.unmapping_date).toISOString().slice(0, 19).replace('T', ' ')
+            : '-';
+          
+          const shippingDate = item.shipping_date 
+            ? new Date(item.shipping_date).toISOString().slice(0, 19).replace('T', ' ')
+            : '-';
+          
+          const batch = item.shipping_batch ? `${item.shipping_batch}차` : '-';
+          
+          worksheet.addRow([
+            status,
+            item.pallet_no || '-',
+            item.tm_no || '-',
+            mappingDate,
+            unmappingDate,
+            shippingDate,
+            batch
+          ]);
+        });
+        
+        // 컬럼 너비 조정
+        worksheet.columns[0].width = 12; // Status
+        worksheet.columns[1].width = 15; // Pallet No
+        worksheet.columns[2].width = 15; // TM No
+        worksheet.columns[3].width = 20; // Mapping Date
+        worksheet.columns[4].width = 20; // Unmapping Date
+        worksheet.columns[5].width = 20; // Shipping Date
+        worksheet.columns[6].width = 10; // Batch
+        
+        // 자동 필터 설정
+        const headerRowNumber = worksheet.getRow(1).number;
+        const lastRowNumber = worksheet.rowCount;
+        worksheet.autoFilter = {
+          from: { row: headerRowNumber, column: 1 },
+          to: { row: lastRowNumber, column: 7 }
+        };
+        
+        // 파일 다운로드
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { 
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        });
+        
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        link.download = `Mapping_History_${dateStr}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        showStatus('Excel 다운로드 완료', 'success');
+        
+      } catch (error) {
+        console.error('Error exporting to Excel:', error);
+        showStatus('Excel 다운로드 중 오류가 발생했습니다: ' + error.message, 'error');
+      }
+    }
+    
+    // 페이지 로드 시 Supabase 초기화
+    document.addEventListener('DOMContentLoaded', function() {
+      initSupabase();
+    });
+  </script>
+</body>
+</html>

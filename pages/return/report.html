@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report - Return TM Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.6/dist/umd/supabase.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <h2 class="text-2xl font-bold text-gray-900 mb-2">Report</h2>
+      <p class="text-gray-600">Return TM Management - 리포트 조회 및 생성</p>
+    </div>
+
+    <!-- Search/Filter Section -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+      <h3 class="text-lg font-semibold text-gray-800 mb-4">검색 조건</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Pallet No -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Pallet No</label>
+          <input 
+            type="text" 
+            id="filterPalletNo" 
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="팔렛 번호"
+          />
+        </div>
+        
+        <!-- TM No -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">TM No</label>
+          <input 
+            type="text" 
+            id="filterTMNo" 
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="TM 번호"
+          />
+        </div>
+        
+        <!-- Mapping Date -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Mapping Date</label>
+          <input 
+            type="date" 
+            id="filterMappingDate" 
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        
+        <!-- Shipped Date -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Shipped Date</label>
+          <input 
+            type="date" 
+            id="filterShippedDate" 
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="flex justify-end gap-3 mt-4">
+        <button 
+          onclick="clearFilters()" 
+          class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-semibold transition-colors"
+        >
+          초기화
+        </button>
+        <button 
+          onclick="searchData()" 
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+        >
+          검색
+        </button>
+        <button 
+          onclick="showExportDateDialog()" 
+          class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors"
+        >
+          Excel 다운로드
+        </button>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold text-gray-800">조회 결과</h3>
+        <div class="text-sm text-gray-600">
+          총 <span id="resultCount" class="font-bold text-blue-600">0</span> 건
+        </div>
+      </div>
+      
+      <!-- Status Message -->
+      <div id="statusMessage" class="hidden mb-4 p-3 rounded-lg"></div>
+      
+      <!-- Loading -->
+      <div id="loadingIndicator" class="hidden text-center py-8">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <p class="mt-2 text-gray-600">데이터를 불러오는 중...</p>
+      </div>
+      
+      <!-- Data Table -->
+      <div id="dataTableContainer" class="hidden overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pallet No</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TM No</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mapping Date</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shipped Date</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+            </tr>
+          </thead>
+          <tbody id="dataTableBody" class="bg-white divide-y divide-gray-200">
+            <!-- Data will be inserted here -->
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Empty State -->
+      <div id="emptyState" class="text-center py-12">
+        <div class="text-6xl mb-4">📊</div>
+        <h3 class="text-xl font-semibold text-gray-700 mb-2">데이터가 없습니다</h3>
+        <p class="text-gray-600">검색 조건을 입력하고 검색 버튼을 클릭하세요.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Date Dialog -->
+  <div id="exportDateDialog" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+      <h3 class="text-lg font-bold text-gray-800 mb-4">엑셀 다운로드 날짜 선택</h3>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Shipped Date</label>
+        <input 
+          type="date" 
+          id="exportShippedDate" 
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          required
+        />
+      </div>
+      <div class="flex justify-end gap-3">
+        <button 
+          onclick="closeExportDateDialog()" 
+          class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-semibold transition-colors"
+        >
+          취소
+        </button>
+        <button 
+          onclick="exportToExcel()" 
+          class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors"
+        >
+          다운로드
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Supabase 설정
+    const SUPABASE_URL = 'https://wfnihtmmaebgjtdmazmo.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmbmlodG1tYWViZ2p0ZG1hem1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3NTY3NTcsImV4cCI6MjA2NTMzMjc1N30.FYfdgSvOT1qUvANGlqXCEGvSR2JujggU7T_Sjzys3HQ';
+    
+    let supabaseClient = null;
+    let currentData = [];
+    
+    // Supabase 초기화
+    async function initSupabase() {
+      try {
+        if (typeof supabase !== 'undefined') {
+          supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+          console.log('✅ Supabase initialized');
+          return true;
+        } else {
+          console.error('Supabase library not loaded');
+          return false;
+        }
+      } catch (error) {
+        console.error('Error initializing Supabase:', error);
+        return false;
+      }
+    }
+    
+    // 데이터 검색
+    async function searchData() {
+      try {
+        if (!supabaseClient) {
+          await initSupabase();
+        }
+        
+        // 검색 조건 가져오기
+        const palletNo = document.getElementById('filterPalletNo').value.trim();
+        const tmNo = document.getElementById('filterTMNo').value.trim();
+        const mappingDate = document.getElementById('filterMappingDate').value;
+        const shippedDate = document.getElementById('filterShippedDate').value;
+        
+        // 로딩 표시
+        showLoading(true);
+        hideStatus();
+        
+        // 쿼리 빌더
+        let query = supabaseClient
+          .from('vwtm_mapping')
+          .select('*, shipping_batch')
+          .order('mapping_date', { ascending: false });
+        
+        // 필터 적용
+        if (palletNo) {
+          query = query.ilike('pallet_no', `%${palletNo}%`);
+        }
+        
+        if (tmNo) {
+          query = query.ilike('tm_no', `%${tmNo}%`);
+        }
+        
+        if (mappingDate) {
+          const startDate = new Date(mappingDate);
+          startDate.setHours(0, 0, 0, 0);
+          const endDate = new Date(mappingDate);
+          endDate.setHours(23, 59, 59, 999);
+          
+          query = query
+            .gte('mapping_date', startDate.toISOString())
+            .lte('mapping_date', endDate.toISOString());
+        }
+        
+        if (shippedDate) {
+          const startDate = new Date(shippedDate);
+          startDate.setHours(0, 0, 0, 0);
+          const endDate = new Date(shippedDate);
+          endDate.setHours(23, 59, 59, 999);
+          
+          query = query
+            .gte('shipping_date', startDate.toISOString())
+            .lte('shipping_date', endDate.toISOString());
+        }
+        
+        const { data, error } = await query;
+        
+        if (error) {
+          throw error;
+        }
+        
+        currentData = data || [];
+        displayData(currentData);
+        showStatus(`검색 완료: ${currentData.length}건`, 'success');
+        
+      } catch (error) {
+        console.error('Error searching data:', error);
+        showStatus('검색 중 오류가 발생했습니다: ' + error.message, 'error');
+        displayData([]);
+      } finally {
+        showLoading(false);
+      }
+    }
+    
+    // 데이터 표시
+    function displayData(data) {
+      const tableBody = document.getElementById('dataTableBody');
+      const tableContainer = document.getElementById('dataTableContainer');
+      const emptyState = document.getElementById('emptyState');
+      const resultCount = document.getElementById('resultCount');
+      
+      resultCount.textContent = data.length;
+      
+      if (data.length === 0) {
+        tableContainer.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      
+      tableContainer.classList.remove('hidden');
+      emptyState.classList.add('hidden');
+      
+      tableBody.innerHTML = data.map(item => {
+        const mappingDate = item.mapping_date 
+          ? new Date(item.mapping_date).toISOString().slice(0, 10)
+          : '-';
+        const shippedDate = item.shipping_date 
+          ? new Date(item.shipping_date).toISOString().slice(0, 10)
+          : '-';
+        const batch = item.shipping_batch ? `${item.shipping_batch}차` : '-';
+        
+        return `
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${item.pallet_no || '-'}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${item.tm_no || '-'}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${mappingDate}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${shippedDate}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${batch}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+    
+    // 필터 초기화
+    function clearFilters() {
+      document.getElementById('filterPalletNo').value = '';
+      document.getElementById('filterTMNo').value = '';
+      document.getElementById('filterMappingDate').value = '';
+      document.getElementById('filterShippedDate').value = '';
+      currentData = [];
+      displayData([]);
+      hideStatus();
+    }
+    
+    // 엑셀 다운로드 날짜 선택 다이얼로그 표시
+    window.showExportDateDialog = function() {
+      // 필터 검색이 활성화되어 있는지 확인
+      const palletNo = document.getElementById('filterPalletNo').value.trim();
+      const tmNo = document.getElementById('filterTMNo').value.trim();
+      const mappingDate = document.getElementById('filterMappingDate').value;
+      const shippedDate = document.getElementById('filterShippedDate').value;
+      
+      const hasFilter = palletNo || tmNo || mappingDate || shippedDate;
+      
+      // 필터가 있으면 검색된 데이터가 있는지 확인
+      if (hasFilter) {
+        if (!currentData || currentData.length === 0) {
+          showStatus('다운로드할 데이터가 없습니다. 먼저 검색을 실행하세요.', 'error');
+          return;
+        }
+      }
+      
+      // 항상 날짜 선택 다이얼로그 표시
+      const dialog = document.getElementById('exportDateDialog');
+      if (dialog) {
+        dialog.classList.remove('hidden');
+        // 오늘 날짜를 기본값으로 설정
+        const today = new Date().toISOString().slice(0, 10);
+        const dateInput = document.getElementById('exportShippedDate');
+        if (dateInput) {
+          dateInput.value = today;
+        }
+      }
+    }
+    
+    // 전체 데이터 엑셀 다운로드 (필터 없을 때)
+    async function exportAllDataToExcel() {
+      try {
+        showStatus('전체 데이터를 불러오는 중...', 'info');
+        
+        if (!supabaseClient) {
+          await initSupabase();
+        }
+        
+        // 전체 데이터 조회
+        const { data, error } = await supabaseClient
+          .from('vwtm_mapping')
+          .select('*, shipping_batch')
+          .order('mapping_date', { ascending: false });
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (!data || data.length === 0) {
+          showStatus('다운로드할 데이터가 없습니다.', 'error');
+          return;
+        }
+        
+        showStatus('Excel 파일 생성 중...', 'info');
+        
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('All Data');
+        
+        // 헤더 추가
+        const headers = ['Pallet No', 'TM No', 'Mapping Date', 'Shipped Date', 'Batch'];
+        const headerRow = worksheet.addRow(headers);
+        headerRow.font = { bold: true };
+        headerRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE0E0E0' }
+        };
+        headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+        
+        // 데이터 추가
+        data.forEach(item => {
+          const mappingDate = item.mapping_date 
+            ? new Date(item.mapping_date).toISOString().slice(0, 10)
+            : '-';
+          const shippedDate = item.shipping_date 
+            ? new Date(item.shipping_date).toISOString().slice(0, 10)
+            : '-';
+          const batch = item.shipping_batch ? `${item.shipping_batch}차` : '-';
+          
+          worksheet.addRow([
+            item.pallet_no || '-',
+            item.tm_no || '-',
+            mappingDate,
+            shippedDate,
+            batch
+          ]);
+        });
+        
+        // 컬럼 너비 조정
+        worksheet.columns[0].width = 15; // Pallet No
+        worksheet.columns[1].width = 15; // TM No
+        worksheet.columns[2].width = 15; // Mapping Date
+        worksheet.columns[3].width = 15; // Shipped Date
+        worksheet.columns[4].width = 10; // Batch
+        
+        // 날짜 컬럼 형식 설정
+        const mappingDateCol = worksheet.getColumn(3);
+        const shippedDateCol = worksheet.getColumn(4);
+        mappingDateCol.numFmt = 'yyyy-mm-dd';
+        shippedDateCol.numFmt = 'yyyy-mm-dd';
+        
+        // 자동 필터 설정
+        const headerRowNumber = worksheet.getRow(1).number;
+        const lastRowNumber = worksheet.rowCount;
+        worksheet.autoFilter = {
+          from: { row: headerRowNumber, column: 1 },
+          to: { row: lastRowNumber, column: 5 }
+        };
+        
+        // 파일 다운로드
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { 
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        });
+        
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        link.download = `Mapping_Report_All_${dateStr}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        showStatus('Excel 다운로드 완료', 'success');
+        
+      } catch (error) {
+        console.error('Error exporting to Excel:', error);
+        showStatus('Excel 다운로드 중 오류가 발생했습니다: ' + error.message, 'error');
+      }
+    }
+    
+    // 엑셀 다운로드 날짜 선택 다이얼로그 닫기
+    function closeExportDateDialog() {
+      const dialog = document.getElementById('exportDateDialog');
+      if (dialog) {
+        dialog.classList.add('hidden');
+      }
+    }
+    
+    // Excel 다운로드
+    async function exportToExcel() {
+      const exportDateInput = document.getElementById('exportShippedDate');
+      if (!exportDateInput || !exportDateInput.value) {
+        showStatus('날짜를 선택해주세요.', 'error');
+        return;
+      }
+      
+      const selectedDate = exportDateInput.value;
+      
+      try {
+        showStatus('Excel 파일 생성 중...', 'info');
+        closeExportDateDialog();
+        
+        const workbook = new ExcelJS.Workbook();
+        
+        // 1. 전체 데이터 시트
+        const worksheet = workbook.addWorksheet('All Data');
+        
+        // 헤더 추가
+        const headers = ['Pallet No', 'TM No', 'Mapping Date', 'Shipped Date', 'Batch'];
+        const headerRow = worksheet.addRow(headers);
+        headerRow.font = { bold: true };
+        headerRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE0E0E0' }
+        };
+        headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+        
+        // 필터가 없으면 전체 데이터를 먼저 로드
+        const palletNo = document.getElementById('filterPalletNo').value.trim();
+        const tmNo = document.getElementById('filterTMNo').value.trim();
+        const mappingDate = document.getElementById('filterMappingDate').value;
+        const shippedDate = document.getElementById('filterShippedDate').value;
+        
+        const hasFilter = palletNo || tmNo || mappingDate || shippedDate;
+        
+        let dataToExport = currentData;
+        
+        // 필터가 없으면 전체 데이터 조회
+        if (!hasFilter) {
+          if (!supabaseClient) {
+            await initSupabase();
+          }
+          
+          const { data, error } = await supabaseClient
+            .from('vwtm_mapping')
+            .select('*, shipping_batch')
+            .order('mapping_date', { ascending: false });
+          
+          if (error) {
+            throw error;
+          }
+          
+          dataToExport = data || [];
+        }
+        
+        // 데이터 추가
+        dataToExport.forEach(item => {
+          const mappingDate = item.mapping_date 
+            ? new Date(item.mapping_date).toISOString().slice(0, 10)
+            : '-';
+          const shippedDate = item.shipping_date 
+            ? new Date(item.shipping_date).toISOString().slice(0, 10)
+            : '-';
+          const batch = item.shipping_batch ? `${item.shipping_batch}차` : '-';
+          
+          worksheet.addRow([
+            item.pallet_no || '-',
+            item.tm_no || '-',
+            mappingDate,
+            shippedDate,
+            batch
+          ]);
+        });
+        
+        // 컬럼 너비 조정
+        worksheet.columns[0].width = 15; // Pallet No
+        worksheet.columns[1].width = 15; // TM No
+        worksheet.columns[2].width = 15; // Mapping Date
+        worksheet.columns[3].width = 15; // Shipped Date
+        worksheet.columns[4].width = 10; // Batch
+        
+        // 날짜 컬럼 형식 설정
+        const mappingDateCol = worksheet.getColumn(3);
+        const shippedDateCol = worksheet.getColumn(4);
+        mappingDateCol.numFmt = 'yyyy-mm-dd';
+        shippedDateCol.numFmt = 'yyyy-mm-dd';
+        
+        // 자동 필터 설정
+        const headerRowNumber = worksheet.getRow(1).number;
+        const lastRowNumber = worksheet.rowCount;
+        worksheet.autoFilter = {
+          from: { row: headerRowNumber, column: 1 },
+          to: { row: lastRowNumber, column: 5 }
+        };
+        
+        // 2. 선택한 날짜의 Shipped Date 매칭 데이터 시트
+        // 선택한 날짜의 shipped date가 있는 데이터 필터링 (날짜 문자열로 비교)
+        const shippedData = dataToExport.filter(item => {
+          if (!item.shipping_date) return false;
+          
+          // shipping_date를 날짜 문자열로 변환 (YYYY-MM-DD 형식)
+          let shippingDateStr = '';
+          try {
+            if (item.shipping_date instanceof Date) {
+              shippingDateStr = item.shipping_date.toISOString().slice(0, 10);
+            } else if (typeof item.shipping_date === 'string') {
+              // ISO 문자열이거나 날짜 문자열인 경우
+              const dateObj = new Date(item.shipping_date);
+              if (isNaN(dateObj.getTime())) {
+                // 유효하지 않은 날짜
+                return false;
+              }
+              shippingDateStr = dateObj.toISOString().slice(0, 10);
+            } else {
+              return false;
+            }
+          } catch (e) {
+            console.error('Error parsing shipping_date:', item.shipping_date, e);
+            return false;
+          }
+          
+          // 선택한 날짜와 비교 (YYYY-MM-DD 형식)
+          const matches = shippingDateStr === selectedDate;
+          return matches;
+        });
+        
+        console.log(`Selected date: ${selectedDate}, Found ${shippedData.length} matching records out of ${dataToExport.length} total`);
+        
+        // 날짜와 차수별로 그룹화
+        const groupedData = {};
+        shippedData.forEach(item => {
+          const shippingDate = new Date(item.shipping_date).toISOString().slice(0, 10);
+          const batch = item.shipping_batch || 0;
+          const key = `${shippingDate}_${batch}`;
+          
+          if (!groupedData[key]) {
+            groupedData[key] = {
+              date: shippingDate,
+              batch: batch,
+              items: []
+            };
+          }
+          groupedData[key].items.push(item);
+        });
+        
+        // 날짜와 차수별로 정렬
+        const sortedGroups = Object.values(groupedData).sort((a, b) => {
+          if (a.date !== b.date) {
+            return a.date.localeCompare(b.date);
+          }
+          return a.batch - b.batch;
+        });
+        
+        // 별도 시트 생성 (선택한 날짜로 시트 이름 설정) - 항상 생성
+        const shippedWorksheet = workbook.addWorksheet(selectedDate);
+        
+        if (sortedGroups.length > 0) {
+          // 전체 헤더 추가 (필터 적용을 위해)
+          const headers = ['Date', 'Batch', 'Pallet No', 'TM No'];
+          const headerRow = shippedWorksheet.addRow(headers);
+          headerRow.font = { bold: true };
+          headerRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFE0E0E0' }
+          };
+          headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+          
+          // 데이터 추가 (날짜, 차수, 팔렛 번호, TM 번호)
+          sortedGroups.forEach(group => {
+            group.items.forEach(item => {
+              shippedWorksheet.addRow([
+                group.date,
+                `${group.batch}차`,
+                item.pallet_no || '-',
+                item.tm_no || '-'
+              ]);
+            });
+          });
+          
+          // 컬럼 너비 조정
+          shippedWorksheet.columns[0].width = 15; // Date
+          shippedWorksheet.columns[1].width = 12; // Batch
+          shippedWorksheet.columns[2].width = 20; // Pallet No
+          shippedWorksheet.columns[3].width = 20; // TM No
+          
+          // 날짜 컬럼 형식 설정
+          const shippedDateCol = shippedWorksheet.getColumn(1);
+          shippedDateCol.numFmt = 'yyyy-mm-dd';
+          
+          // 자동 필터 설정 (시트 2)
+          const shippedHeaderRowNumber = headerRow.number;
+          const shippedLastRowNumber = shippedWorksheet.rowCount;
+          shippedWorksheet.autoFilter = {
+            from: { row: shippedHeaderRowNumber, column: 1 },
+            to: { row: shippedLastRowNumber, column: 4 }
+          };
+        } else {
+          // 데이터가 없을 때도 시트는 생성하되 메시지 표시
+          shippedWorksheet.addRow(['선택한 날짜에 배송된 데이터가 없습니다.']);
+        }
+        
+        // 3. 날짜별 요약 시트 (Shipping Date Summary)
+        const summaryWorksheet = workbook.addWorksheet('Shipping Summary');
+        
+        // 전체 데이터에서 shipping_date가 있는 데이터만 필터링
+        const allShippedData = dataToExport.filter(item => {
+          if (!item.shipping_date) return false;
+          try {
+            const dateObj = new Date(item.shipping_date);
+            return !isNaN(dateObj.getTime());
+          } catch (e) {
+            return false;
+          }
+        });
+        
+        // 날짜별로 그룹화하여 요약 데이터 생성
+        const dateSummary = {};
+        allShippedData.forEach(item => {
+          try {
+            const shippingDate = new Date(item.shipping_date).toISOString().slice(0, 10);
+            const batch = item.shipping_batch || 0;
+            
+            if (!dateSummary[shippingDate]) {
+              dateSummary[shippingDate] = {
+                date: shippingDate,
+                batches: new Set(),
+                tmCount: 0
+              };
+            }
+            
+            dateSummary[shippingDate].batches.add(batch);
+            dateSummary[shippingDate].tmCount++;
+          } catch (e) {
+            console.error('Error processing item for summary:', item, e);
+          }
+        });
+        
+        // 날짜별로 정렬
+        const sortedSummary = Object.values(dateSummary).sort((a, b) => {
+          return a.date.localeCompare(b.date);
+        });
+        
+        // 헤더 추가
+        const summaryHeaders = ['Shipping Date', '차량수', 'TM Qty'];
+        const summaryHeaderRow = summaryWorksheet.addRow(summaryHeaders);
+        summaryHeaderRow.font = { bold: true };
+        summaryHeaderRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE0E0E0' }
+        };
+        summaryHeaderRow.alignment = { horizontal: 'center', vertical: 'middle' };
+        
+        // 데이터 추가
+        sortedSummary.forEach(summary => {
+          const batchCount = summary.batches.size;
+          summaryWorksheet.addRow([
+            summary.date,
+            batchCount,
+            summary.tmCount
+          ]);
+        });
+        
+        // 컬럼 너비 조정
+        summaryWorksheet.columns[0].width = 15; // Shipping Date
+        summaryWorksheet.columns[1].width = 12; // 차량수
+        summaryWorksheet.columns[2].width = 12; // TM Qty
+        
+        // 날짜 컬럼 형식 설정
+        const summaryDateCol = summaryWorksheet.getColumn(1);
+        summaryDateCol.numFmt = 'yyyy-mm-dd';
+        
+        // 숫자 컬럼 형식 설정
+        const batchCountCol = summaryWorksheet.getColumn(2);
+        const tmQtyCol = summaryWorksheet.getColumn(3);
+        batchCountCol.numFmt = '0';
+        tmQtyCol.numFmt = '0';
+        
+        // 자동 필터 설정 (시트 3)
+        const summaryHeaderRowNumber = summaryWorksheet.getRow(1).number;
+        const summaryLastRowNumber = summaryWorksheet.rowCount;
+        summaryWorksheet.autoFilter = {
+          from: { row: summaryHeaderRowNumber, column: 1 },
+          to: { row: summaryLastRowNumber, column: 3 }
+        };
+        
+        // 파일 다운로드
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { 
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        });
+        
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const dateStr = selectedDate.replace(/-/g, '');
+        link.download = `Mapping_Report_${dateStr}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        showStatus('Excel 다운로드 완료', 'success');
+        
+      } catch (error) {
+        console.error('Error exporting to Excel:', error);
+        showStatus('Excel 다운로드 중 오류가 발생했습니다: ' + error.message, 'error');
+      }
+    }
+    
+    // 상태 메시지 표시
+    function showStatus(message, type) {
+      const statusDiv = document.getElementById('statusMessage');
+      if (!statusDiv) return;
+      
+      statusDiv.classList.remove('hidden');
+      
+      const colors = {
+        success: 'bg-green-100 border-green-500 text-green-800',
+        error: 'bg-red-100 border-red-500 text-red-800',
+        info: 'bg-blue-100 border-blue-500 text-blue-800'
+      };
+      
+      statusDiv.className = `p-3 rounded-lg border-2 ${colors[type] || colors.info} font-semibold text-sm`;
+      statusDiv.textContent = message;
+    }
+    
+    // 상태 메시지 숨기기
+    function hideStatus() {
+      const statusDiv = document.getElementById('statusMessage');
+      if (statusDiv) {
+        statusDiv.classList.add('hidden');
+      }
+    }
+    
+    // 로딩 표시
+    function showLoading(show) {
+      const loading = document.getElementById('loadingIndicator');
+      const tableContainer = document.getElementById('dataTableContainer');
+      const emptyState = document.getElementById('emptyState');
+      
+      if (show) {
+        loading.classList.remove('hidden');
+        tableContainer.classList.add('hidden');
+        emptyState.classList.add('hidden');
+      } else {
+        loading.classList.add('hidden');
+      }
+    }
+    
+    // Enter 키로 검색
+    document.addEventListener('DOMContentLoaded', async function() {
+      await initSupabase();
+      
+      // Enter 키 이벤트
+      const inputs = ['filterPalletNo', 'filterTMNo', 'filterMappingDate', 'filterShippedDate'];
+      inputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+          input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+              searchData();
+            }
+          });
+        }
+      });
+    });
+  </script>
+</body>
+</html>

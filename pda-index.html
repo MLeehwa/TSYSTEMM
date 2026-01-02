@@ -1,0 +1,1726 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDA System - LEEHWA VW TM System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.6/dist/umd/supabase.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    
+    .scan-input {
+      font-size: 1.5rem;
+      padding: 1rem;
+      text-align: center;
+      letter-spacing: 0.1em;
+    }
+    
+    .scan-result {
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .beep {
+      animation: beep 0.2s;
+    }
+    
+    @keyframes beep {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <div class="min-h-screen p-4 md:p-8">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow-md p-3 md:p-4 mb-4 md:mb-6">
+      <div class="flex items-center justify-between">
+        <h1 class="text-xl md:text-2xl font-bold text-gray-800">PDA System</h1>
+        <button onclick="goToHome()" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-semibold flex items-center text-sm md:text-base">
+          <span class="mr-1 md:mr-2">🏠</span>
+          <span>Home</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- PDA Menu Grid -->
+    <div id="menuGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+      <!-- Mapping Menu -->
+      <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer" onclick="openPDAMenu('mapping')">
+        <div class="text-5xl mb-4 text-center">🗺️</div>
+        <h3 class="text-xl font-bold text-gray-800 text-center">Mapping</h3>
+      </div>
+
+      <!-- Shipping Menu -->
+      <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer" onclick="openPDAMenu('shipping')">
+        <div class="text-5xl mb-4 text-center">🚚</div>
+        <h3 class="text-xl font-bold text-gray-800 text-center">Shipping</h3>
+      </div>
+
+      <!-- Find Menu -->
+      <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer" onclick="openPDAMenu('find')">
+        <div class="text-5xl mb-4 text-center">🔍</div>
+        <h3 class="text-xl font-bold text-gray-800 text-center">Find</h3>
+      </div>
+    </div>
+
+    <!-- Active Menu Content -->
+    <div id="menuContent" class="bg-white rounded-lg shadow-md p-6" style="display: none;">
+    </div>
+  </div>
+
+  <script>
+    // Supabase 설정
+    const SUPABASE_URL = 'https://wfnihtmmaebgjtdmazmo.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmbmlodG1tYWViZ2p0ZG1hem1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3NTY3NTcsImV4cCI6MjA2NTMzMjc1N30.FYfdgSvOT1qUvANGlqXCEGvSR2JujggU7T_Sjzys3HQ';
+    
+    let supabaseClient = null;
+    let scanHistory = [];
+    let todayScans = 0;
+    let successCount = 0;
+    let errorCount = 0;
+    
+    // Mapping 관련 변수
+    let currentPalletNo = null;
+    let mappingState = 'pallet'; // 'pallet' 또는 'tm'
+    let scannedTMs = []; // 스캔된 TM 목록
+    let existingMappedTMs = []; // 기존 맵핑된 TM 목록
+    let palletValidated = false; // 팔렛 번호 검증 여부
+    
+    // Shipping 관련 변수
+    let shippingPallets = []; // Shipping용 스캔한 팔렛 목록
+    let shippingMappedTMs = []; // Shipping용 맵핑된 TM 목록 (모든 팔렛 합산)
+    
+    // Find 관련 변수
+    let findResults = []; // Find 결과 목록
+
+
+    // 홈으로 돌아가기 (메뉴 선택 화면으로)
+    function goToHome() {
+      const menuGrid = document.getElementById('menuGrid');
+      const menuContent = document.getElementById('menuContent');
+      
+      if (menuGrid) {
+        menuGrid.style.display = 'grid';
+      }
+      if (menuContent) {
+        menuContent.style.display = 'none';
+        menuContent.innerHTML = '';
+      }
+      
+      // 상태 초기화
+      currentPalletNo = null;
+      mappingState = 'pallet';
+      scannedTMs = [];
+      palletValidated = false;
+    }
+
+    // Supabase 초기화
+    async function initSupabase() {
+      try {
+        if (typeof supabase !== 'undefined') {
+          supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+          console.log('✅ Supabase initialized');
+          return true;
+        } else {
+          console.error('Supabase library not loaded');
+          return false;
+        }
+      } catch (error) {
+        console.error('Error initializing Supabase:', error);
+        return false;
+      }
+    }
+    
+    // PDA 메뉴 열기
+    window.openPDAMenu = function(menuType) {
+      const menuGrid = document.getElementById('menuGrid');
+      const menuContent = document.getElementById('menuContent');
+      
+      // 메뉴 그리드 숨기기
+      if (menuGrid) {
+        menuGrid.style.display = 'none';
+      }
+      
+      // 메뉴 컨텐츠 표시
+      if (menuContent) {
+        menuContent.style.display = 'block';
+      }
+      
+      if (menuType === 'mapping') {
+        currentPalletNo = null;
+        mappingState = 'pallet';
+        scannedTMs = [];
+        palletValidated = false;
+        menuContent.innerHTML = `
+          <div class="space-y-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Mapping</h2>
+            
+            <!-- TM Count Card (팔렛 위쪽) -->
+            <div id="tmCountCard" class="bg-blue-600 text-white rounded-lg p-4 mb-4 hidden">
+              <div class="text-center">
+                <div class="text-sm font-semibold mb-1">TM Count</div>
+                <div class="text-4xl font-bold" id="tmCountCardValue">0</div>
+              </div>
+            </div>
+            
+            <div id="palletScanSection" class="bg-blue-50 border-2 border-blue-500 rounded-lg p-4">
+              <div class="mb-3">
+                <label class="block text-base font-semibold text-gray-800 mb-2">1. Pallet No</label>
+                <input 
+                  type="text" 
+                  id="palletInput" 
+                  class="scan-input w-full border-2 border-blue-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Scan Pallet"
+                  autofocus
+                  autocomplete="off"
+                />
+              </div>
+              <div id="palletDisplay" class="mt-3 hidden">
+                <div class="bg-white rounded-lg p-3 border-2 border-green-500">
+                  <div class="flex justify-between items-center">
+                    <div>
+                      <div class="text-xl font-bold text-green-700" id="scannedPalletNo"></div>
+                    </div>
+                    <button onclick="unmappingPallet()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg font-semibold text-xs">
+                      UNMAPPING
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div id="tmScanSection" class="bg-green-50 border-2 border-green-500 rounded-lg p-4 hidden mt-4">
+              <!-- Action Buttons (TM Code 위에 배치) -->
+              <div id="actionButtons" class="flex space-x-3 mb-3 hidden">
+                <button onclick="saveMapping()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 px-4 rounded-lg font-bold text-base transition-colors">
+                  Save
+                </button>
+                <button onclick="clearMapping()" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2.5 px-4 rounded-lg font-bold text-base transition-colors">
+                  Clear
+                </button>
+              </div>
+              
+              <div class="mb-3">
+                <label class="block text-base font-semibold text-gray-800 mb-2">2. TM Code</label>
+                <input 
+                  type="text" 
+                  id="tmInput" 
+                  class="scan-input w-full border-2 border-green-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="Scan TM"
+                  autocomplete="off"
+                />
+              </div>
+              <div id="tmList" class="mt-3 space-y-2 max-h-40 overflow-y-auto"></div>
+            </div>
+            
+            <!-- 기존 맵핑된 TM 리스트 -->
+            <div id="existingMappingsSection" class="bg-yellow-50 border-2 border-yellow-500 rounded-lg p-4 hidden mt-4">
+              <div class="mb-2">
+                <h3 class="text-base font-bold text-gray-800">Existing Mappings</h3>
+              </div>
+              <div id="existingMappingsList" class="space-y-1.5 max-h-40 overflow-y-auto"></div>
+            </div>
+            
+            <div id="mappingStatus" class="hidden"></div>
+          </div>
+        `;
+        
+        // 이벤트 리스너 설정
+        setTimeout(() => {
+          const palletInput = document.getElementById('palletInput');
+          const tmInput = document.getElementById('tmInput');
+          
+          if (palletInput) {
+            let palletScanTimeout;
+            // PDA는 엔터키가 없으므로 입력값 변경으로 자동 처리
+            palletInput.addEventListener('input', function(e) {
+              const value = e.target.value.trim();
+              // 팔렛 번호 형식: VWRT0001 (8자리 이상)
+              if (value.length >= 8) {
+                clearTimeout(palletScanTimeout);
+                palletScanTimeout = setTimeout(() => {
+                  handlePalletScan();
+                }, 300); // 입력 완료 후 300ms 대기
+              }
+            });
+            // 엔터키도 지원 (혹시 모를 경우)
+            palletInput.addEventListener('keydown', function(e) {
+              if (e.key === 'Enter' || e.keyCode === 13) {
+                e.preventDefault();
+                clearTimeout(palletScanTimeout);
+                handlePalletScan();
+              }
+            });
+            // 포커스 설정 (더 확실하게)
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                palletInput.focus();
+              }, 50);
+            });
+          }
+          
+          if (tmInput) {
+            let tmScanTimeout;
+            // PDA는 엔터키가 없으므로 입력값 변경으로 자동 처리
+            tmInput.addEventListener('input', function(e) {
+              const value = e.target.value.trim();
+              // TM 바코드는 12자리
+              if (value.length === 12) {
+                clearTimeout(tmScanTimeout);
+                tmScanTimeout = setTimeout(() => {
+                  handleTMScan();
+                }, 200); // 입력 완료 후 200ms 대기
+              } else {
+                // 입력 중에도 포커스 유지 (연속 스캔을 위해)
+                requestAnimationFrame(() => {
+                  if (document.activeElement !== tmInput) {
+                    tmInput.focus();
+                  }
+                });
+              }
+            });
+            // 엔터키도 지원 (혹시 모를 경우)
+            tmInput.addEventListener('keydown', function(e) {
+              if (e.key === 'Enter' || e.keyCode === 13) {
+                e.preventDefault();
+                clearTimeout(tmScanTimeout);
+                handleTMScan();
+              }
+            });
+            // 포커스가 벗어났을 때 다시 포커스 복귀
+            tmInput.addEventListener('blur', function() {
+              // 짧은 지연 후 포커스 복귀 (다른 요소로 포커스 이동이 아닌 경우)
+              setTimeout(() => {
+                if (mappingState === 'tm' && palletValidated) {
+                  requestAnimationFrame(() => {
+                    tmInput.focus();
+                  });
+                }
+              }, 100);
+            });
+          }
+        }, 100);
+      } else if (menuType === 'shipping') {
+        shippingPallets = [];
+        shippingMappedTMs = [];
+        menuContent.innerHTML = `
+          <div class="space-y-4">
+            <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">Shipping</h2>
+            
+            <!-- Summary Card -->
+            <div id="shippingSummaryCard" class="bg-blue-600 text-white rounded-lg p-4 mb-4 hidden">
+              <div class="text-center">
+                <div class="text-sm font-semibold mb-2">Summary</div>
+                <div class="flex justify-around">
+                  <div>
+                    <div class="text-xs mb-1">Pallets</div>
+                    <div class="text-2xl font-bold" id="shippingPalletCount">0</div>
+                  </div>
+                  <div>
+                    <div class="text-xs mb-1">Total TMs</div>
+                    <div class="text-2xl font-bold" id="shippingTotalTMCount">0</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Pallet Scan Section -->
+            <div id="shippingPalletSection" class="bg-blue-50 border-2 border-blue-500 rounded-lg p-4">
+              <div class="mb-3">
+                <label class="block text-base font-semibold text-gray-800 mb-2">Pallet No (Mapped Only)</label>
+                <input 
+                  type="text" 
+                  id="shippingPalletInput" 
+                  class="scan-input w-full border-2 border-blue-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Scan Pallet"
+                  autofocus
+                  autocomplete="off"
+                />
+              </div>
+            </div>
+            
+            <!-- Scanned Pallets List -->
+            <div id="shippingPalletsListSection" class="bg-yellow-50 border-2 border-yellow-500 rounded-lg p-4 hidden mt-4">
+              <div class="mb-2">
+                <h3 class="text-base font-bold text-gray-800">Scanned Pallets</h3>
+              </div>
+              <div id="shippingPalletsList" class="space-y-1.5 max-h-32 overflow-y-auto"></div>
+            </div>
+            
+            
+            <!-- Save Button -->
+            <div id="shippingSaveButton" class="hidden mt-4">
+              <button onclick="saveShipping()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 px-4 rounded-lg font-bold text-base transition-colors">
+                Save Shipping Date
+              </button>
+            </div>
+            
+            <!-- Status Message -->
+            <div id="shippingStatus" class="hidden"></div>
+          </div>
+        `;
+        
+        // 이벤트 리스너 설정
+        setTimeout(() => {
+          const shippingPalletInput = document.getElementById('shippingPalletInput');
+          
+          if (shippingPalletInput) {
+            let shippingPalletTimeout;
+            // PDA는 엔터키가 없으므로 입력값 변경으로 자동 처리
+            shippingPalletInput.addEventListener('input', function(e) {
+              const value = e.target.value.trim();
+              // 팔렛 번호 형식: VWRT0001 (8자리 이상)
+              if (value.length >= 8) {
+                clearTimeout(shippingPalletTimeout);
+                shippingPalletTimeout = setTimeout(() => {
+                  handleShippingPalletScan();
+                }, 300); // 입력 완료 후 300ms 대기
+              } else {
+                // 입력 중에도 포커스 유지 (연속 스캔을 위해)
+                requestAnimationFrame(() => {
+                  if (document.activeElement !== shippingPalletInput) {
+                    shippingPalletInput.focus();
+                  }
+                });
+              }
+            });
+            // 엔터키도 지원 (혹시 모를 경우)
+            shippingPalletInput.addEventListener('keydown', function(e) {
+              if (e.key === 'Enter' || e.keyCode === 13) {
+                e.preventDefault();
+                clearTimeout(shippingPalletTimeout);
+                handleShippingPalletScan();
+              }
+            });
+            // 포커스가 벗어났을 때 다시 포커스 복귀
+            shippingPalletInput.addEventListener('blur', function() {
+              // 짧은 지연 후 포커스 복귀 (다른 요소로 포커스 이동이 아닌 경우)
+              setTimeout(() => {
+                requestAnimationFrame(() => {
+                  shippingPalletInput.focus();
+                });
+              }, 100);
+            });
+            // 포커스 설정 (더 확실하게)
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                shippingPalletInput.focus();
+              }, 50);
+            });
+          }
+        }, 100);
+      } else if (menuType === 'find') {
+        findResults = [];
+        menuContent.innerHTML = `
+          <div class="space-y-4">
+            <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">Find</h2>
+            
+            <!-- TM Scan Section -->
+            <div id="findTMSection" class="bg-blue-50 border-2 border-blue-500 rounded-lg p-4">
+              <div class="mb-3">
+                <label class="block text-base font-semibold text-gray-800 mb-2">TM No</label>
+                <input 
+                  type="text" 
+                  id="findTMInput" 
+                  class="scan-input w-full border-2 border-blue-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Scan TM"
+                  autofocus
+                  autocomplete="off"
+                />
+              </div>
+            </div>
+            
+            <!-- Results Section -->
+            <div id="findResultsSection" class="bg-green-50 border-2 border-green-500 rounded-lg p-4 hidden mt-4">
+              <div class="mb-3">
+                <h3 class="text-base font-bold text-gray-800 mb-2">Results</h3>
+              </div>
+              <div id="findResultsList" class="space-y-2 max-h-96 overflow-y-auto"></div>
+            </div>
+            
+            <!-- Clear Button -->
+            <div id="findClearButton" class="hidden mt-4">
+              <button onclick="clearFindResults()" class="w-full bg-gray-500 hover:bg-gray-600 text-white py-2.5 px-4 rounded-lg font-bold text-base transition-colors">
+                Clear
+              </button>
+            </div>
+            
+            <!-- Status Message -->
+            <div id="findStatus" class="hidden"></div>
+          </div>
+        `;
+        
+        // 이벤트 리스너 설정
+        setTimeout(() => {
+          const findTMInput = document.getElementById('findTMInput');
+          
+          if (findTMInput) {
+            let findTMTimeout;
+            // PDA는 엔터키가 없으므로 입력값 변경으로 자동 처리
+            findTMInput.addEventListener('input', function(e) {
+              const value = e.target.value.trim();
+              // TM 바코드는 12자리
+              if (value.length === 12) {
+                clearTimeout(findTMTimeout);
+                findTMTimeout = setTimeout(() => {
+                  handleFindTMScan();
+                }, 200); // 입력 완료 후 200ms 대기
+              }
+            });
+            // 엔터키도 지원 (혹시 모를 경우)
+            findTMInput.addEventListener('keydown', function(e) {
+              if (e.key === 'Enter' || e.keyCode === 13) {
+                e.preventDefault();
+                clearTimeout(findTMTimeout);
+                handleFindTMScan();
+              }
+            });
+            // 포커스 설정
+            setTimeout(() => {
+              findTMInput.focus();
+            }, 50);
+          }
+        }, 100);
+      }
+    }
+
+    // 스캔 입력 처리
+    function processScan() {
+      const input = document.getElementById('scanInput');
+      if (!input) return;
+      
+      const scanValue = input.value.trim();
+      
+      if (!scanValue) {
+        alert('스캔 값을 입력하세요');
+        return;
+      }
+
+      // 스캔 처리 로직
+      const result = {
+        id: Date.now(),
+        value: scanValue,
+        timestamp: new Date().toLocaleString('ko-KR'),
+        status: 'success',
+        message: '스캔 처리 완료'
+      };
+
+      // 결과 추가
+      addScanResult(result);
+      
+      // 통계 업데이트
+      todayScans++;
+      successCount++;
+      updateStatistics();
+      
+      // 입력 필드 초기화
+      input.value = '';
+      input.focus();
+      
+      // 비프음 효과 (시각적)
+      input.classList.add('beep');
+      setTimeout(() => {
+        input.classList.remove('beep');
+      }, 200);
+    }
+
+    // 스캔 결과 추가
+    function addScanResult(result) {
+      scanHistory.unshift(result);
+      if (scanHistory.length > 50) {
+        scanHistory.pop();
+      }
+
+      const resultsDiv = document.getElementById('scanResults');
+      if (!resultsDiv) return;
+      
+      // 첫 번째 결과인 경우 안내 메시지 제거
+      if (resultsDiv.children.length === 1 && resultsDiv.children[0].textContent.includes('스캔 결과가')) {
+        resultsDiv.innerHTML = '';
+      }
+
+      const resultDiv = document.createElement('div');
+      resultDiv.className = 'scan-result bg-gray-50 rounded-lg p-4 border-l-4 border-blue-500';
+      
+      const statusClass = result.status === 'success' 
+        ? 'bg-green-100 text-green-800' 
+        : 'bg-red-100 text-red-800';
+      
+      resultDiv.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+          <div class="flex-1">
+            <div class="font-bold text-lg text-gray-800 mb-1">${result.value}</div>
+            <div class="text-sm text-gray-600">${result.timestamp}</div>
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-semibold ${statusClass}">
+            ${result.status === 'success' ? '✓ 성공' : '✗ 실패'}
+          </span>
+        </div>
+        <div class="text-sm text-gray-700">${result.message}</div>
+      `;
+      
+      resultsDiv.insertBefore(resultDiv, resultsDiv.firstChild);
+    }
+
+    // 통계 업데이트
+    function updateStatistics() {
+      // 통계가 표시되는 곳이 있다면 업데이트
+    }
+
+    // 입력 필드 지우기
+    function clearInput() {
+      const input = document.getElementById('scanInput');
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+    }
+
+    // 결과 지우기
+    function clearResults() {
+      if (confirm('모든 스캔 결과를 지우시겠습니까?')) {
+        scanHistory = [];
+        const resultsDiv = document.getElementById('scanResults');
+        if (resultsDiv) {
+          resultsDiv.innerHTML = `
+            <div class="text-center text-gray-500 py-8">
+              스캔 결과가 여기에 표시됩니다
+            </div>
+          `;
+        }
+      }
+    }
+
+    // 팔렛 번호 검증 (PALLET GENERATE로 생성된 것만)
+    async function validatePalletNo(palletNo) {
+      try {
+        if (!supabaseClient) {
+          await initSupabase();
+        }
+        
+        const { data, error } = await supabaseClient
+          .from('vwtm_pallet_generate')
+          .select('pallet_no')
+          .eq('pallet_no', palletNo)
+          .single();
+        
+        if (error) {
+          if (error.code === 'PGRST116') {
+            return false; // 레코드 없음
+          }
+          throw error;
+        }
+        
+        return data !== null;
+      } catch (error) {
+        console.error('Error validating pallet:', error);
+        return false;
+      }
+    }
+    
+    // 팔렛 번호 스캔 처리
+    async function handlePalletScan() {
+      const palletInput = document.getElementById('palletInput');
+      if (!palletInput) return;
+      
+      const palletNo = palletInput.value.trim();
+      if (!palletNo) {
+        showStatus('Enter Pallet No', 'error');
+        return;
+      }
+      
+      showStatus('Validating...', 'info');
+      const isValid = await validatePalletNo(palletNo);
+      
+        if (!isValid) {
+          showStatus('Invalid Pallet No', 'error');
+          palletInput.value = '';
+          // 포커스 복귀 (더 확실하게)
+          requestAnimationFrame(() => {
+            palletInput.focus();
+          });
+          return;
+        }
+      
+      currentPalletNo = palletNo;
+      mappingState = 'tm';
+      palletValidated = true;
+      scannedTMs = [];
+      
+      // 팔렛 번호 표시
+      const palletDisplay = document.getElementById('palletDisplay');
+      const scannedPalletNo = document.getElementById('scannedPalletNo');
+      if (palletDisplay && scannedPalletNo) {
+        palletDisplay.classList.remove('hidden');
+        scannedPalletNo.textContent = palletNo;
+      }
+      
+      // 팔렛 스캔 입력창 숨기기
+      const palletInputContainer = palletInput.parentElement;
+      if (palletInputContainer) {
+        palletInputContainer.style.display = 'none';
+      }
+      
+      // TM Count 카드 표시
+      const tmCountCard = document.getElementById('tmCountCard');
+      if (tmCountCard) {
+        tmCountCard.classList.remove('hidden');
+      }
+      
+      // TM Count 카드 표시 (이미 위에서 선언됨)
+      if (tmCountCard) {
+        tmCountCard.classList.remove('hidden');
+      }
+      
+      // TM 스캔 섹션 표시
+      const tmScanSection = document.getElementById('tmScanSection');
+      const actionButtons = document.getElementById('actionButtons');
+      if (tmScanSection) {
+        tmScanSection.classList.remove('hidden');
+      }
+      if (actionButtons) {
+        actionButtons.classList.remove('hidden');
+      }
+      
+      // TM 개수 업데이트
+      updateTMCount();
+      updateTMList();
+      
+      // 기존 맵핑된 TM 리스트 로드
+      await loadExistingMappings(palletNo);
+      
+      // TM 입력 필드에 포커스 (바코드 스캐너 사용을 위해 - 더 확실하게)
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          const tmInput = document.getElementById('tmInput');
+          if (tmInput) {
+            tmInput.focus();
+            tmInput.select(); // 입력값이 있으면 선택 상태로
+            // 포커스가 제대로 설정되었는지 확인
+            if (document.activeElement !== tmInput) {
+              setTimeout(() => {
+                tmInput.focus();
+              }, 50);
+            }
+          }
+        }, 150);
+      });
+      
+      showStatus(`Pallet "${palletNo}" Validated`, 'success');
+    }
+    
+    // TM 바코드 검증 (12자리, 시작: 2/3/7/8)
+    function validateTMNo(tmNo) {
+      if (!tmNo || tmNo.length !== 12) {
+        return false;
+      }
+      
+      const firstChar = tmNo.charAt(0);
+      return ['2', '3', '7', '8'].includes(firstChar);
+    }
+    
+    // TM 바코드 스캔 처리
+    async function handleTMScan() {
+      const tmInput = document.getElementById('tmInput');
+      if (!tmInput) return;
+      
+      const tmNo = tmInput.value.trim();
+      if (!tmNo) {
+        showStatus('Enter TM Code', 'error');
+        return;
+      }
+      
+      if (!currentPalletNo || !palletValidated) {
+        showStatus('Scan Pallet First', 'error');
+        return;
+      }
+      
+      if (!validateTMNo(tmNo)) {
+        showStatus('Invalid TM Code', 'error');
+        tmInput.value = '';
+        // PDA는 엔터키가 없으므로 포커스 유지 필수
+        requestAnimationFrame(() => {
+          tmInput.focus();
+        });
+        return;
+      }
+      
+      if (scannedTMs.includes(tmNo)) {
+        showStatus('Duplicate TM', 'error');
+        tmInput.value = '';
+        // PDA는 엔터키가 없으므로 포커스 유지 필수
+        requestAnimationFrame(() => {
+          tmInput.focus();
+        });
+        return;
+      }
+      
+      scannedTMs.push(tmNo);
+      updateTMCount();
+      updateTMList();
+      
+      tmInput.value = '';
+      // 다음 스캔을 위해 즉시 포커스 유지 (8-10개 연속 스캔을 위해 필수)
+      // PDA는 엔터키가 없으므로 포커스가 유지되어야 다음 스캔 가능
+      // 이중 보장: requestAnimationFrame + setTimeout
+      requestAnimationFrame(() => {
+        tmInput.focus();
+        // 포커스가 제대로 설정되었는지 확인하고 재시도
+        setTimeout(() => {
+          if (document.activeElement !== tmInput && mappingState === 'tm' && palletValidated) {
+            tmInput.focus();
+          }
+        }, 50);
+      });
+      
+      showStatus(`TM "${tmNo}" Scanned (${scannedTMs.length})`, 'success');
+    }
+    
+    // TM 개수 업데이트 (새로 스캔한 TM + 기존 맵핑된 TM)
+    // TM 개수 업데이트 (새로 스캔한 TM + 기존 맵핑된 TM)
+    function updateTMCount() {
+      const totalCount = scannedTMs.length + existingMappedTMs.length;
+      
+      // 카드 형식 TM Count 업데이트
+      const tmCountCard = document.getElementById('tmCountCard');
+      const tmCountCardValue = document.getElementById('tmCountCardValue');
+      if (tmCountCard && tmCountCardValue) {
+        tmCountCardValue.textContent = totalCount;
+        // 팔렛이 검증되면 카드 표시
+        if (palletValidated) {
+          tmCountCard.classList.remove('hidden');
+        }
+      }
+      
+      // 기존 TM Count (숨겨진 필드, 필요시 사용)
+      const tmCountElement = document.getElementById('tmCount');
+      if (tmCountElement) {
+        tmCountElement.textContent = totalCount;
+      }
+    }
+    
+    // TM 목록 업데이트
+    function updateTMList() {
+      const tmListElement = document.getElementById('tmList');
+      if (!tmListElement) return;
+      
+      if (scannedTMs.length === 0) {
+        tmListElement.innerHTML = '';
+        return;
+      }
+      
+      tmListElement.innerHTML = scannedTMs.map((tm, index) => `
+        <div class="bg-white rounded-lg p-2 border border-gray-300 flex items-center">
+          <span class="text-xs text-gray-500 mr-2">${index + 1}.</span>
+          <span class="font-semibold text-gray-800 text-sm">${tm}</span>
+        </div>
+      `).join('');
+    }
+    
+    // 기존 맵핑된 TM 리스트 로드
+    async function loadExistingMappings(palletNo) {
+      try {
+        if (!supabaseClient) {
+          await initSupabase();
+        }
+        
+        const { data, error } = await supabaseClient
+          .from('vwtm_mapping')
+          .select('tm_no, mapping_date')
+          .eq('pallet_no', palletNo)
+          .order('mapping_date', { ascending: false });
+        
+        if (error) {
+          if (error.code === 'PGRST116') {
+            // 맵핑 데이터 없음
+            const existingSection = document.getElementById('existingMappingsSection');
+            if (existingSection) {
+              existingSection.classList.add('hidden');
+            }
+            return;
+          }
+          throw error;
+        }
+        
+        const existingSection = document.getElementById('existingMappingsSection');
+        const existingList = document.getElementById('existingMappingsList');
+        
+        if (data && data.length > 0) {
+          // 기존 맵핑된 TM 목록 저장
+          existingMappedTMs = data.map(mapping => mapping.tm_no);
+          
+          if (existingSection) {
+            existingSection.classList.remove('hidden');
+          }
+          if (existingList) {
+            existingList.innerHTML = data.map((mapping, index) => `
+              <div class="bg-white rounded-lg p-2 border border-yellow-400 flex items-center">
+                <span class="text-xs text-gray-500 mr-2">${index + 1}.</span>
+                <span class="font-semibold text-gray-800 text-sm">${mapping.tm_no}</span>
+              </div>
+            `).join('');
+          }
+          
+          // TM COUNT 업데이트 (기존 맵핑 포함)
+          updateTMCount();
+        } else {
+          // 기존 맵핑 없음
+          existingMappedTMs = [];
+          
+          if (existingSection) {
+            existingSection.classList.add('hidden');
+          }
+          
+          // TM COUNT 업데이트
+          updateTMCount();
+        }
+      } catch (error) {
+        console.error('Error loading existing mappings:', error);
+        const existingSection = document.getElementById('existingMappingsSection');
+        if (existingSection) {
+          existingSection.classList.add('hidden');
+        }
+      }
+    }
+    
+    // 맵핑 저장
+    window.saveMapping = async function() {
+      if (!currentPalletNo || scannedTMs.length === 0) {
+        showStatus('Pallet and TM Required', 'error');
+        return;
+      }
+      
+      try {
+        if (!supabaseClient) {
+          await initSupabase();
+        }
+        
+        // 일괄 저장
+        const insertData = scannedTMs.map(tmNo => ({
+          pallet_no: currentPalletNo,
+          tm_no: tmNo,
+          mapping_date: new Date().toISOString()
+        }));
+        
+        const { data, error } = await supabaseClient
+          .from('vwtm_mapping')
+          .insert(insertData)
+          .select();
+        
+        if (error) {
+          if (error.code === '23505') {
+            showStatus('Some TM Already Mapped', 'error');
+          } else {
+            throw error;
+          }
+        } else {
+          const savedCount = data ? data.length : scannedTMs.length;
+          showStatus(`Saved: ${currentPalletNo} ↔ ${savedCount} TM`, 'success');
+          
+          // RECENT 섹션 숨기기
+          const mappingResults = document.getElementById('mappingResults');
+          if (mappingResults) {
+            mappingResults.classList.add('hidden');
+          }
+          
+          // 기존 맵핑 리스트 다시 로드
+          await loadExistingMappings(currentPalletNo);
+          
+          // 폼 초기화
+          resetMappingForm();
+        }
+      } catch (error) {
+        console.error('Error saving mapping:', error);
+        showStatus('Save Error', 'error');
+      }
+    }
+    
+    window.clearMapping = function() {
+      if (!confirm('Clear All?')) {
+        return;
+      }
+      
+      resetMappingForm();
+      showStatus('Cleared', 'info');
+    }
+    
+    window.unmappingPallet = async function() {
+      if (!currentPalletNo) {
+        showStatus('No Pallet', 'error');
+        return;
+      }
+      
+      try {
+        if (!supabaseClient) {
+          await initSupabase();
+        }
+        
+        // 1. 기존 맵핑 데이터 조회
+        const { data: mappings, error: selectError } = await supabaseClient
+          .from('vwtm_mapping')
+          .select('*')
+          .eq('pallet_no', currentPalletNo);
+        
+        if (selectError) {
+          throw selectError;
+        }
+        
+        if (!mappings || mappings.length === 0) {
+          showStatus('No Mappings Found', 'error');
+          return;
+        }
+        
+        // 2. 이미 shipped 된 팔렛인지 확인
+        const hasShipped = mappings.some(mapping => mapping.shipping_date !== null);
+        if (hasShipped) {
+          showStatus('Cannot Unmap: Pallet Already Shipped', 'error');
+          return;
+        }
+        
+        if (!confirm(`Move all mappings for "${currentPalletNo}" to history?`)) {
+          return;
+        }
+        
+        // 2. 히스토리 테이블로 데이터 이전
+        const historyData = mappings.map(mapping => ({
+          original_id: mapping.id,
+          pallet_no: mapping.pallet_no,
+          tm_no: mapping.tm_no,
+          mapping_date: mapping.mapping_date,
+          unmapping_date: new Date().toISOString(),
+          shipping_date: mapping.shipping_date,
+          created_at: mapping.created_at,
+          updated_at: mapping.updated_at
+        }));
+        
+        const { error: insertError } = await supabaseClient
+          .from('vwtm_mapping_history')
+          .insert(historyData);
+        
+        if (insertError) {
+          throw insertError;
+        }
+        
+        // 3. 원본 테이블에서 삭제
+        const { error: deleteError } = await supabaseClient
+          .from('vwtm_mapping')
+          .delete()
+          .eq('pallet_no', currentPalletNo);
+        
+        if (deleteError) {
+          throw deleteError;
+        }
+        
+        showStatus(`Moved ${mappings.length} mappings to history: ${currentPalletNo}`, 'success');
+        
+        // 폼 초기화
+        resetMappingForm();
+      } catch (error) {
+        console.error('Error unmapping pallet:', error);
+        showStatus('Unmapping Error', 'error');
+      }
+    }
+    
+    // 맵핑 폼 초기화
+    function resetMappingForm() {
+      currentPalletNo = null;
+      mappingState = 'pallet';
+      scannedTMs = [];
+      existingMappedTMs = [];
+      palletValidated = false;
+      
+      const palletInput = document.getElementById('palletInput');
+      const tmInput = document.getElementById('tmInput');
+      const palletDisplay = document.getElementById('palletDisplay');
+      const tmScanSection = document.getElementById('tmScanSection');
+      const actionButtons = document.getElementById('actionButtons');
+      const palletScanSection = document.getElementById('palletScanSection');
+      
+      if (palletInput) {
+        palletInput.value = '';
+        const palletInputContainer = palletInput.parentElement;
+        if (palletInputContainer) {
+          palletInputContainer.style.display = 'block';
+        }
+        // 포커스 복귀 (더 확실하게)
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            palletInput.focus();
+            if (document.activeElement !== palletInput) {
+              palletInput.focus();
+            }
+          }, 50);
+        });
+      }
+      
+      if (tmInput) {
+        tmInput.value = '';
+      }
+      
+      if (palletDisplay) {
+        palletDisplay.classList.add('hidden');
+      }
+      
+      if (tmScanSection) {
+        tmScanSection.classList.add('hidden');
+      }
+      
+      if (actionButtons) {
+        actionButtons.classList.add('hidden');
+      }
+      
+      // 기존 맵핑 섹션 숨기기
+      const existingSection = document.getElementById('existingMappingsSection');
+      if (existingSection) {
+        existingSection.classList.add('hidden');
+      }
+      
+      updateTMCount();
+      updateTMList();
+    }
+    
+    // 상태 메시지 표시
+    function showStatus(message, type) {
+      const statusDiv = document.getElementById('mappingStatus');
+      if (!statusDiv) return;
+      
+      statusDiv.classList.remove('hidden');
+      let bgColor = 'bg-gray-100 border-gray-500 text-gray-800';
+      if (type === 'success') {
+        bgColor = 'bg-green-100 border-green-500 text-green-800';
+      } else if (type === 'error') {
+        bgColor = 'bg-red-100 border-red-500 text-red-800';
+      } else if (type === 'info') {
+        bgColor = 'bg-blue-100 border-blue-500 text-blue-800';
+      }
+      
+      statusDiv.className = `rounded-lg p-4 border-2 ${bgColor}`;
+      statusDiv.innerHTML = `
+        <div class="flex items-center">
+          <span class="text-lg font-semibold">${message}</span>
+        </div>
+      `;
+      
+      // 3초 후 자동 숨김
+      setTimeout(() => {
+        statusDiv.classList.add('hidden');
+      }, 3000);
+    }
+    
+    // 맵핑 결과 추가
+    function addMappingResult(mapping) {
+      const resultsDiv = document.getElementById('mappingResults');
+      const resultsList = document.getElementById('mappingResultsList');
+      
+      if (!resultsDiv || !resultsList) return;
+      
+      resultsDiv.classList.remove('hidden');
+      
+      const resultDiv = document.createElement('div');
+      resultDiv.className = 'scan-result bg-gray-50 rounded-lg p-4 border-l-4 border-blue-500';
+      
+      const mappingDate = new Date(mapping.mapping_date).toLocaleString('ko-KR');
+      
+      resultDiv.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+          <div class="flex-1">
+            <div class="font-bold text-lg text-gray-800 mb-1">
+              <span class="text-blue-600">${mapping.pallet_no}</span> ↔ <span class="text-green-600">${mapping.tm_no}</span>
+            </div>
+            <div class="text-sm text-gray-600">${mappingDate}</div>
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+            ✓
+          </span>
+        </div>
+      `;
+      
+      resultsList.insertBefore(resultDiv, resultsList.firstChild);
+    }
+    
+    // 최근 맵핑 내역 로드
+    async function loadRecentMappings() {
+      try {
+        if (!supabaseClient) {
+          await initSupabase();
+        }
+        
+        const { data, error } = await supabaseClient
+          .from('vwtm_mapping')
+          .select('*')
+          .order('mapping_date', { ascending: false })
+          .limit(10);
+        
+        if (error) {
+          if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
+            console.warn('Mapping table does not exist');
+            return;
+          }
+          throw error;
+        }
+        
+        if (data && data.length > 0) {
+          const resultsDiv = document.getElementById('mappingResults');
+          const resultsList = document.getElementById('mappingResultsList');
+          
+          if (resultsDiv && resultsList) {
+            resultsDiv.classList.remove('hidden');
+            resultsList.innerHTML = '';
+            
+            data.forEach(mapping => {
+              addMappingResult(mapping);
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error loading recent mappings:', error);
+      }
+    }
+    
+    // 맵핑 결과 지우기
+    function clearMappingResults() {
+      const resultsList = document.getElementById('mappingResultsList');
+      if (resultsList) {
+        resultsList.innerHTML = '';
+        const resultsDiv = document.getElementById('mappingResults');
+        if (resultsDiv) {
+          resultsDiv.classList.add('hidden');
+        }
+      }
+    }
+    
+    // 초기화
+    // Shipping 팔렛 스캔 처리
+    async function handleShippingPalletScan() {
+      const shippingPalletInput = document.getElementById('shippingPalletInput');
+      if (!shippingPalletInput) return;
+      
+      const palletNo = shippingPalletInput.value.trim();
+      if (!palletNo) {
+        showShippingStatus('Enter Pallet No', 'error');
+        return;
+      }
+      
+      // 이미 스캔한 팔렛인지 확인
+      if (shippingPallets.includes(palletNo)) {
+        showShippingStatus('Pallet Already Scanned', 'error');
+        shippingPalletInput.value = '';
+        // 포커스 복귀 (더 확실하게)
+        requestAnimationFrame(() => {
+          shippingPalletInput.focus();
+        });
+        return;
+      }
+      
+      showShippingStatus('Checking...', 'info');
+      
+      try {
+        if (!supabaseClient) {
+          await initSupabase();
+        }
+        
+        // 맵핑된 팔렛인지 확인 (vwtm_mapping에 있는지)
+        const { data, error } = await supabaseClient
+          .from('vwtm_mapping')
+          .select('tm_no, shipping_date')
+          .eq('pallet_no', palletNo);
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (!data || data.length === 0) {
+          showShippingStatus('Pallet Not Mapped', 'error');
+          shippingPalletInput.value = '';
+          // 포커스 복귀 (더 확실하게)
+          requestAnimationFrame(() => {
+            shippingPalletInput.focus();
+          });
+          return;
+        }
+        
+        // 이미 배송된 팔렛인지 확인
+        const hasShipped = data.some(mapping => mapping.shipping_date !== null);
+        if (hasShipped) {
+          showShippingStatus('Pallet Already Shipped', 'error');
+          shippingPalletInput.value = '';
+          // 포커스 복귀 (더 확실하게)
+          requestAnimationFrame(() => {
+            shippingPalletInput.focus();
+          });
+          return;
+        }
+        
+        // 팔렛 추가
+        shippingPallets.push(palletNo);
+        
+        // TM 추가 (중복 제거)
+        data.forEach(mapping => {
+          if (!shippingMappedTMs.find(tm => tm.tm_no === mapping.tm_no && tm.pallet_no === palletNo)) {
+            shippingMappedTMs.push({
+              ...mapping,
+              pallet_no: palletNo
+            });
+          }
+        });
+        
+        // 입력창 초기화 및 포커스 유지 (연속 스캔을 위해 필수)
+        shippingPalletInput.value = '';
+        // 이중 보장: requestAnimationFrame + setTimeout
+        requestAnimationFrame(() => {
+          shippingPalletInput.focus();
+          // 포커스가 제대로 설정되었는지 확인하고 재시도
+          setTimeout(() => {
+            if (document.activeElement !== shippingPalletInput) {
+              shippingPalletInput.focus();
+            }
+          }, 50);
+        });
+        
+        // UI 업데이트
+        updateShippingSummary();
+        updateShippingPalletsList();
+        
+        // 섹션 표시
+        const shippingSummaryCard = document.getElementById('shippingSummaryCard');
+        const shippingPalletsListSection = document.getElementById('shippingPalletsListSection');
+        const shippingSaveButton = document.getElementById('shippingSaveButton');
+        
+        if (shippingSummaryCard) {
+          shippingSummaryCard.classList.remove('hidden');
+        }
+        if (shippingPalletsListSection) {
+          shippingPalletsListSection.classList.remove('hidden');
+        }
+        if (shippingSaveButton) {
+          shippingSaveButton.classList.remove('hidden');
+        }
+        
+        showShippingStatus(`Pallet "${palletNo}" Added (${data.length} TMs)`, 'success');
+      } catch (error) {
+        console.error('Error checking pallet:', error);
+        showShippingStatus('Check Error', 'error');
+        shippingPalletInput.value = '';
+        // 포커스 복귀 (더 확실하게)
+        requestAnimationFrame(() => {
+          shippingPalletInput.focus();
+        });
+      }
+    }
+    
+    // Shipping 요약 업데이트
+    function updateShippingSummary() {
+      const palletCount = document.getElementById('shippingPalletCount');
+      const totalTMCount = document.getElementById('shippingTotalTMCount');
+      
+      if (palletCount) {
+        palletCount.textContent = shippingPallets.length;
+      }
+      if (totalTMCount) {
+        totalTMCount.textContent = shippingMappedTMs.length;
+      }
+    }
+    
+    // Shipping 팔렛 리스트 업데이트
+    function updateShippingPalletsList() {
+      const shippingPalletsList = document.getElementById('shippingPalletsList');
+      if (!shippingPalletsList) return;
+      
+      if (shippingPallets.length === 0) {
+        shippingPalletsList.innerHTML = '';
+        return;
+      }
+      
+      shippingPalletsList.innerHTML = shippingPallets.map((pallet, index) => `
+        <div class="bg-white rounded-lg p-2 border border-yellow-400 flex items-center justify-between">
+          <div class="flex items-center">
+            <span class="text-xs text-gray-500 mr-2">${index + 1}.</span>
+            <span class="font-semibold text-gray-800 text-sm">${pallet}</span>
+          </div>
+          <button onclick="removeShippingPallet('${pallet}')" class="text-red-500 hover:text-red-700 text-xs font-semibold">
+            Remove
+          </button>
+        </div>
+      `).join('');
+    }
+    
+    // Shipping 팔렛 제거
+    window.removeShippingPallet = function(palletNo) {
+      // 팔렛 제거
+      shippingPallets = shippingPallets.filter(p => p !== palletNo);
+      
+      // 해당 팔렛의 TM 제거
+      shippingMappedTMs = shippingMappedTMs.filter(tm => tm.pallet_no !== palletNo);
+      
+      // UI 업데이트
+      updateShippingSummary();
+      updateShippingPalletsList();
+      
+      // 포커스 유지
+      const shippingPalletInput = document.getElementById('shippingPalletInput');
+      if (shippingPalletInput) {
+        shippingPalletInput.focus();
+      }
+      
+      showShippingStatus(`Pallet "${palletNo}" Removed`, 'info');
+    }
+    
+    // Shipping TM 리스트 업데이트
+    function updateShippingTMList() {
+      const shippingTMList = document.getElementById('shippingTMList');
+      const shippingTMCount = document.getElementById('shippingTMCount');
+      
+      if (shippingTMCount) {
+        shippingTMCount.textContent = shippingMappedTMs.length;
+      }
+      
+      if (!shippingTMList) return;
+      
+      if (shippingMappedTMs.length === 0) {
+        shippingTMList.innerHTML = '';
+        return;
+      }
+      
+      shippingTMList.innerHTML = shippingMappedTMs.map((mapping, index) => {
+        const hasShippingDate = mapping.shipping_date ? '✅' : '⏳';
+        const shippingDateText = mapping.shipping_date 
+          ? new Date(mapping.shipping_date).toLocaleString() 
+          : 'Not Shipped';
+        
+        return `
+          <div class="bg-white rounded-lg p-2 border border-gray-300 flex items-center justify-between">
+            <div class="flex items-center">
+              <span class="text-xs text-gray-500 mr-2">${index + 1}.</span>
+              <span class="font-semibold text-gray-800 text-sm">${mapping.tm_no}</span>
+              <span class="text-xs text-gray-400 ml-2">(${mapping.pallet_no})</span>
+            </div>
+            <div class="flex items-center text-xs text-gray-600">
+              <span class="mr-2">${hasShippingDate}</span>
+              <span>${shippingDateText}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // Shipping 저장
+    window.saveShipping = async function() {
+      if (shippingPallets.length === 0 || shippingMappedTMs.length === 0) {
+        showShippingStatus('No Pallets Scanned', 'error');
+        return;
+      }
+      
+      try {
+        if (!supabaseClient) {
+          await initSupabase();
+        }
+        
+        const shippingDate = new Date();
+        const shippingDateStr = shippingDate.toISOString();
+        const today = new Date(shippingDate.getFullYear(), shippingDate.getMonth(), shippingDate.getDate());
+        const todayStart = new Date(today).toISOString();
+        const todayEnd = new Date(today);
+        todayEnd.setHours(23, 59, 59, 999);
+        const todayEndStr = todayEnd.toISOString();
+        
+        // 오늘 날짜의 최대 배차 번호 조회
+        const { data: todayData, error: batchError } = await supabaseClient
+          .from('vwtm_mapping')
+          .select('shipping_batch')
+          .gte('shipping_date', todayStart)
+          .lte('shipping_date', todayEndStr)
+          .not('shipping_batch', 'is', null);
+        
+        if (batchError && batchError.code !== 'PGRST116') {
+          throw batchError;
+        }
+        
+        // 배차 번호 계산 (오늘 날짜의 최대 배차 + 1)
+        let nextBatch = 1;
+        if (todayData && todayData.length > 0) {
+          const maxBatch = Math.max(...todayData.map(d => d.shipping_batch || 0));
+          nextBatch = maxBatch + 1;
+        }
+        
+        // 모든 스캔한 팔렛의 TM에 shipping_date와 shipping_batch 업데이트
+        const updatePromises = shippingPallets.map(palletNo => 
+          supabaseClient
+            .from('vwtm_mapping')
+            .update({ 
+              shipping_date: shippingDateStr,
+              shipping_batch: nextBatch
+            })
+            .eq('pallet_no', palletNo)
+        );
+        
+        const results = await Promise.all(updatePromises);
+        
+        // 에러 확인
+        const errors = results.filter(r => r.error);
+        if (errors.length > 0) {
+          throw errors[0].error;
+        }
+        
+        showShippingStatus(`Saved: ${shippingPallets.length} Pallets, ${shippingMappedTMs.length} TMs (${nextBatch}차)`, 'success');
+        
+        // TM 리스트 다시 로드
+        const { data, error: reloadError } = await supabaseClient
+          .from('vwtm_mapping')
+          .select('tm_no, shipping_date, shipping_batch, pallet_no')
+          .in('pallet_no', shippingPallets);
+        
+        if (!reloadError && data) {
+          shippingMappedTMs = data;
+          updateShippingSummary();
+        }
+        
+        // 폼 초기화 (다음 배치를 위해)
+        setTimeout(() => {
+          resetShippingForm();
+        }, 2000);
+      } catch (error) {
+        console.error('Error saving shipping:', error);
+        showShippingStatus('Save Error', 'error');
+      }
+    }
+    
+    // Shipping 폼 초기화
+    function resetShippingForm() {
+      shippingPallets = [];
+      shippingMappedTMs = [];
+      
+      const shippingPalletInput = document.getElementById('shippingPalletInput');
+      const shippingSummaryCard = document.getElementById('shippingSummaryCard');
+      const shippingPalletsListSection = document.getElementById('shippingPalletsListSection');
+      const shippingTMsSection = document.getElementById('shippingTMsSection');
+      const shippingSaveButton = document.getElementById('shippingSaveButton');
+      
+      if (shippingPalletInput) {
+        shippingPalletInput.value = '';
+        // 포커스 복귀 (더 확실하게)
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            shippingPalletInput.focus();
+            if (document.activeElement !== shippingPalletInput) {
+              shippingPalletInput.focus();
+            }
+          }, 50);
+        });
+      }
+      
+      if (shippingSummaryCard) {
+        shippingSummaryCard.classList.add('hidden');
+      }
+      
+      if (shippingPalletsListSection) {
+        shippingPalletsListSection.classList.add('hidden');
+      }
+      
+      if (shippingTMsSection) {
+        shippingTMsSection.classList.add('hidden');
+      }
+      
+      if (shippingSaveButton) {
+        shippingSaveButton.classList.add('hidden');
+      }
+    }
+    
+    // Shipping 상태 메시지 표시
+    function showShippingStatus(message, type) {
+      const statusDiv = document.getElementById('shippingStatus');
+      if (!statusDiv) return;
+      
+      statusDiv.classList.remove('hidden');
+      
+      const colors = {
+        success: 'bg-green-100 border-green-500 text-green-800',
+        error: 'bg-red-100 border-red-500 text-red-800',
+        info: 'bg-blue-100 border-blue-500 text-blue-800'
+      };
+      
+      statusDiv.className = `rounded-lg p-3 border-2 ${colors[type] || colors.info} font-semibold text-sm`;
+      statusDiv.textContent = message;
+      
+      if (type === 'success' || type === 'error') {
+        setTimeout(() => {
+          statusDiv.classList.add('hidden');
+        }, 3000);
+      }
+    }
+    
+    // Find TM 스캔 처리
+    async function handleFindTMScan() {
+      const findTMInput = document.getElementById('findTMInput');
+      if (!findTMInput) return;
+      
+      const tmNo = findTMInput.value.trim();
+      if (!tmNo) {
+        showFindStatus('Enter TM No', 'error');
+        return;
+      }
+      
+      // TM 번호 검증 (12자리, 시작: 2/3/7/8)
+      if (!validateTMNo(tmNo)) {
+        showFindStatus('Invalid TM Code', 'error');
+        findTMInput.value = '';
+        findTMInput.focus();
+        return;
+      }
+      
+      showFindStatus('Searching...', 'info');
+      
+      try {
+        if (!supabaseClient) {
+          await initSupabase();
+        }
+        
+        // TM이 맵핑된 팔렛 조회
+        const { data, error } = await supabaseClient
+          .from('vwtm_mapping')
+          .select('pallet_no, mapping_date, shipping_date')
+          .eq('tm_no', tmNo);
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (!data || data.length === 0) {
+          showFindStatus(`TM "${tmNo}" Not Mapped`, 'error');
+          findTMInput.value = '';
+          findTMInput.focus();
+          return;
+        }
+        
+        // 결과 초기화 후 새 결과만 추가 (1개만 표시)
+        findResults = [];
+        data.forEach(mapping => {
+          findResults.push({
+            tm_no: tmNo,
+            pallet_no: mapping.pallet_no,
+            mapping_date: mapping.mapping_date,
+            shipping_date: mapping.shipping_date
+          });
+        });
+        
+        // 입력창 초기화 및 포커스 유지
+        findTMInput.value = '';
+        requestAnimationFrame(() => {
+          findTMInput.focus();
+        });
+        
+        // UI 업데이트
+        updateFindResults();
+        
+        // 섹션 표시
+        const findResultsSection = document.getElementById('findResultsSection');
+        const findClearButton = document.getElementById('findClearButton');
+        
+        if (findResultsSection) {
+          findResultsSection.classList.remove('hidden');
+        }
+        if (findClearButton) {
+          findClearButton.classList.remove('hidden');
+        }
+        
+        const palletCount = data.length;
+        showFindStatus(`TM "${tmNo}" Found (${palletCount} Pallet${palletCount > 1 ? 's' : ''})`, 'success');
+      } catch (error) {
+        console.error('Error finding TM:', error);
+        showFindStatus('Search Error', 'error');
+        findTMInput.value = '';
+        findTMInput.focus();
+      }
+    }
+    
+    // Find 결과 업데이트
+    function updateFindResults() {
+      const findResultsList = document.getElementById('findResultsList');
+      
+      if (!findResultsList) return;
+      
+      if (findResults.length === 0) {
+        findResultsList.innerHTML = '';
+        return;
+      }
+      
+      findResultsList.innerHTML = findResults.map((result, index) => {
+        return `
+          <div class="bg-white rounded-lg p-3 border border-gray-300">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center">
+                <span class="text-xs text-gray-500 mr-2">${index + 1}.</span>
+                <span class="font-bold text-gray-800 text-base">${result.tm_no}</span>
+              </div>
+              <span class="text-blue-600 font-bold text-base">${result.pallet_no}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // Find 결과 지우기
+    window.clearFindResults = function() {
+      findResults = [];
+      
+      const findResultsSection = document.getElementById('findResultsSection');
+      const findClearButton = document.getElementById('findClearButton');
+      const findTMInput = document.getElementById('findTMInput');
+      
+      if (findResultsSection) {
+        findResultsSection.classList.add('hidden');
+      }
+      if (findClearButton) {
+        findClearButton.classList.add('hidden');
+      }
+      if (findTMInput) {
+        findTMInput.focus();
+      }
+      
+      showFindStatus('Cleared', 'info');
+    }
+    
+    // Find 상태 메시지 표시
+    function showFindStatus(message, type) {
+      const statusDiv = document.getElementById('findStatus');
+      if (!statusDiv) return;
+      
+      statusDiv.classList.remove('hidden');
+      
+      const colors = {
+        success: 'bg-green-100 border-green-500 text-green-800',
+        error: 'bg-red-100 border-red-500 text-red-800',
+        info: 'bg-blue-100 border-blue-500 text-blue-800'
+      };
+      
+      statusDiv.className = `rounded-lg p-3 border-2 ${colors[type] || colors.info} font-semibold text-sm`;
+      statusDiv.textContent = message;
+      
+      if (type === 'success' || type === 'error') {
+        setTimeout(() => {
+          statusDiv.classList.add('hidden');
+        }, 3000);
+      }
+    }
+    
+    document.addEventListener('DOMContentLoaded', async function() {
+      await initSupabase();
+    });
+  </script>
+</body>
+</html>
