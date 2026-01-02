@@ -115,8 +115,7 @@ async function loadPackagingData() {
       const { data, error } = await supabaseClient
         .from('vwtm_list_data')
         .select('*')
-        .order('upload_time', { ascending: false })
-        .limit(40000); // Match Supabase MAX ROWS setting
+        .order('upload_time', { ascending: false });
       
       if (error) {
         throw new Error(`Database error: ${error.message}`);

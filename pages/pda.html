@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDA System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    
+    .scan-input {
+      font-size: 1.5rem;
+      padding: 1rem;
+      text-align: center;
+      letter-spacing: 0.1em;
+    }
+    
+    .scan-result {
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .beep {
+      animation: beep 0.2s;
+    }
+    
+    @keyframes beep {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <div class="min-h-screen p-4 md:p-8">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2">PDA System</h1>
+          <p class="text-gray-600">PDA 전용 작업 시스템</p>
+        </div>
+        <div class="mt-4 md:mt-0 flex items-center space-x-4">
+          <button id="pdaHomeBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center">
+            <span class="mr-2">🏠</span>
+            <span>홈</span>
+          </button>
+          <div class="text-right">
+            <div class="text-sm text-gray-500">현재 시간</div>
+            <div class="text-xl font-bold text-blue-600" id="currentTime">00:00:00</div>
+          </div>
+          <button onclick="location.reload()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold">
+            🔄 새로고침
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PDA Menu Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+      <!-- Scan Menu -->
+      <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer" onclick="openPDAMenu('scan')">
+        <div class="text-5xl mb-4 text-center">📱</div>
+        <h3 class="text-xl font-bold text-gray-800 mb-2 text-center">스캔 작업</h3>
+        <p class="text-gray-600 text-center text-sm">바코드/QR 코드 스캔</p>
+      </div>
+
+      <!-- Return Menu -->
+      <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer" onclick="openPDAMenu('return')">
+        <div class="text-5xl mb-4 text-center">📦</div>
+        <h3 class="text-xl font-bold text-gray-800 mb-2 text-center">반품 처리</h3>
+        <p class="text-gray-600 text-center text-sm">반품 스캔 및 처리</p>
+      </div>
+
+      <!-- Inventory Menu -->
+      <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer" onclick="openPDAMenu('inventory')">
+        <div class="text-5xl mb-4 text-center">📋</div>
+        <h3 class="text-xl font-bold text-gray-800 mb-2 text-center">재고 관리</h3>
+        <p class="text-gray-600 text-center text-sm">재고 조사 및 관리</p>
+      </div>
+    </div>
+
+    <!-- Active Menu Content -->
+    <div id="menuContent" class="bg-white rounded-lg shadow-md p-6">
+      <div class="text-center text-gray-500 py-12">
+        <div class="text-4xl mb-4">👆</div>
+        <p class="text-lg">위의 메뉴를 선택하세요</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let scanHistory = [];
+    let todayScans = 0;
+    let successCount = 0;
+    let errorCount = 0;
+
+    // 현재 시간 업데이트
+    function updateTime() {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString('ko-KR', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+      });
+      const timeElement = document.getElementById('currentTime');
+      if (timeElement) {
+        timeElement.textContent = timeString;
+      }
+    }
+
+    // 홈으로 돌아가기
+    function goToHome() {
+      // 전역 함수 호출 (index.html에서 정의됨)
+      if (typeof window.goToHome === 'function') {
+        window.goToHome();
+      } else if (window.parent && typeof window.parent.goToHome === 'function') {
+        window.parent.goToHome();
+      } else {
+        // 직접 모드 선택 화면으로 이동
+        window.location.href = '../index.html';
+      }
+    }
+    
+    // 전역 함수로 등록 (PDA 페이지 내에서도 사용 가능하도록)
+    window.pdaGoToHome = goToHome;
+
+    // PDA 메뉴 열기
+    function openPDAMenu(menuType) {
+      const menuContent = document.getElementById('menuContent');
+      
+      if (menuType === 'scan') {
+        menuContent.innerHTML = `
+          <div class="space-y-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">스캔 작업</h2>
+            
+            <!-- Scan Input -->
+            <div class="bg-gray-50 rounded-lg p-6">
+              <label class="block text-sm font-medium text-gray-700 mb-2">바코드/QR 코드 스캔</label>
+              <input 
+                type="text" 
+                id="scanInput" 
+                class="scan-input w-full border-2 border-blue-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="바코드를 스캔하거나 입력하세요"
+                autofocus
+                autocomplete="off"
+              />
+              <div class="flex space-x-4 mt-4">
+                <button onclick="processScan()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg font-bold text-lg transition-colors">
+                  📋 처리
+                </button>
+                <button onclick="clearInput()" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 px-6 rounded-lg font-bold text-lg transition-colors">
+                  🗑️ 지우기
+                </button>
+              </div>
+            </div>
+
+            <!-- Scan Results -->
+            <div>
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-800">스캔 결과</h3>
+                <button onclick="clearResults()" class="text-sm text-gray-600 hover:text-gray-800 underline">
+                  전체 지우기
+                </button>
+              </div>
+              <div id="scanResults" class="space-y-3 max-h-96 overflow-y-auto">
+                <div class="text-center text-gray-500 py-8">
+                  스캔 결과가 여기에 표시됩니다
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        // 입력 필드에 포커스
+        setTimeout(() => {
+          const input = document.getElementById('scanInput');
+          if (input) {
+            input.focus();
+            input.addEventListener('keypress', function(e) {
+              if (e.key === 'Enter') {
+                processScan();
+              }
+            });
+          }
+        }, 100);
+      } else if (menuType === 'return') {
+        menuContent.innerHTML = `
+          <div class="space-y-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">반품 처리</h2>
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+              <div class="text-4xl mb-4">🚧</div>
+              <p class="text-gray-700">반품 처리 기능은 준비 중입니다.</p>
+            </div>
+          </div>
+        `;
+      } else if (menuType === 'inventory') {
+        menuContent.innerHTML = `
+          <div class="space-y-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">재고 관리</h2>
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+              <div class="text-4xl mb-4">🚧</div>
+              <p class="text-gray-700">재고 관리 기능은 준비 중입니다.</p>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // 스캔 입력 처리
+    function processScan() {
+      const input = document.getElementById('scanInput');
+      if (!input) return;
+      
+      const scanValue = input.value.trim();
+      
+      if (!scanValue) {
+        alert('스캔 값을 입력하세요');
+        return;
+      }
+
+      // 스캔 처리 로직
+      const result = {
+        id: Date.now(),
+        value: scanValue,
+        timestamp: new Date().toLocaleString('ko-KR'),
+        status: 'success',
+        message: '스캔 처리 완료'
+      };
+
+      // 결과 추가
+      addScanResult(result);
+      
+      // 통계 업데이트
+      todayScans++;
+      successCount++;
+      updateStatistics();
+      
+      // 입력 필드 초기화
+      input.value = '';
+      input.focus();
+      
+      // 비프음 효과 (시각적)
+      input.classList.add('beep');
+      setTimeout(() => {
+        input.classList.remove('beep');
+      }, 200);
+    }
+
+    // 스캔 결과 추가
+    function addScanResult(result) {
+      scanHistory.unshift(result);
+      if (scanHistory.length > 50) {
+        scanHistory.pop();
+      }
+
+      const resultsDiv = document.getElementById('scanResults');
+      if (!resultsDiv) return;
+      
+      // 첫 번째 결과인 경우 안내 메시지 제거
+      if (resultsDiv.children.length === 1 && resultsDiv.children[0].textContent.includes('스캔 결과가')) {
+        resultsDiv.innerHTML = '';
+      }
+
+      const resultDiv = document.createElement('div');
+      resultDiv.className = 'scan-result bg-gray-50 rounded-lg p-4 border-l-4 border-blue-500';
+      
+      const statusClass = result.status === 'success' 
+        ? 'bg-green-100 text-green-800' 
+        : 'bg-red-100 text-red-800';
+      
+      resultDiv.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+          <div class="flex-1">
+            <div class="font-bold text-lg text-gray-800 mb-1">${result.value}</div>
+            <div class="text-sm text-gray-600">${result.timestamp}</div>
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-semibold ${statusClass}">
+            ${result.status === 'success' ? '✓ 성공' : '✗ 실패'}
+          </span>
+        </div>
+        <div class="text-sm text-gray-700">${result.message}</div>
+      `;
+      
+      resultsDiv.insertBefore(resultDiv, resultsDiv.firstChild);
+    }
+
+    // 통계 업데이트
+    function updateStatistics() {
+      // 통계가 표시되는 곳이 있다면 업데이트
+    }
+
+    // 입력 필드 지우기
+    function clearInput() {
+      const input = document.getElementById('scanInput');
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+    }
+
+    // 결과 지우기
+    function clearResults() {
+      if (confirm('모든 스캔 결과를 지우시겠습니까?')) {
+        scanHistory = [];
+        const resultsDiv = document.getElementById('scanResults');
+        if (resultsDiv) {
+          resultsDiv.innerHTML = `
+            <div class="text-center text-gray-500 py-8">
+              스캔 결과가 여기에 표시됩니다
+            </div>
+          `;
+        }
+      }
+    }
+
+    // 홈 버튼 이벤트 리스너 설정 함수
+    function setupHomeButton() {
+      const homeBtn = document.getElementById('pdaHomeBtn');
+      if (homeBtn) {
+        // 기존 이벤트 리스너 제거 후 새로 추가
+        const newHomeBtn = homeBtn.cloneNode(true);
+        homeBtn.parentNode.replaceChild(newHomeBtn, homeBtn);
+        
+        newHomeBtn.addEventListener('click', function() {
+          // 전역 함수 호출 (index.html에서 정의됨)
+          if (typeof window.goToHome === 'function') {
+            window.goToHome();
+          } else if (window.parent && typeof window.parent.goToHome === 'function') {
+            window.parent.goToHome();
+          } else {
+            // 직접 모드 선택 화면으로 이동
+            window.location.href = '../index.html';
+          }
+        });
+      }
+    }
+
+    // 초기화
+    function initPDA() {
+      updateTime();
+      setInterval(updateTime, 1000);
+      setupHomeButton();
+    }
+
+    // DOMContentLoaded 또는 즉시 실행
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initPDA);
+    } else {
+      // 이미 로드된 경우 즉시 실행
+      initPDA();
+    }
+  </script>
+</body>
+</html>

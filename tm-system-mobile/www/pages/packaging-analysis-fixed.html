@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>파트별 포장 상태 분석 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <div class="bg-white shadow">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-6">
+                    <div class="flex items-center">
+                        <h1 class="text-3xl font-bold text-gray-900">파트별 포장 상태 분석 시스템</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <a href="analysis-new.html" class="text-gray-500 hover:text-gray-700">FIFO 분석</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Packaging Status Information -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <h3 class="text-sm font-medium text-blue-900 mb-2">📦 포장 상태 분류 기준</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="font-medium text-orange-700">포장 전 (미포장):</span>
+                        <span class="text-orange-600">LHSAA, LHSAB, LHSBA, LHSBB</span>
+                    </div>
+                    <div>
+                        <span class="font-medium text-green-700">포장 후 (완료):</span>
+                        <span class="text-green-600">LHSAC, LHSAD, LHSBC, LHSBD</span>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-600 mt-2">• 각 파트별로 포장 전/후 아이템 개수를 분석합니다</p>
+            </div>
+
+            <!-- Filter Section -->
+            <div class="bg-white rounded-lg shadow p-6 mb-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">필터 조건</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="locationFilter" class="block text-sm font-medium text-gray-700 mb-2">RACK NO</label>
+                        <select id="locationFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">All RACK NO</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                    <h4 class="text-sm font-medium text-gray-900 mb-2">고정 필터 조건</h4>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>• RACK NO: LHSAA, LHSAB, LHSBA, LHSBB, LHSAC, LHSAD, LHSBC, LHSBD만 분석</li>
+                        <li>• Hold Whether: N (고정)</li>
+                        <li>• Part No: 모든 Part No별 포장 상태 분석</li>
+                        <li>• 포장 후: Hold=N이고 같은 PALLET NO에 TM 8개 이상인 것만 집계 (8개 미만은 재포장 필요로 포장 전 분류)</li>
+                    </ul>
+                </div>
+                
+                <div class="mt-4">
+                    <button id="refreshDataBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        데이터 새로고침
+                    </button>
+                    <p class="text-xs text-gray-500 mt-2" id="filterStatus">필터를 적용해주세요</p>
+                </div>
+                
+                <!-- 오늘 출하 수량 입력 섹션 -->
+                <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+                    <h4 class="text-sm font-medium text-gray-900 mb-3">오늘 출하 수량 입력 (트럭 수량별)</h4>
+                    <div class="mb-4">
+                        <button id="addShipmentRowBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            트럭 추가
+                        </button>
+                        <button id="calculateShortageBtn" class="ml-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+                            부족 수량 계산
+                        </button>
+                    </div>
+                    
+                    <!-- 트럭별 출하 수량 입력 테이블 -->
+                    <div id="shipmentInputTable" class="overflow-x-auto mb-4">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Part No</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">트럭 수량</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">차량당 수량</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">총 출하 수량</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">액션</th>
+                                </tr>
+                            </thead>
+                            <tbody id="shipmentInputBody" class="bg-white divide-y divide-gray-200">
+                                <!-- 동적으로 추가될 행들 -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div id="shortageResult" class="mt-4 hidden">
+                        <h5 class="text-sm font-medium text-gray-900 mb-2">부족 수량 분석 결과</h5>
+                        <div id="shortageTable" class="overflow-x-auto"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <!-- Before Packaging -->
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-5">
+                        <div id="summaryBefore" class="flex items-center">
+                            <div class="text-2xl font-bold text-orange-600">0</div>
+                            <div class="ml-3">
+                                <div class="text-sm text-gray-500">포장 전</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- After Packaging -->
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-5">
+                        <div id="summaryAfter" class="flex items-center">
+                            <div class="text-2xl font-bold text-green-600">0</div>
+                            <div class="ml-3">
+                                <div class="text-sm text-gray-500">포장 후</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total -->
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-5">
+                        <div id="summaryTotal" class="flex items-center">
+                            <div class="text-2xl font-bold text-blue-600">0</div>
+                            <div class="ml-3">
+                                <div class="text-sm text-gray-500">합계</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Table -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-medium text-gray-900">포장 전후 분석 결과</h3>
+                        <div class="flex space-x-3">
+                            <span id="resultCount" class="text-sm text-gray-500">결과 없음</span>
+                            <button id="exportExcelBtn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+                                Excel 내보내기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('partNo')">
+                                    Part No <span id="sort-partNo" class="ml-1 text-gray-400">↕</span>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('beforePackaging')">
+                                    포장 전 <span id="sort-beforePackaging" class="ml-1 text-gray-400">↕</span>
+                                    <div class="text-xs text-gray-400 font-normal">(개수/트럭댓수)</div>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('afterPackaging')">
+                                    포장 후 <span id="sort-afterPackaging" class="ml-1 text-gray-400">↕</span>
+                                    <div class="text-xs text-gray-400 font-normal">(개수/트럭댓수)</div>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('total')">
+                                    합계 <span id="sort-total" class="ml-1 text-gray-400">↕</span>
+                                    <div class="text-xs text-gray-400 font-normal">(개수/트럭댓수)</div>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTable" class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td colspan="4" class="px-6 py-4 text-center text-gray-500">
+                                    필터를 적용하여 분석을 시작하세요.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <!-- Supabase config removed - using direct initialization -->
+    <script>
+        // 포장 분석 시스템 직접 포함
+        console.log('📦 ===== PACKAGING ANALYSIS SYSTEM LOADING =====');
+        
+        // 전역 변수 정의
+        window.PackagingAnalysis = {
+            allData: [],
+            filteredData: [],
+            currentSortColumn: 'partNo',
+            currentSortDirection: 'asc',
+            lastAnalysisResults: [],
+            initialized: false
+        };
+        
+        // 포장 전후 구역 정의
+        const PACKAGING_ZONES = {
+            BEFORE: ['LHSAA', 'LHSAB', 'LHSBA', 'LHSBB'],
+            AFTER: ['LHSAC', 'LHSAD', 'LHSBC', 'LHSBD']
+        };
+        
+        // 포장 상태 판단 함수
+        function determinePackagingStatus(rackNo, location) {
+            const rack = rackNo || '';
+            const loc = location || '';
+            
+            if (rack) {
+                const beforeByRack = PACKAGING_ZONES.BEFORE.some(prefix => rack.startsWith(prefix));
+                const afterByRack = PACKAGING_ZONES.AFTER.some(prefix => rack.startsWith(prefix));
+                
+                if (beforeByRack) return 'before';
+                if (afterByRack) return 'after';
+            }
+            
+            if (loc) {
+                const beforeByLoc = PACKAGING_ZONES.BEFORE.some(prefix => loc.startsWith(prefix));
+                const afterByLoc = PACKAGING_ZONES.AFTER.some(prefix => loc.startsWith(prefix));
+                
+                if (beforeByLoc) return 'before';
+                if (afterByLoc) return 'after';
+            }
+            
+            return 'unknown';
+        }
+        
+        // 포장 후 TM 개수 확인 함수 (같은 PALLET NO에 8개씩 묶여있는지 확인)
+        function isPackagingAfterValid(item) {
+            // 포장 후 상태인지 먼저 확인
+            const packagingStatus = determinePackagingStatus(item.rack_no, item.location);
+            if (packagingStatus !== 'after') {
+                return false;
+            }
+            
+            // Hold가 N인지 확인
+            if (item.hold_whether !== 'N') {
+                console.log(`⚠️ Hold가 N이 아님: ${item.part_no} - hold_whether: ${item.hold_whether}`);
+                return false;
+            }
+            
+            // PALLET NO가 있는지 확인
+            if (!item.pallet_no) {
+                console.log(`⚠️ PALLET NO가 없음: ${item.part_no}`);
+                return false;
+            }
+            
+            // 같은 PALLET NO에 있는 TM 개수 확인
+            const samePalletTMs = window.PackagingAnalysis.filteredData.filter(tm => 
+                tm.pallet_no === item.pallet_no && 
+                tm.hold_whether === 'N' &&
+                tm.part_no === item.part_no
+            );
+            
+            const tmCount = samePalletTMs.length;
+            
+            console.log(`🔍 Checking PALLET ${item.pallet_no} for ${item.part_no}: ${tmCount}개 TM (8개 필요)`);
+            
+            // 8개가 있는지 확인
+            return tmCount >= 8;
+        }
+        
+        // 메인 초기화 함수
+        function initPackagingAnalysis() {
+            try {
+                console.log('🚀 ===== INITIALIZING PACKAGING ANALYSIS =====');
+                console.log('🚀 Current page:', window.location.pathname);
+                
+                if (window.PackagingAnalysis.initialized) {
+                    console.log('⚠️ Already initialized, skipping...');
+                    return;
+                }
+                
+                // 이벤트 리스너 설정
+                setupPackagingEventListeners();
+                
+                // Supabase 초기화 대기 후 데이터 로드
+                waitForSupabaseAndLoadData();
+                
+                window.PackagingAnalysis.initialized = true;
+                console.log('✅ Packaging analysis system initialized');
+                
+            } catch (error) {
+                console.error('❌ Error initializing packaging analysis:', error);
+            }
+        }
+        
+        // Supabase 로딩 대기 및 데이터 로드
+        function waitForSupabaseAndLoadData() {
+            let attempts = 0;
+            const maxAttempts = 30; // 더 많은 시도
+            
+            const checkSupabase = () => {
+                attempts++;
+                console.log(`🔍 Checking Supabase availability (attempt ${attempts}/${maxAttempts})...`);
+                console.log('🔍 window.supabase:', typeof window.supabase);
+                console.log('🔍 window.supabase.createClient:', typeof window.supabase?.createClient);
+                
+                // Supabase 라이브러리가 로드되었는지 확인
+                if (typeof window.supabase !== 'undefined' && window.supabase && window.supabase.createClient) {
+                    console.log('✅ Supabase library loaded, creating FRESH client...');
+                    
+                    try {
+                        // Supabase 클라이언트 직접 초기화
+                        const SUPABASE_URL = 'https://wfnihtmmaebgjtdmazmo.supabase.co';
+                        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmbmlodG1tYWViZ2p0ZG1hem1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3NTY3NTcsImV4cCI6MjA2NTMzMjc1N30.FYfdgSvOT1qUvANGlqXCEGvSR2JujggU7T_Sjzys3HQ';
+                        
+                        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                        window.sb = supabaseClient;
+                        window.supabase = supabaseClient;
+                        console.log('✅ FRESH Supabase client created successfully');
+                        console.log('✅ Client methods:', Object.keys(supabaseClient));
+                        
+                        // 데이터 로드
+                        loadPackagingData();
+                    } catch (error) {
+                        console.error('❌ Error creating Supabase client:', error);
+                        console.log('🔄 Falling back to sample data...');
+                        loadPackagingData(); // 샘플 데이터로 폴백
+                    }
+                } else if (attempts < maxAttempts) {
+                    console.log('⏳ Supabase not ready yet, waiting...');
+                    console.log('⏳ Current state:', {
+                        'window.supabase': typeof window.supabase,
+                        'window.supabase.createClient': typeof window.supabase?.createClient
+                    });
+                    setTimeout(checkSupabase, 2000); // 2초 대기
+                } else {
+                    console.log('⚠️ Supabase not available after maximum attempts, using sample data');
+                    console.log('⚠️ Final state:', {
+                        'window.supabase': typeof window.supabase,
+                        'window.supabase.createClient': typeof window.supabase?.createClient
+                    });
+                    loadPackagingData(); // 샘플 데이터로 폴백
+                }
+            };
+            
+            // 즉시 시도
+            checkSupabase();
+        }
+        
+        // 이벤트 리스너 설정
+        function setupPackagingEventListeners() {
+            try {
+                console.log('🔧 Setting up packaging event listeners...');
+                
+                // 새로고침 버튼
+                const refreshBtn = document.getElementById('refreshDataBtn');
+                if (refreshBtn) {
+                    refreshBtn.onclick = loadPackagingData;
+                    console.log('✅ Refresh button listener added');
+                }
+                
+                // Location 필터
+                const locationFilter = document.getElementById('locationFilter');
+                if (locationFilter) {
+                    locationFilter.onchange = applyPackagingFilter;
+                    console.log('✅ Location filter listener added');
+                }
+                
+                // Excel 내보내기 버튼
+                const exportBtn = document.getElementById('exportExcelBtn');
+                if (exportBtn) {
+                    exportBtn.onclick = exportPackagingData;
+                    console.log('✅ Export button listener added');
+                }
+                
+                // 부족 수량 계산 버튼
+                const calculateBtn = document.getElementById('calculateShortageBtn');
+                if (calculateBtn) {
+                    calculateBtn.onclick = calculateShortage;
+                    console.log('✅ Calculate shortage button listener added');
+                }
+                
+                // Part No 추가 버튼
+                const addRowBtn = document.getElementById('addShipmentRowBtn');
+                if (addRowBtn) {
+                    addRowBtn.onclick = addShipmentRow;
+                    console.log('✅ Add shipment row button listener added');
+                }
+                
+                console.log('✅ All event listeners set up');
+                
+            } catch (error) {
+                console.error('❌ Error setting up event listeners:', error);
+            }
+        }
+        
+        // Supabase 클라이언트 확인 및 초기화
+        function checkSupabaseClient() {
+            console.log('🔍 Checking Supabase client...');
+            console.log('🔍 window.sb:', window.sb);
+            console.log('🔍 window.supabase:', window.supabase);
+            
+            // 기존 클라이언트가 있으면 사용
+            let supabaseClient = window.sb || window.supabase;
+            
+            if (supabaseClient && typeof supabaseClient.from === 'function') {
+                console.log('✅ Existing Supabase client found and functional');
+                console.log('✅ Client methods available:', Object.keys(supabaseClient));
+                return supabaseClient;
+            }
+            
+            // 기존 클라이언트가 없으면 새로 생성
+            if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+                console.log('🔧 Creating new Supabase client...');
+                try {
+                    const SUPABASE_URL = 'https://wfnihtmmaebgjtdmazmo.supabase.co';
+                    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmbmlodG1tYWViZ2p0ZG1hem1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3NTY3NTcsImV4cCI6MjA2NTMzMjc1N30.FYfdgSvOT1qUvANGlqXCEGvSR2JujggU7T_Sjzys3HQ';
+                    
+                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    window.sb = supabaseClient;
+                    window.supabase = supabaseClient;
+                    
+                    console.log('✅ New Supabase client created successfully');
+                    console.log('✅ Client methods available:', Object.keys(supabaseClient));
+                    return supabaseClient;
+                } catch (error) {
+                    console.error('❌ Error creating Supabase client:', error);
+                    return null;
+                }
+            } else {
+                console.log('❌ Supabase library not available');
+                return null;
+            }
+        }
+        
+        // 페이지네이션을 사용하여 모든 데이터 로딩
+        async function loadAllDataWithPagination(supabaseClient) {
+            try {
+                console.log('📊 Starting paginated data loading...');
+                const allData = [];
+                let page = 0;
+                const pageSize = 1000; // Supabase 기본 제한
+                let hasMore = true;
+                
+                while (hasMore) {
+                    console.log(`📊 Loading page ${page + 1}...`);
+                    updateStatus(`데이터 로딩 중... (페이지 ${page + 1})`, 'info');
+                    
+                    const { data, error } = await supabaseClient
+                        .from('vwtm_list_data')
+                        .select('*')
+                        .order('upload_time', { ascending: false })
+                        .range(page * pageSize, (page + 1) * pageSize - 1);
+                    
+                    if (error) {
+                        throw new Error(`Database error on page ${page + 1}: ${error.message}`);
+                    }
+                    
+                    if (data && data.length > 0) {
+                        allData.push(...data);
+                        console.log(`📊 Page ${page + 1}: ${data.length} records loaded (Total: ${allData.length})`);
+                        
+                        // 1000개 미만이면 마지막 페이지
+                        if (data.length < pageSize) {
+                            hasMore = false;
+                            console.log(`📊 Last page reached (${data.length} < ${pageSize})`);
+                        } else {
+                            page++;
+                        }
+                    } else {
+                        hasMore = false;
+                        console.log(`📊 No more data on page ${page + 1}`);
+                    }
+                    
+                    // 너무 많은 페이지 방지 (안전장치)
+                    if (page > 100) {
+                        console.warn('⚠️ Too many pages, stopping at page 100');
+                        hasMore = false;
+                    }
+                }
+                
+                console.log(`📊 Pagination completed: ${allData.length} total records loaded`);
+                updateStatus(`전체 데이터 로딩 완료: ${allData.length}개 레코드`, 'success');
+                
+                return allData;
+                
+            } catch (error) {
+                console.error('❌ Error in paginated loading:', error);
+                throw error;
+            }
+        }
+        
+        // 데이터 로드
+        async function loadPackagingData() {
+            try {
+                console.log('📊 ===== LOADING PACKAGING DATA =====');
+                
+                // Supabase 클라이언트 확인
+                const supabaseClient = checkSupabaseClient();
+                let allData = [];
+                let dataSource = 'sample';
+                
+                if (supabaseClient) {
+                    try {
+                        console.log('📊 Loading data from Supabase...');
+                        updateStatus('데이터베이스에서 전체 데이터를 로딩 중...', 'info');
+                        
+                        // 전체 데이터 로딩 (페이지네이션 사용)
+                        console.log('📊 Executing query with pagination: SELECT * FROM vwtm_list_data ORDER BY upload_time DESC');
+                        allData = await loadAllDataWithPagination(supabaseClient);
+                        dataSource = 'database';
+                        console.log(`📊 Loaded ${allData.length} records from database (NO LIMIT)`);
+                        
+                        // 로딩된 데이터의 Location 분포 확인
+                        const locationCounts = {};
+                        const rackCounts = {};
+                        allData.forEach(item => {
+                            const location = item.location || 'NULL';
+                            const rack = item.rack_no || 'NULL';
+                            locationCounts[location] = (locationCounts[location] || 0) + 1;
+                            rackCounts[rack] = (rackCounts[rack] || 0) + 1;
+                        });
+                        
+                        console.log('📊 Location 분포:', locationCounts);
+                        console.log('📊 Rack 분포 (상위 10개):', Object.entries(rackCounts)
+                            .sort((a, b) => b[1] - a[1])
+                            .slice(0, 10));
+                        
+                        // 처음 10개 아이템 상세 정보 (PALLET 관련 필드 포함)
+                        console.log('📊 처음 10개 아이템:');
+                        allData.slice(0, 10).forEach((item, index) => {
+                            console.log(`📊 Item ${index}: Part=${item.part_no}, Rack=${item.rack_no}, Location=${item.location}, Hold=${item.hold_whether}`);
+                            console.log(`📊 Item ${index} PALLET 필드:`, {
+                                pallet_count: item.pallet_count,
+                                pallet_qty: item.pallet_qty,
+                                pallet_no: item.pallet_no,
+                                tm_count: item.tm_count,
+                                tm_qty: item.tm_qty,
+                                quantity: item.quantity
+                            });
+                        });
+                        
+                        updateStatus(`전체 데이터 로딩 완료: ${allData.length}개 레코드`, 'success');
+                        
+                    } catch (dbError) {
+                        console.warn('⚠️ Database error, using sample data:', dbError.message);
+                        allData = [];
+                    }
+                } else {
+                    console.log('⚠️ Supabase client not available, using sample data');
+                    allData = [];
+                }
+                
+                // 실제 데이터베이스에서 데이터를 가져왔는지 확인
+                if (allData.length === 0) {
+                    console.log('📭 No data found, creating sample data for demonstration...');
+                    // 샘플 데이터 생성
+                    allData = [
+                        { part_no: 'SAMPLE001', rack_no: 'LHSAA01', location: 'LHSAA', pallet_no: 'P001', hold_whether: 'N' },
+                        { part_no: 'SAMPLE002', rack_no: 'LHSAB01', location: 'LHSAB', pallet_no: 'P002', hold_whether: 'N' },
+                        { part_no: 'SAMPLE003', rack_no: 'LHSAC01', location: 'LHSAC', pallet_no: 'P003', hold_whether: 'N' },
+                        { part_no: 'SAMPLE004', rack_no: 'LHSAD01', location: 'LHSAD', pallet_no: 'P004', hold_whether: 'N' },
+                        { part_no: 'SAMPLE005', rack_no: 'LHSBA01', location: 'LHSBA', pallet_no: 'P005', hold_whether: 'N' },
+                        { part_no: 'SAMPLE006', rack_no: 'LHSBB01', location: 'LHSBB', pallet_no: 'P006', hold_whether: 'N' },
+                        { part_no: 'SAMPLE007', rack_no: 'LHSBC01', location: 'LHSBC', pallet_no: 'P007', hold_whether: 'N' },
+                        { part_no: 'SAMPLE008', rack_no: 'LHSBD01', location: 'LHSBD', pallet_no: 'P008', hold_whether: 'N' }
+                    ];
+                    dataSource = 'sample';
+                    updateStatus(`샘플 데이터 사용: ${allData.length}개 레코드`, 'warning');
+                }
+                
+                window.PackagingAnalysis.allData = allData;
+                
+                // 필터 옵션 채우기
+                populateFilterOptions();
+                
+                // 필터 적용
+                applyPackagingFilter();
+                
+                console.log('✅ Data loading completed');
+                const statusMessage = dataSource === 'database' 
+                    ? `전체 데이터 로드 완료: ${allData.length}개 레코드 (실제 데이터)`
+                    : `데이터 로드 완료: ${allData.length}개 레코드 (샘플 데이터)`;
+                updateStatus(statusMessage, 'success');
+                
+            } catch (error) {
+                console.error('❌ Error loading packaging data:', error);
+                updateStatus('데이터 로딩 실패: ' + error.message, 'error');
+                
+                // 오류 발생 시 샘플 데이터로 설정
+                console.log('🔄 Using fallback sample data...');
+                const fallbackData = [
+                    { part_no: 'FALLBACK001', rack_no: 'LHSAA01', location: 'LHSAA', pallet_no: 'P001', hold_whether: 'N' },
+                    { part_no: 'FALLBACK002', rack_no: 'LHSAC01', location: 'LHSAC', pallet_no: 'P002', hold_whether: 'N' }
+                ];
+                window.PackagingAnalysis.allData = fallbackData;
+                populateFilterOptions();
+                applyPackagingFilter();
+            }
+        }
+        
+        // 필터 옵션 채우기
+        function populateFilterOptions() {
+            try {
+                console.log('🔧 Populating filter options...');
+                
+                // 유효한 포장전/포장후 RACK NO만 추출 (LHSSP 등 제외)
+                const validRackPrefixes = [
+                    'LHSAA', 'LHSAB', 'LHSBA', 'LHSBB',  // 포장전
+                    'LHSAC', 'LHSAD', 'LHSBC', 'LHSBD'   // 포장후
+                ];
+                
+                const uniqueRackPrefixes = [...new Set(
+                    window.PackagingAnalysis.allData
+                        .filter(item => {
+                            const rackNo = item.rack_no || '';
+                            return validRackPrefixes.some(prefix => rackNo.startsWith(prefix));
+                        })
+                        .map(item => item.rack_no.substring(0, 5)) // LHSAA, LHSAB 등
+                )].sort();
+                
+                const locationFilter = document.getElementById('locationFilter');
+                if (locationFilter) {
+                    locationFilter.innerHTML = '<option value="">All RACK NO</option>';
+                    uniqueRackPrefixes.forEach(prefix => {
+                        const option = document.createElement('option');
+                        option.value = prefix;
+                        option.textContent = prefix;
+                        locationFilter.appendChild(option);
+                    });
+                }
+                
+                console.log(`✅ Filter options populated: ${uniqueRackPrefixes.length} valid RACK NO prefixes`);
+                console.log(`✅ Available RACK NO prefixes:`, uniqueRackPrefixes);
+                console.log(`✅ Valid prefixes defined:`, validRackPrefixes);
+                
+            } catch (error) {
+                console.error('❌ Error populating filter options:', error);
+            }
+        }
+        
+        // 필터 적용
+        function applyPackagingFilter() {
+            try {
+                console.log('🔍 ===== APPLYING PACKAGING FILTER =====');
+                console.log(`🔍 원본 데이터: ${window.PackagingAnalysis.allData.length}개 레코드`);
+                
+                let filtered = [...window.PackagingAnalysis.allData];
+                
+                // 정확한 포장전/포장후 RACK NO만 필터링 (LHSSP 등 제외)
+                const validRackPrefixes = [
+                    'LHSAA', 'LHSAB', 'LHSBA', 'LHSBB',  // 포장전
+                    'LHSAC', 'LHSAD', 'LHSBC', 'LHSBD'   // 포장후
+                ];
+                
+                const beforeRackCount = filtered.length;
+                filtered = filtered.filter(item => {
+                    const rackNo = item.rack_no || '';
+                    return validRackPrefixes.some(prefix => rackNo.startsWith(prefix));
+                });
+                console.log(`🔍 유효한 RACK NO 필터 적용: ${beforeRackCount} → ${filtered.length}개 레코드`);
+                console.log(`🔍 허용된 RACK NO: ${validRackPrefixes.join(', ')}`);
+                
+                // RACK NO 필터 적용 (선택된 경우)
+                const rackFilter = document.getElementById('locationFilter');
+                if (rackFilter && rackFilter.value) {
+                    const beforeRackFilterCount = filtered.length;
+                    filtered = filtered.filter(item => {
+                        const rackNo = item.rack_no || '';
+                        return rackNo.startsWith(rackFilter.value);
+                    });
+                    console.log(`🔍 RACK NO ${rackFilter.value} 필터 적용: ${beforeRackFilterCount} → ${filtered.length}개 레코드`);
+                } else {
+                    console.log('🔍 RACK NO 필터 없음 - 모든 LHS RACK NO 포함');
+                }
+                
+                // Hold Whether 'N' 필터 적용
+                const beforeHoldCount = filtered.length;
+                filtered = filtered.filter(item => item.hold_whether === 'N');
+                console.log(`🔍 Hold Whether 'N' 필터 적용: ${beforeHoldCount} → ${filtered.length}개 레코드`);
+                
+                // 필터링된 데이터의 RACK NO 분포 확인
+                const filteredRackCounts = {};
+                filtered.forEach(item => {
+                    const rackNo = item.rack_no || 'NULL';
+                    const rackPrefix = rackNo.substring(0, 5); // LHSAA, LHSAB 등
+                    filteredRackCounts[rackPrefix] = (filteredRackCounts[rackPrefix] || 0) + 1;
+                });
+                console.log('🔍 필터링된 데이터 RACK NO 분포:', filteredRackCounts);
+                
+                window.PackagingAnalysis.filteredData = filtered;
+                console.log(`🔍 Filter applied: ${filtered.length} records`);
+                
+                // 분석 수행
+                performPackagingAnalysis();
+                
+                updateStatus(`필터 적용됨: ${filtered.length}개 레코드 (LHS RACK NO만)`);
+                
+            } catch (error) {
+                console.error('❌ Error applying filter:', error);
+                updateStatus('필터 적용 실패: ' + error.message, 'error');
+            }
+        }
+        
+        // 포장 분석 수행
+        function performPackagingAnalysis() {
+            try {
+                console.log('📊 ===== PERFORMING PACKAGING ANALYSIS =====');
+                console.log('📊 분석 기준:');
+                console.log('📊 - Part No별로 그룹화');
+                console.log('📊 - 각 TM(개별 아이템)을 포장 전/후로 분류');
+                console.log('📊 - 포장 전: LHSAA, LHSAB, LHSBA, LHSBB (rack_no 또는 location 기준)');
+                console.log('📊 - 포장 후: LHSAC, LHSAD, LHSBC, LHSBD (rack_no 또는 location 기준)');
+                console.log('📊 - Hold Whether = "N"인 아이템만 분석');
+                
+                const data = window.PackagingAnalysis.filteredData;
+                console.log(`📊 분석 대상 데이터: ${data.length}개 TM 레코드`);
+                
+                if (!data || data.length === 0) {
+                    console.log('📭 No data to analyze');
+                    displayPackagingResults([]);
+                    updatePackagingSummary([]);
+                    return;
+                }
+                
+                // Part No별로 그룹화
+                const partGroups = {};
+                let totalBeforeCount = 0;
+                let totalAfterCount = 0;
+                let totalUnknownCount = 0;
+                
+                data.forEach((item, index) => {
+                    const partNo = item.part_no;
+                    if (!partNo) {
+                        console.log(`⚠️ Item ${index} has no part_no:`, item);
+                        return;
+                    }
+                    
+                    if (!partGroups[partNo]) {
+                        partGroups[partNo] = {
+                            partNo: partNo,
+                            beforePackaging: 0,
+                            afterPackaging: 0,
+                            total: 0,
+                            items: []
+                        };
+                    }
+                    
+                    const packagingStatus = determinePackagingStatus(item.rack_no, item.location);
+                    const isBefore = packagingStatus === 'before';
+                    const isAfter = packagingStatus === 'after';
+                    
+                    // 상세 로깅 (처음 5개만)
+                    if (index < 5) {
+                        console.log(`📊 Item ${index}: Part=${partNo}, Rack=${item.rack_no}, Location=${item.location}, Status=${packagingStatus}`);
+                    }
+                    
+                    partGroups[partNo].items.push({
+                        palletNo: item.pallet_no,
+                        rackNo: item.rack_no,
+                        location: item.location,
+                        isBeforePackaging: isBefore,
+                        isAfterPackaging: isAfter
+                    });
+                    
+                    if (isBefore) {
+                        partGroups[partNo].beforePackaging++;
+                        totalBeforeCount++;
+                    } else if (isAfter) {
+                        // 포장 후인 경우 같은 PALLET NO에 8개씩 묶여있는지 확인
+                        const samePalletTMs = window.PackagingAnalysis.filteredData.filter(tm => 
+                            tm.pallet_no === item.pallet_no && 
+                            tm.hold_whether === 'N' &&
+                            tm.part_no === item.part_no
+                        );
+                        
+                        const tmCount = samePalletTMs.length;
+                        
+                        if (tmCount >= 8) {
+                            // 8개 이상인 경우 포장 후로 집계
+                            const palletCount = Math.floor(tmCount / 8);
+                            partGroups[partNo].afterPackaging += palletCount;
+                            totalAfterCount += palletCount;
+                            
+                            console.log(`✅ 포장 후 집계: ${item.part_no} PALLET ${item.pallet_no} - ${tmCount}개 TM → ${palletCount}개 PALLET`);
+                            
+                            // 8개로 나누어떨어지지 않는 나머지 TM들은 포장 전으로 분류
+                            const remainderTMs = tmCount % 8;
+                            if (remainderTMs > 0) {
+                                partGroups[partNo].beforePackaging += remainderTMs;
+                                totalBeforeCount += remainderTMs;
+                                console.log(`🔄 재포장 필요: ${item.part_no} PALLET ${item.pallet_no} - 나머지 ${remainderTMs}개 TM을 포장 전으로 분류`);
+                            }
+                        } else {
+                            // 8개 미만인 경우 모두 포장 전으로 분류 (재포장 필요)
+                            partGroups[partNo].beforePackaging += tmCount;
+                            totalBeforeCount += tmCount;
+                            console.log(`🔄 재포장 필요: ${item.part_no} PALLET ${item.pallet_no} - ${tmCount}개 TM을 포장 전으로 분류`);
+                        }
+                    } else {
+                        totalUnknownCount++;
+                    }
+                    
+                    partGroups[partNo].total++;
+                });
+                
+                const results = Object.values(partGroups).sort((a, b) => a.partNo.localeCompare(b.partNo));
+                
+                console.log(`📊 분석 결과 요약:`);
+                console.log(`📊 - 총 Part No 개수: ${results.length}개`);
+                console.log(`📊 - 포장 전 TM 개수: ${totalBeforeCount}개`);
+                console.log(`📊 - 포장 후 TM 개수: ${totalAfterCount}개`);
+                console.log(`📊 - 분류 불가 TM 개수: ${totalUnknownCount}개`);
+                console.log(`📊 - 총 TM 개수: ${totalBeforeCount + totalAfterCount + totalUnknownCount}개`);
+                
+                // 결과 표시
+                displayPackagingResults(results);
+                updatePackagingSummary(results);
+                
+                // 결과 캐시
+                window.PackagingAnalysis.lastAnalysisResults = results;
+                
+            } catch (error) {
+                console.error('❌ Error performing packaging analysis:', error);
+                updateStatus('분석 실패: ' + error.message, 'error');
+            }
+        }
+        
+        // 결과 표시
+        function displayPackagingResults(results) {
+            try {
+                console.log('📋 ===== DISPLAYING PACKAGING RESULTS =====');
+                console.log('📋 Results:', results);
+                
+                const tableBody = document.getElementById('resultsTable');
+                const resultCount = document.getElementById('resultCount');
+                
+                if (!tableBody || !resultCount) {
+                    console.error('❌ Required DOM elements not found');
+                    return;
+                }
+                
+                if (results.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="4" class="px-6 py-4 text-center text-gray-500">
+                                분석 결과가 없습니다.
+                            </td>
+                        </tr>
+                    `;
+                    resultCount.textContent = '결과 없음';
+                    return;
+                }
+                
+                resultCount.textContent = `Found ${results.length} part numbers`;
+                
+                const tableRows = results.map(result => `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            ${result.partNo || 'N/A'}
+                        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          <div class="flex flex-col space-y-1">
+            <span class="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs">
+              ${result.beforePackaging || 0}개
+            </span>
+            <span class="text-xs text-gray-500">
+              ${calculateTruckCount(result.partNo, result.beforePackaging || 0)}대
+            </span>
+          </div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          <div class="flex flex-col space-y-1">
+            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+              ${result.afterPackaging || 0}개
+            </span>
+            <span class="text-xs text-gray-500">
+              ${calculateTruckCount(result.partNo, result.afterPackaging || 0)}대
+            </span>
+          </div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          <div class="flex flex-col space-y-1">
+            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+              ${result.total || 0}개
+            </span>
+            <span class="text-xs text-gray-500">
+              ${calculateTruckCount(result.partNo, result.total || 0)}대
+            </span>
+          </div>
+        </td>
+                    </tr>
+                `);
+                
+                tableBody.innerHTML = tableRows.join('');
+                
+                console.log(`✅ Results displayed: ${results.length} rows`);
+                
+            } catch (error) {
+                console.error('❌ Error displaying results:', error);
+            }
+        }
+        
+        // 요약 업데이트
+        function updatePackagingSummary(results) {
+            try {
+                console.log('📊 Updating packaging summary...');
+                
+                const totalBefore = results.reduce((sum, r) => sum + (r.beforePackaging || 0), 0);
+                const totalAfter = results.reduce((sum, r) => sum + (r.afterPackaging || 0), 0);
+                const totalItems = results.reduce((sum, r) => sum + (r.total || 0), 0);
+                
+                const summaryBefore = document.getElementById('summaryBefore');
+                const summaryAfter = document.getElementById('summaryAfter');
+                const summaryTotal = document.getElementById('summaryTotal');
+                
+                if (summaryBefore) {
+                    summaryBefore.innerHTML = `
+                        <div class="flex items-center">
+                            <div class="text-2xl font-bold text-orange-600">${totalBefore}</div>
+                            <div class="ml-3">
+                                <div class="text-sm text-gray-500">포장 전</div>
+                                <div class="text-xs text-gray-400">약 ${Math.floor(totalBefore / 176)}대</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                if (summaryAfter) {
+                    summaryAfter.innerHTML = `
+                        <div class="flex items-center">
+                            <div class="text-2xl font-bold text-green-600">${totalAfter}</div>
+                            <div class="ml-3">
+                                <div class="text-sm text-gray-500">포장 후</div>
+                                <div class="text-xs text-gray-400">약 ${Math.floor(totalAfter / 176)}대</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                if (summaryTotal) {
+                    summaryTotal.innerHTML = `
+                        <div class="flex items-center">
+                            <div class="text-2xl font-bold text-blue-600">${totalItems}</div>
+                            <div class="ml-3">
+                                <div class="text-sm text-gray-500">합계</div>
+                                <div class="text-xs text-gray-400">약 ${Math.floor(totalItems / 176)}대</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                console.log(`✅ Summary updated: Before: ${totalBefore}, After: ${totalAfter}, Total: ${totalItems}`);
+                
+            } catch (error) {
+                console.error('❌ Error updating summary:', error);
+            }
+        }
+        
+        // 상태 업데이트
+        function updateStatus(message, type = 'info') {
+            try {
+                const filterStatus = document.getElementById('filterStatus');
+                if (filterStatus) {
+                    const bgColor = {
+                        'info': 'text-gray-500',
+                        'success': 'text-green-600',
+                        'error': 'text-red-600',
+                        'warning': 'text-yellow-600'
+                    }[type] || 'text-gray-500';
+                    
+                    filterStatus.className = `text-xs ${bgColor}`;
+                    filterStatus.textContent = message;
+                }
+            } catch (error) {
+                console.error('❌ Error updating status:', error);
+            }
+        }
+        
+        // Excel 내보내기
+        async function exportPackagingData() {
+            try {
+                console.log('📦 Exporting packaging data...');
+                
+                const results = window.PackagingAnalysis.lastAnalysisResults;
+                if (!results || results.length === 0) {
+                    console.warn('⚠️ 내보낼 데이터가 없습니다.');
+                    return;
+                }
+                
+                const workbook = new ExcelJS.Workbook();
+                const worksheet = workbook.addWorksheet('포장 분석 결과');
+                
+                // 헤더 추가
+                const headers = ['Part No', '포장 전', '포장 후', '합계'];
+                const headerRow = worksheet.addRow(headers);
+                headerRow.font = { bold: true };
+                headerRow.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FFE0E0E0' }
+                };
+                
+                // 데이터 추가
+                results.forEach(result => {
+                    worksheet.addRow([
+                        result.partNo,
+                        result.beforePackaging,
+                        result.afterPackaging,
+                        result.total
+                    ]);
+                });
+                
+                // 파일 다운로드
+                const buffer = await workbook.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { 
+                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+                });
+                
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `포장분석결과_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+                
+                console.log('✅ Export completed');
+                updateStatus('Excel 내보내기 완료', 'success');
+                
+            } catch (error) {
+                console.error('❌ Error exporting data:', error);
+                updateStatus('내보내기 실패: ' + error.message, 'error');
+            }
+        }
+        
+        // 테이블 정렬
+        function sortPackagingTable(column) {
+            try {
+                console.log(`🔍 Sorting by column: ${column}`);
+                
+                if (window.PackagingAnalysis.currentSortColumn === column) {
+                    window.PackagingAnalysis.currentSortDirection = 
+                        window.PackagingAnalysis.currentSortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    window.PackagingAnalysis.currentSortColumn = column;
+                    window.PackagingAnalysis.currentSortDirection = 'asc';
+                }
+                
+                const results = [...window.PackagingAnalysis.lastAnalysisResults];
+                results.sort((a, b) => {
+                    let aVal = a[column] || '';
+                    let bVal = b[column] || '';
+                    
+                    if (['beforePackaging', 'afterPackaging', 'total'].includes(column)) {
+                        aVal = parseFloat(aVal) || 0;
+                        bVal = parseFloat(bVal) || 0;
+                    } else {
+                        aVal = String(aVal).toLowerCase();
+                        bVal = String(bVal).toLowerCase();
+                    }
+                    
+                    if (aVal < bVal) return window.PackagingAnalysis.currentSortDirection === 'asc' ? -1 : 1;
+                    if (aVal > bVal) return window.PackagingAnalysis.currentSortDirection === 'asc' ? 1 : -1;
+                    return 0;
+                });
+                
+                displayPackagingResults(results);
+                updatePackagingSummary(results);
+                
+                console.log(`✅ Sorted by ${column} (${window.PackagingAnalysis.currentSortDirection})`);
+                
+            } catch (error) {
+                console.error('❌ Error sorting table:', error);
+            }
+        }
+        
+        // Part No별 차량당 수량 정의
+        const PART_NO_TRUCK_CAPACITY = {
+            '3T24': 152,  // 3T24는 차량당 152개
+            '3T33': 176,  // 나머지는 차량당 176개
+            '3T34': 176,
+            '3T35': 176
+        };
+        
+        // 트럭 댓수 계산 함수
+        function calculateTruckCount(partNo, quantity) {
+            if (!partNo || !quantity || quantity <= 0) return '0';
+            
+            const capacityPerTruck = PART_NO_TRUCK_CAPACITY[partNo] || 176; // 기본값 176
+            const truckCount = Math.floor(quantity / capacityPerTruck);
+            return truckCount.toLocaleString();
+        }
+        
+        // Part No 추가 함수
+        function addShipmentRow() {
+            try {
+                console.log('➕ Adding shipment row...');
+                
+                const tbody = document.getElementById('shipmentInputBody');
+                if (!tbody) {
+                    console.error('❌ Shipment input body not found');
+                    return;
+                }
+                
+                const rowId = 'shipment_row_' + Date.now();
+                const rowHTML = `
+                    <tr id="${rowId}">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <select class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" data-part-no onchange="updateTruckCapacity('${rowId}')">
+                                <option value="">Part No 선택</option>
+                                <option value="3T24">3T24</option>
+                                <option value="3T33">3T33</option>
+                                <option value="3T34">3T34</option>
+                                <option value="3T35">3T35</option>
+                            </select>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <input type="number" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="트럭 수량" data-truck-count min="0" onchange="calculateTotalQuantity('${rowId}')">
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="text-sm text-gray-900" data-capacity-per-truck">-</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="text-sm font-medium text-gray-900" data-total-quantity>0</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <button onclick="removeShipmentRow('${rowId}')" class="text-red-600 hover:text-red-800 text-sm font-medium">
+                                삭제
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                
+                tbody.insertAdjacentHTML('beforeend', rowHTML);
+                console.log('✅ Shipment row added');
+                
+            } catch (error) {
+                console.error('❌ Error adding shipment row:', error);
+            }
+        }
+        
+        // Part No 선택 시 차량당 수량 업데이트
+        function updateTruckCapacity(rowId) {
+            try {
+                const row = document.getElementById(rowId);
+                if (!row) return;
+                
+                const partNoSelect = row.querySelector('[data-part-no]');
+                const capacitySpan = row.querySelector('[data-capacity-per-truck]');
+                
+                if (partNoSelect && capacitySpan) {
+                    const partNo = partNoSelect.value;
+                    const capacity = PART_NO_TRUCK_CAPACITY[partNo] || 0;
+                    capacitySpan.textContent = capacity > 0 ? capacity.toLocaleString() + '개' : '-';
+                    
+                    // 총 수량도 다시 계산
+                    calculateTotalQuantity(rowId);
+                }
+            } catch (error) {
+                console.error('❌ Error updating truck capacity:', error);
+            }
+        }
+        
+        // 총 출하 수량 계산
+        function calculateTotalQuantity(rowId) {
+            try {
+                const row = document.getElementById(rowId);
+                if (!row) return;
+                
+                const partNoSelect = row.querySelector('[data-part-no]');
+                const truckCountInput = row.querySelector('[data-truck-count]');
+                const totalQuantitySpan = row.querySelector('[data-total-quantity]');
+                
+                if (partNoSelect && truckCountInput && totalQuantitySpan) {
+                    const partNo = partNoSelect.value;
+                    const truckCount = parseInt(truckCountInput.value) || 0;
+                    const capacityPerTruck = PART_NO_TRUCK_CAPACITY[partNo] || 0;
+                    
+                    const totalQuantity = truckCount * capacityPerTruck;
+                    totalQuantitySpan.textContent = totalQuantity.toLocaleString();
+                }
+            } catch (error) {
+                console.error('❌ Error calculating total quantity:', error);
+            }
+        }
+        
+        // Part No 행 삭제 함수
+        function removeShipmentRow(rowId) {
+            try {
+                const row = document.getElementById(rowId);
+                if (row) {
+                    row.remove();
+                    console.log(`✅ Shipment row ${rowId} removed`);
+                }
+            } catch (error) {
+                console.error('❌ Error removing shipment row:', error);
+            }
+        }
+        
+        // 부족 수량 계산 (Part No별)
+        function calculateShortage() {
+            try {
+                console.log('📊 ===== CALCULATING SHORTAGE (Part No별) =====');
+                
+                const shortageResult = document.getElementById('shortageResult');
+                const shortageTable = document.getElementById('shortageTable');
+                
+                if (!shortageResult || !shortageTable) {
+                    console.error('❌ Required DOM elements not found');
+                    return;
+                }
+                
+                const results = window.PackagingAnalysis.lastAnalysisResults;
+                if (!results || results.length === 0) {
+                    console.warn('⚠️ 분석 결과가 없습니다. 먼저 데이터를 로드해주세요.');
+                    return;
+                }
+                
+                // 입력된 Part No별 출하 수량 수집 (트럭 수량 기반)
+                const shipmentInputs = document.querySelectorAll('#shipmentInputBody tr');
+                const shipmentData = {};
+                let totalShipment = 0;
+                
+                shipmentInputs.forEach(row => {
+                    const partNoSelect = row.querySelector('[data-part-no]');
+                    const truckCountInput = row.querySelector('[data-truck-count]');
+                    
+                    if (partNoSelect && truckCountInput && partNoSelect.value && truckCountInput.value) {
+                        const partNo = partNoSelect.value;
+                        const truckCount = parseInt(truckCountInput.value);
+                        const capacityPerTruck = PART_NO_TRUCK_CAPACITY[partNo] || 0;
+                        
+                        if (!isNaN(truckCount) && truckCount > 0 && capacityPerTruck > 0) {
+                            const totalQuantity = truckCount * capacityPerTruck;
+                            shipmentData[partNo] = (shipmentData[partNo] || 0) + totalQuantity;
+                            totalShipment += totalQuantity;
+                        }
+                    }
+                });
+                
+                if (Object.keys(shipmentData).length === 0) {
+                    console.warn('⚠️ Part No와 출하 수량을 입력해주세요.');
+                    return;
+                }
+                
+                // Part No별 부족 수량 계산
+                const shortageAnalysis = [];
+                let totalShortage = 0;
+                
+                Object.keys(shipmentData).forEach(partNo => {
+                    const shipmentQty = shipmentData[partNo];
+                    const result = results.find(r => r.partNo === partNo);
+                    
+                    if (result) {
+                        const afterPackaging = result.afterPackaging || 0;
+                        const shortage = Math.max(0, shipmentQty - afterPackaging);
+                        shortageAnalysis.push({
+                            partNo: partNo,
+                            shipmentQty: shipmentQty,
+                            afterPackaging: afterPackaging,
+                            shortage: shortage
+                        });
+                        totalShortage += shortage;
+                    }
+                });
+                
+                // 결과 테이블 생성
+                let tableHTML = `
+                    <div class="bg-white rounded-lg shadow overflow-hidden">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Part No</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">트럭 수량</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">출하 수량</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">포장 후</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">부족 수량</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                `;
+                
+                shortageAnalysis.forEach(item => {
+                    const status = item.shortage > 0 ? '부족' : '충분';
+                    const statusColor = item.shortage > 0 ? 'text-red-600' : 'text-green-600';
+                    const statusBadge = item.shortage > 0 ? 
+                        '<span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">부족</span>' : 
+                        '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">충분</span>';
+                    
+                    // 트럭 수량 계산
+                    const capacityPerTruck = PART_NO_TRUCK_CAPACITY[item.partNo] || 0;
+                    const truckCount = capacityPerTruck > 0 ? Math.ceil(item.shipmentQty / capacityPerTruck) : 0;
+                    
+                    tableHTML += `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.partNo}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${truckCount}대</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${item.shipmentQty.toLocaleString()}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${item.afterPackaging.toLocaleString()}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold ${statusColor}">${item.shortage.toLocaleString()}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">${statusBadge}</td>
+                        </tr>
+                    `;
+                });
+                
+                // 총계 행 추가
+                const totalTrucks = shortageAnalysis.reduce((sum, item) => {
+                    const capacityPerTruck = PART_NO_TRUCK_CAPACITY[item.partNo] || 0;
+                    return sum + (capacityPerTruck > 0 ? Math.ceil(item.shipmentQty / capacityPerTruck) : 0);
+                }, 0);
+                
+                tableHTML += `
+                    <tr class="bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">총계</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">${totalTrucks}대</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">${totalShipment.toLocaleString()}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">-</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold ${totalShortage > 0 ? 'text-red-600' : 'text-green-600'}">${totalShortage.toLocaleString()}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            ${totalShortage > 0 ? 
+                                '<span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">부족</span>' : 
+                                '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">충분</span>'
+                            }
+                        </td>
+                    </tr>
+                `;
+                
+                tableHTML += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                shortageTable.innerHTML = tableHTML;
+                shortageResult.classList.remove('hidden');
+                
+                console.log(`✅ Shortage calculation completed: ${totalShortage} units shortage across ${shortageAnalysis.length} parts`);
+                updateStatus(`부족 수량 계산 완료: ${totalShortage > 0 ? totalShortage.toLocaleString() + '개 부족' : '충분한 재고'}`, totalShortage > 0 ? 'warning' : 'success');
+                
+            } catch (error) {
+                console.error('❌ Error calculating shortage:', error);
+                updateStatus('부족 수량 계산 실패: ' + error.message, 'error');
+            }
+        }
+        
+        // 전역 함수로 등록
+        window.initPackagingAnalysis = initPackagingAnalysis;
+        window.loadPackagingData = loadPackagingData;
+        window.applyPackagingFilter = applyPackagingFilter;
+        window.displayPackagingResults = displayPackagingResults;
+        window.exportPackagingData = exportPackagingData;
+        window.sortPackagingTable = sortPackagingTable;
+        window.addShipmentRow = addShipmentRow;
+        window.removeShipmentRow = removeShipmentRow;
+        window.calculateShortage = calculateShortage;
+        window.updateTruckCapacity = updateTruckCapacity;
+        window.calculateTotalQuantity = calculateTotalQuantity;
+        window.calculateTruckCount = calculateTruckCount;
+        
+        // DOM 로드 후 초기화
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initPackagingAnalysis);
+        } else {
+            initPackagingAnalysis();
+        }
+        
+        console.log('📦 ===== PACKAGING ANALYSIS SYSTEM LOADED =====');
+    </script>
+</body>
+</html>

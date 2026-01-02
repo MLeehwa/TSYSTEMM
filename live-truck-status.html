@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Truck Status Display</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        
+        .timer-display {
+            font-family: 'Courier New', monospace;
+        }
+        
+        .status-active {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        .truck-item {
+            transition: all 0.3s ease;
+        }
+        
+        .truck-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="h-screen p-4 bg-gray-900 text-white overflow-hidden">
+        <!-- Header -->
+        <div class="text-center mb-4 relative">
+            <h2 class="text-3xl font-semibold text-blue-300 mb-1">🚛 LIVE TRUCK STATUS</h2>
+            <div class="text-sm text-gray-400 mb-2">ESTADO EN VIVO DE TRÁNSITO</div>
+            <div class="text-lg font-bold text-gray-300 mb-2" id="displayDate">-</div>
+            <button onclick="toggleFullscreen()" id="fullscreenBtn" class="absolute top-0 right-0 bg-red-500 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold text-lg shadow-lg">
+                <span id="fullscreenText">🖥️ FULLSCREEN</span>
+            </button>
+        </div>
+
+        <!-- Current Status Card -->
+        <div class="bg-gray-800 rounded-xl shadow-xl p-6 mb-4">
+            <div class="text-center">
+                <h3 class="text-3xl font-bold mb-2 text-blue-300">CURRENT TRUCK STATUS</h3>
+                <div class="text-sm text-gray-400 mb-6">ESTADO ACTUAL</div>
+                <div class="grid grid-cols-5 gap-4">
+                    <!-- Current Truck -->
+                    <div class="bg-gray-700 rounded-lg p-4 border-2 border-gray-600 flex flex-col items-center justify-center">
+                        <div class="text-6xl font-bold text-white" id="currentTruck">-</div>
+                        <div class="text-sm text-gray-400 mt-2">TRUCK NO</div>
+                        <div class="text-xs text-gray-500">NÚMERO</div>
+                    </div>
+                    
+                    <!-- Current Destination -->
+                    <div class="bg-gray-700 rounded-lg p-4 border-2 border-gray-600 flex flex-col items-center justify-center">
+                        <div class="text-5xl font-bold text-white" id="currentDestination">-</div>
+                        <div class="text-sm text-gray-400 mt-2">DESTINATION</div>
+                        <div class="text-xs text-gray-500">DESTINO</div>
+                    </div>
+                    
+                    <!-- ETA Time -->
+                    <div class="bg-gray-700 rounded-lg p-4 border-2 border-gray-600 flex flex-col items-center justify-center">
+                        <div class="text-6xl font-bold text-white timer-display" id="etaTime">-</div>
+                        <div class="text-sm text-gray-400 mt-2">ETA TIME</div>
+                        <div class="text-xs text-gray-500">HORA ESTIMADA</div>
+                    </div>
+                    
+                    <!-- Status -->
+                    <div class="bg-gray-700 rounded-lg p-4 border-2 border-gray-600 flex flex-col items-center justify-center">
+                        <div class="text-4xl font-bold text-white" id="currentStatus">WAITING</div>
+                        <div class="text-sm text-gray-400 mt-2">STATUS</div>
+                        <div class="text-xs text-gray-500">ESTADO</div>
+                    </div>
+                    
+                    <!-- Total Trucks Today -->
+                    <div class="bg-gray-700 rounded-lg p-4 border-2 border-gray-600 flex flex-col items-center justify-center">
+                        <div class="text-5xl font-bold text-white" id="totalTrucks">0</div>
+                        <div class="text-sm text-gray-400 mt-2">TOTAL TODAY</div>
+                        <div class="text-xs text-gray-500">TOTAL HOY</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Truck Status List -->
+        <div class="bg-gray-800 rounded-xl shadow-xl p-6 flex-1">
+            <h3 class="text-2xl font-bold mb-2 text-center text-blue-300">TRUCK STATUS LIST</h3>
+            <div class="text-sm text-gray-400 mb-4 text-center">LISTA DE ESTADO DE TRÁNSITOS</div>
+            <div class="overflow-y-auto h-[600px]">
+                <div id="truckList" class="space-y-2">
+                    <!-- Truck items will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase 설정
+        const SUPABASE_URL = 'https://wfnihtmmaebgjtdmazmo.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmbmlodG1tYWViZ2p0ZG1hem1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3NTY3NTcsImV4cCI6MjA2NTMzMjc1N30.FYfdgSvOT1qUvANGlqXCEGvSR2JujggU7T_Sjzys3HQ';
+        
+        // Supabase 클라이언트 생성
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            autoRefreshToken: true,
+            persistSession: true
+        });
+
+        // 전역 변수
+        let truckData = [];
+        let refreshInterval = null;
+
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚛 Live Truck Status Display initialized');
+            updateDisplayDate();
+            loadTruckData();
+            startAutoRefresh();
+            
+            // Supabase 실시간 구독 설정
+            setupRealtimeSubscription();
+        });
+
+        // 날짜 표시 업데이트
+        function updateDisplayDate() {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'long'
+            });
+            const spanishDate = now.toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'long'
+            });
+            document.getElementById('displayDate').innerHTML = `
+                <div>${dateStr}</div>
+                <div class="text-sm text-gray-400">${spanishDate}</div>
+            `;
+        }
+
+        // 실시간 구독 설정
+        function setupRealtimeSubscription() {
+            const channel = supabase
+                .channel('live-truck-status')
+                .on('postgres_changes', 
+                    { 
+                        event: '*', 
+                        schema: 'public', 
+                        table: 'vwtm_truck_management'
+                    }, 
+                    (payload) => {
+                        console.log('🔔 Real-time update received:', payload);
+                        loadTruckData();
+                    }
+                )
+                .subscribe();
+
+            console.log('📡 Real-time subscription established');
+        }
+
+        // 트럭 데이터 로드
+        async function loadTruckData() {
+            try {
+                console.log('📊 Loading truck data...');
+                
+                const today = new Date().toISOString().split('T')[0];
+                
+                const { data, error } = await supabase
+                    .from('vwtm_truck_management')
+                    .select('*')
+                    .eq('departure_date', today)
+                    .order('departure_time', { ascending: true });
+                
+                if (error) throw error;
+                
+                truckData = data || [];
+                console.log('✅ Truck data loaded:', truckData);
+                
+                displayTruckList();
+                updateCurrentStatus();
+                
+            } catch (error) {
+                console.error('Error loading truck data:', error);
+                console.warn('⚠️ Unable to load data. Please check Supabase connection.');
+                truckData = [];
+                displayTruckList();
+            }
+        }
+
+        // 트럭 목록 표시
+        function displayTruckList() {
+            const truckList = document.getElementById('truckList');
+            let html = '';
+            
+            if (truckData.length === 0) {
+                html = '<div class="text-center text-gray-400 py-8">No trucks scheduled for today</div>';
+            } else {
+                // 상태별로 정렬 (On Site -> Scheduled -> Shipped)
+                const sortedData = [...truckData].sort((a, b) => {
+                    const statusOrder = { 'On Site': 1, 'Scheduled': 2, 'Shipped': 3 };
+                    const aOrder = statusOrder[a.status] || 999;
+                    const bOrder = statusOrder[b.status] || 999;
+                    
+                    if (aOrder !== bOrder) return aOrder - bOrder;
+                    
+                    // 같은 상태면 시간순 정렬
+                    return (a.departure_time || '').localeCompare(b.departure_time || '');
+                });
+                
+                sortedData.forEach((truck, index) => {
+                    const bgColor = getStatusBgColor(truck.status);
+                    const borderColor = getStatusBorderColor(truck.status);
+                    const opacityClass = truck.status === 'Shipped' ? 'opacity-60' : '';
+                    
+                    html += `
+                        <div class="truck-item ${bgColor} rounded-lg p-4 border-l-4 ${borderColor} ${opacityClass}">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-6">
+                                    <div class="text-2xl font-bold text-white">${truck.departure_time || '-'}</div>
+                                    <div class="text-4xl font-bold text-white">${truck.truck_id || '-'}</div>
+                                    <div class="text-3xl font-bold text-blue-300">${truck.destination || 'VW US'}</div>
+                                    <div class="text-2xl font-bold text-yellow-300">${truck.forza_id || '-'}</div>
+                                    <div class="text-xl text-gray-300">${truck.parts || '-'}</div>
+                                </div>
+                                <div class="flex items-center space-x-4">
+                                    <span class="px-3 py-1 rounded-full text-sm font-semibold ${getStatusBadgeColor(truck.status)}">
+                                        ${getStatusText(truck.status)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            truckList.innerHTML = html;
+        }
+
+        // 현재 상태 업데이트
+        function updateCurrentStatus() {
+            // On Site 또는 Scheduled 상태인 첫 번째 트럭
+            const activeTruck = truckData.find(truck => truck.status === 'On Site') || 
+                              truckData.find(truck => truck.status === 'Scheduled');
+            
+            if (activeTruck) {
+                document.getElementById('currentTruck').textContent = activeTruck.truck_id || '-';
+                document.getElementById('currentDestination').textContent = activeTruck.destination || '-';
+                document.getElementById('etaTime').textContent = activeTruck.departure_time || '-';
+                document.getElementById('currentStatus').textContent = getStatusText(activeTruck.status);
+                document.getElementById('currentStatus').className = 'text-4xl font-bold text-white status-active';
+            } else {
+                document.getElementById('currentTruck').textContent = '-';
+                document.getElementById('currentDestination').textContent = '-';
+                document.getElementById('etaTime').textContent = '-';
+                document.getElementById('currentStatus').textContent = '📋 NO TRUCKS';
+                document.getElementById('currentStatus').className = 'text-4xl font-bold text-gray-300';
+            }
+            
+            // 전체 트럭 수
+            document.getElementById('totalTrucks').textContent = truckData.length;
+        }
+
+        // 상태별 배경색
+        function getStatusBgColor(status) {
+            switch (status) {
+                case 'Shipped': return 'bg-slate-700';
+                case 'Scheduled': return 'bg-amber-800';
+                case 'On Site': return 'bg-emerald-700';
+                default: return 'bg-gray-600';
+            }
+        }
+
+        // 상태별 테두리색
+        function getStatusBorderColor(status) {
+            switch (status) {
+                case 'Shipped': return 'border-slate-400';
+                case 'Scheduled': return 'border-amber-500';
+                case 'On Site': return 'border-emerald-400';
+                default: return 'border-gray-300';
+            }
+        }
+
+        // 상태 텍스트
+        function getStatusText(status) {
+            switch (status) {
+                case 'Shipped': return '🚚 SHIPPED';
+                case 'Scheduled': return '⏰ SCHEDULED';
+                case 'On Site': return '📍 ON SITE';
+                default: return '❓ UNKNOWN';
+            }
+        }
+
+        // 상태별 배지색
+        function getStatusBadgeColor(status) {
+            switch (status) {
+                case 'Shipped': return 'bg-cyan-700 text-white';
+                case 'Scheduled': return 'bg-yellow-700 text-white';
+                case 'On Site': return 'bg-green-700 text-white';
+                default: return 'bg-gray-700 text-white';
+            }
+        }
+
+        // 자동 새로고침 시작
+        function startAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            
+            refreshInterval = setInterval(() => {
+                console.log('🔄 Auto-refreshing truck data...');
+                loadTruckData();
+            }, 5000); // 5초마다 새로고침
+            
+            console.log('🔄 Auto-refresh started (5s interval)');
+        }
+
+        // 전체화면 토글
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().then(() => {
+                    document.getElementById('fullscreenText').textContent = '🖥️ EXIT FULLSCREEN';
+                    console.log('🖥️ Entered fullscreen mode');
+                }).catch(err => {
+                    console.error('❌ Error entering fullscreen:', err);
+                });
+            } else {
+                document.exitFullscreen().then(() => {
+                    document.getElementById('fullscreenText').textContent = '🖥️ FULLSCREEN';
+                    console.log('🖥️ Exited fullscreen mode');
+                }).catch(err => {
+                    console.error('❌ Error exiting fullscreen:', err);
+                });
+            }
+        }
+
+        // 페이지 언로드 시 정리
+        window.addEventListener('beforeunload', function() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        });
+    </script>
+</body>
+</html>
+

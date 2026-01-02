@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forklift Display - Packaging Order</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Forklift Display for Packaging Order Management">
+    <meta name="theme-color" content="#1e40af">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Forklift Display">
+    <meta name="msapplication-TileColor" content="#1e40af">
+    <meta name="msapplication-tap-highlight" content="no">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- PWA Icons -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #1d4ed8 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        
+        .notification {
+            animation: slideIn 0.5s ease-out, pulse 2s infinite;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        /* 다음 작업 카드 강조 애니메이션 */
+        @keyframes urgentPulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.7); }
+            50% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(251, 146, 60, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 146, 60, 0); }
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+        
+        .urgent-next-card {
+            animation: urgentPulse 2s infinite;
+        }
+        
+        .bounce-emoji {
+            animation: bounce 2s infinite;
+        }
+        
+        .urgent-notification {
+            animation: urgentPulse 1s infinite, urgentShake 0.5s infinite;
+        }
+        
+        @keyframes urgentPulse {
+            0%, 100% { background-color: #ef4444; }
+            50% { background-color: #dc2626; }
+        }
+        
+        @keyframes urgentShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        .urgent-notification .animate-bounce {
+            animation: bounce 1s infinite;
+        }
+        
+        .urgent-notification .animate-pulse {
+            animation: pulse 1s infinite;
+        }
+        
+        .order-item {
+            transition: all 0.3s ease;
+        }
+        
+        .order-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .completed-item {
+            opacity: 0.6;
+            background-color: #374151;
+        }
+    </style>
+</head>
+<body>
+    <div class="h-screen p-4 bg-gray-900 text-white overflow-hidden">
+        <!-- Header -->
+        <div class="text-center mb-3 relative">
+            <h2 class="text-2xl font-bold text-orange-300 mb-1">🚛 FORKLIFT DISPLAY</h2>
+            <div class="text-sm text-gray-400 mb-2">PANTALLA DE MONTACARGAS</div>
+            <div class="text-lg font-semibold text-yellow-300 mb-2" id="displayDate">-</div>
+            <button onclick="toggleFullscreen()" id="fullscreenBtn" class="absolute top-0 right-0 bg-red-500 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-lg">
+                <span id="fullscreenText">🖥️ FULLSCREEN</span>
+            </button>
+        </div>
+
+        <!-- Notification Area -->
+        <div id="notificationArea" class="mb-4">
+            <!-- Notifications will appear here -->
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1">
+            <!-- Left Column: Current & Next Orders -->
+            <div class="space-y-4">
+                <!-- Current Order Status -->
+                <div class="bg-gray-800 rounded-xl shadow-xl p-4">
+                    <h3 class="text-xl font-bold mb-2 text-center text-green-300">CURRENT STATUS</h3>
+                    <div class="text-sm text-gray-400 mb-3 text-center">ESTADO ACTUAL</div>
+                    <div class="bg-gray-700 rounded-lg p-4 border-2 border-green-500 flex items-center justify-between">
+                        <div class="text-center">
+                            <div class="text-4xl font-bold text-blue-300" id="currentPart">-</div>
+                            <div class="text-sm text-gray-400">PART NO</div>
+                            <div class="text-xs text-gray-500">NO. DE PIEZA</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-4xl font-bold text-yellow-300" id="currentSeq">-</div>
+                            <div class="text-sm text-gray-400">SEQ</div>
+                            <div class="text-xs text-gray-500">SECUENCIA</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-green-300" id="currentStatus">WAITING</div>
+                            <div class="text-sm text-gray-400">STATUS</div>
+                            <div class="text-xs text-gray-500">ESTADO</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Next Orders -->
+                <div class="bg-gray-800 rounded-xl shadow-xl p-4 border-2 border-orange-400">
+                    <h3 class="text-2xl font-bold mb-2 text-center text-orange-300 animate-pulse">NEXT WORK</h3>
+                    <div class="text-sm text-gray-400 mb-4 text-center">PRÓXIMO TRABAJO</div>
+                    <div class="space-y-4">
+                        <!-- Next Order - 가장 중요한 카드 -->
+                        <div class="bg-gradient-to-r from-orange-600 to-orange-700 rounded-xl p-4 border-4 border-orange-400 shadow-2xl transform hover:scale-105 transition-all duration-300 urgent-next-card">
+                            <div class="flex items-center justify-between">
+                                <div class="text-center flex-1">
+                                    <div class="text-4xl font-bold text-white mb-2" id="nextPart">-</div>
+                                    <div class="text-sm font-semibold text-orange-200">NEXT WORK</div>
+                                    <div class="text-xs text-orange-100">PRÓXIMO TRABAJO</div>
+                                </div>
+                                <div class="text-center flex-1">
+                                    <div class="text-3xl font-bold text-yellow-300" id="nextSeq">-</div>
+                                    <div class="text-sm font-semibold text-orange-200">SEQUENCE</div>
+                                    <div class="text-xs text-orange-100">SECUENCIA</div>
+                                </div>
+                                <div class="text-center flex-1">
+                                    <div class="text-2xl bounce-emoji">📦</div>
+                                    <div class="text-sm font-semibold text-orange-200">PREPARE</div>
+                                    <div class="text-xs text-orange-100">PREPARAR</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- After Next Order - 두 번째 카드 -->
+                        <div class="bg-gradient-to-r from-yellow-600 to-yellow-700 rounded-xl p-4 border-4 border-yellow-400 shadow-xl">
+                            <div class="flex items-center justify-between">
+                                <div class="text-center flex-1">
+                                    <div class="text-3xl font-bold text-white mb-2" id="afterNextPart">-</div>
+                                    <div class="text-sm font-semibold text-yellow-200">AFTER NEXT</div>
+                                    <div class="text-xs text-yellow-100">DESPUÉS</div>
+                                </div>
+                                <div class="text-center flex-1">
+                                    <div class="text-2xl font-bold text-yellow-300" id="afterNextSeq">-</div>
+                                    <div class="text-sm font-semibold text-yellow-200">SEQUENCE</div>
+                                    <div class="text-xs text-yellow-100">SECUENCIA</div>
+                                </div>
+                                <div class="text-center flex-1">
+                                    <div class="text-xl">⏳</div>
+                                    <div class="text-sm font-semibold text-yellow-200">WAITING</div>
+                                    <div class="text-xs text-yellow-100">ESPERANDO</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Today's Order List -->
+            <div class="bg-gray-800 rounded-xl shadow-xl p-4">
+                <h3 class="text-lg font-bold mb-2 text-center text-orange-300">TODAY'S ORDER LIST</h3>
+                <div class="text-sm text-gray-400 mb-3 text-center">LISTA DE TRABAJOS DE HOY</div>
+                <div class="overflow-y-auto h-[500px]">
+                    <div id="orderList" class="space-y-2">
+                        <!-- Order items will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase 설정
+        const SUPABASE_URL = 'https://wfnihtmmaebgjtdmazmo.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmbmlodG1tYWViZ2p0ZG1hem1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3NTY3NTcsImV4cCI6MjA2NTMzMjc1N30.FYfdgSvOT1qUvANGlqXCEGvSR2JujggU7T_Sjzys3HQ';
+        
+        // Supabase 클라이언트 생성
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            autoRefreshToken: true,
+            persistSession: true
+        });
+
+        // 전역 변수
+        let forkliftScheduleData = [];
+        let refreshInterval = null;
+        let notificationTimeout = null;
+
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚛 Forklift Display initialized');
+            updateDisplayDate();
+            loadForkliftScheduleData();
+            startAutoRefresh();
+            
+            // Supabase 실시간 구독 설정
+            setupRealtimeSubscription();
+            
+            // PWA Service Worker 등록
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('✅ Forklift Display PWA Service Worker 등록 성공:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('❌ Forklift Display PWA Service Worker 등록 실패:', error);
+                    });
+            }
+            
+            // PWA 설치 안내
+            let deferredPrompt;
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                showInstallButton();
+            });
+            
+            function showInstallButton() {
+                const installButton = document.createElement('button');
+                installButton.innerHTML = '📱 Forklift App 설치하기';
+                installButton.className = 'fixed top-4 left-4 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+                installButton.onclick = () => {
+                    if (deferredPrompt) {
+                        deferredPrompt.prompt();
+                        deferredPrompt.userChoice.then((choiceResult) => {
+                            if (choiceResult.outcome === 'accepted') {
+                                console.log('✅ Forklift Display PWA 설치됨');
+                            }
+                            deferredPrompt = null;
+                            installButton.remove();
+                        });
+                    }
+                };
+                document.body.appendChild(installButton);
+                
+                // 15초 후 자동 숨김
+                setTimeout(() => {
+                    if (installButton.parentNode) {
+                        installButton.remove();
+                    }
+                }, 15000);
+            }
+        });
+
+        // 실시간 구독 설정
+        function setupRealtimeSubscription() {
+            const channel = supabase
+                .channel('forklift-display')
+                .on('postgres_changes', 
+                    { 
+                        event: 'UPDATE', 
+                        schema: 'public', 
+                        table: 'tm_packaging_schedule',
+                        filter: 'work_status=eq.completed'
+                    }, 
+                    (payload) => {
+                        console.log('🔔 Real-time update received:', payload);
+                        handleCompletionNotification(payload.new);
+                    }
+                )
+                .subscribe();
+
+            console.log('📡 Real-time subscription established');
+        }
+
+        // 완료 알림 처리
+        function handleCompletionNotification(completedItem) {
+            console.log('✅ Completion notification:', completedItem);
+            
+            // 데이터 새로고침 (완료된 작업 포함)
+            loadForkliftScheduleData();
+            
+            // 완료된 작업에 대한 강력한 알림 표시
+            showUrgentNotification(completedItem);
+            
+            // 사운드 알림
+            playNotificationSound();
+            
+            // 화면 깜빡임 효과
+            flashScreen();
+        }
+
+        // 긴급 알림 표시
+        function showUrgentNotification(item) {
+            const notificationArea = document.getElementById('notificationArea');
+            
+            // 기존 알림 제거
+            notificationArea.innerHTML = '';
+            
+            const notification = document.createElement('div');
+            notification.className = 'urgent-notification bg-red-600 text-white p-6 rounded-lg shadow-2xl mb-4 border-4 border-yellow-400';
+            notification.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-6">
+                        <div class="text-4xl animate-bounce">🚨</div>
+                        <div>
+                            <div class="text-2xl font-bold animate-pulse">PACKAGING COMPLETED!</div>
+                            <div class="text-lg">Part: ${item.part_no} | Seq: ${item.seq_no}</div>
+                            <div class="text-sm text-yellow-200">¡EMPAQUE COMPLETADO!</div>
+                            <div class="text-sm text-yellow-200">Go to packaging area!</div>
+                        </div>
+                    </div>
+                    <button onclick="dismissNotification(this)" class="text-white hover:text-gray-300 text-2xl font-bold">×</button>
+                </div>
+            `;
+            
+            notificationArea.appendChild(notification);
+            
+            // 30초 후 자동 제거 (더 오래 표시)
+            notificationTimeout = setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 30000);
+        }
+        
+        // 완료된 작업 알림 표시
+        function showCompletedWorkNotification(item) {
+            const notificationArea = document.getElementById('notificationArea');
+            
+            // 기존 알림 제거
+            notificationArea.innerHTML = '';
+            
+            const notification = document.createElement('div');
+            notification.className = 'urgent-notification bg-orange-600 text-white p-6 rounded-lg shadow-2xl mb-4 border-4 border-red-400';
+            notification.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-6">
+                        <div class="text-4xl animate-bounce">🧹</div>
+                        <div>
+                            <div class="text-2xl font-bold animate-pulse">CLEAN UP COMPLETED WORK!</div>
+                            <div class="text-lg">Part: ${item.part_no} | Seq: ${item.seq_no}</div>
+                            <div class="text-sm text-orange-200">¡LIMPIAR TRABAJO COMPLETADO!</div>
+                            <div class="text-sm text-orange-200">Remove this completed work!</div>
+                        </div>
+                    </div>
+                    <button onclick="dismissNotification(this)" class="text-orange-200 hover:text-white text-2xl font-bold">×</button>
+                </div>
+            `;
+            
+            notificationArea.appendChild(notification);
+            
+            // 60초 후 자동 제거
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 60000);
+        }
+
+        // 사운드 알림
+        function playNotificationSound() {
+            try {
+                // 브라우저에서 지원하는 사운드 재생
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                // 경고음 패턴 (3번 반복)
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+                
+                // 0.5초 후 다시 재생
+                setTimeout(() => {
+                    const oscillator2 = audioContext.createOscillator();
+                    const gainNode2 = audioContext.createGain();
+                    
+                    oscillator2.connect(gainNode2);
+                    gainNode2.connect(audioContext.destination);
+                    
+                    oscillator2.frequency.setValueAtTime(800, audioContext.currentTime);
+                    oscillator2.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+                    oscillator2.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
+                    
+                    gainNode2.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                    
+                    oscillator2.start(audioContext.currentTime);
+                    oscillator2.stop(audioContext.currentTime + 0.3);
+                }, 500);
+                
+            } catch (error) {
+                console.log('사운드 재생 실패:', error);
+            }
+        }
+        
+        // 완료된 작업 사운드 알림
+        function playCompletedWorkSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                // 완료된 작업 알림음 패턴 (더 긴 패턴)
+                oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
+                oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.4);
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.6);
+                oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.8);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1.0);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 1.0);
+                
+            } catch (error) {
+                console.log('완료된 작업 사운드 재생 실패:', error);
+            }
+        }
+
+        // 화면 깜빡임 효과
+        function flashScreen() {
+            const body = document.body;
+            let flashCount = 0;
+            const maxFlashes = 6;
+            
+            const flashInterval = setInterval(() => {
+                if (flashCount >= maxFlashes) {
+                    clearInterval(flashInterval);
+                    body.style.backgroundColor = '';
+                    return;
+                }
+                
+                body.style.backgroundColor = flashCount % 2 === 0 ? '#ff4444' : '#1e3a8a';
+                flashCount++;
+            }, 200);
+        }
+
+        // 알림 제거
+        function dismissNotification(button) {
+            const notification = button.closest('.urgent-notification');
+            if (notification) {
+                notification.remove();
+            }
+        }
+        
+        // 완료된 작업 알림 제거
+        function dismissCompletedNotification(button) {
+            const notification = button.closest('.urgent-notification');
+            if (notification) {
+                notification.remove();
+            }
+        }
+
+        // 날짜 표시 업데이트
+        function updateDisplayDate() {
+            const now = new Date();
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            };
+            // 영문 날짜 표시
+            const englishDate = now.toLocaleDateString('en-US', options);
+            // 스페인어 날짜 표시
+            const spanishDate = now.toLocaleDateString('es-ES', options);
+            
+            document.getElementById('displayDate').innerHTML = `
+                <div>${englishDate}</div>
+                <div class="text-sm text-gray-400">${spanishDate}</div>
+            `;
+        }
+
+        // 스케줄 데이터 로드
+        async function loadForkliftScheduleData() {
+            try {
+                console.log('📊 Loading forklift schedule data...');
+                
+                const today = new Date().toISOString().split('T')[0];
+                
+                const { data, error } = await supabase
+                    .from('tm_packaging_schedule')
+                    .select('*')
+                    .eq('work_date', today)
+                    .order('seq_no', { ascending: true });
+                
+                if (error) throw error;
+                
+                forkliftScheduleData = data || [];
+                console.log('✅ Forklift schedule data loaded:', forkliftScheduleData);
+                
+                displayOrderList();
+                updateCurrentOrder();
+                
+            } catch (error) {
+                console.error('Error loading forklift schedule data:', error);
+                console.warn('⚠️ Unable to load data. Please check Supabase connection.');
+                forkliftScheduleData = [];
+                displayOrderList();
+            }
+        }
+
+        // 주문 목록 표시
+        function displayOrderList() {
+            const orderList = document.getElementById('orderList');
+            let html = '';
+            
+            if (forkliftScheduleData.length === 0) {
+                html = '<div class="text-center text-gray-400 py-8">No orders for today</div>';
+            } else {
+                forkliftScheduleData.forEach((item, index) => {
+                    const status = getCalculatedStatus(item);
+                    const statusText = getStatusText(status);
+                    const bgColor = getStatusBackgroundColor(status);
+                    const opacityClass = status === 'completed' ? 'completed-item' : '';
+                    
+                    html += `
+                        <div class="order-item ${bgColor} rounded-lg p-3 border-l-4 ${getStatusBorderColor(status)} ${opacityClass}">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-4">
+                                    <div class="text-lg font-bold text-white">${item.seq_no}</div>
+                                    <div class="text-xl font-bold text-white">${item.part_no || '-'}</div>
+                                    <div class="text-sm text-gray-300">${item.work_start_time || 'Not Started'}</div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadgeColor(status)}">
+                                        ${statusText}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            orderList.innerHTML = html;
+        }
+
+        // 현재 주문 상태 업데이트
+        function updateCurrentOrder() {
+            const activeItem = forkliftScheduleData.find(item => item.work_status === 'active');
+            // 가장 최근에 완료된 작업을 찾음 (배열의 마지막 completed 항목)
+            const completedItems = forkliftScheduleData.filter(item => item.work_status === 'completed');
+            const completedItem = completedItems.length > 0 ? completedItems[completedItems.length - 1] : null;
+            
+            if (activeItem) {
+                // 현재 진행중인 작업 (포장중)
+                document.getElementById('currentPart').textContent = activeItem.part_no || '-';
+                document.getElementById('currentSeq').textContent = activeItem.seq_no;
+                document.getElementById('currentStatus').textContent = '🔄 PACKAGING';
+                document.getElementById('currentStatus').className = 'text-2xl font-bold text-green-300';
+            } else if (completedItem) {
+                // 완료된 작업이 있음 - 치우고 다음 작업 준비
+                document.getElementById('currentPart').textContent = completedItem.part_no || '-';
+                document.getElementById('currentSeq').textContent = completedItem.seq_no;
+                document.getElementById('currentStatus').textContent = '🧹 CLEAN UP';
+                document.getElementById('currentStatus').className = 'text-2xl font-bold text-red-300 animate-pulse';
+                
+                // 완료된 작업에 대한 긴급 알림 표시
+                showCompletedWorkNotification(completedItem);
+                
+                // 완료된 작업에 대한 사운드 알림
+                playCompletedWorkSound();
+            } else {
+                // 현재 진행중인 작업이 없음
+                document.getElementById('currentPart').textContent = '-';
+                document.getElementById('currentSeq').textContent = '-';
+                document.getElementById('currentStatus').textContent = '📋 WAITING';
+                document.getElementById('currentStatus').className = 'text-2xl font-bold text-gray-300';
+            }
+            
+            // 다음 작업들 업데이트
+            updateNextOrders();
+        }
+
+        // 다음 작업들 업데이트
+        function updateNextOrders() {
+            const waitingItems = forkliftScheduleData.filter(item => item.work_status === 'waiting').sort((a, b) => a.seq_no - b.seq_no);
+            
+            // 다음 작업 (1순위) - 가장 먼저 해야 할 작업
+            if (waitingItems.length > 0) {
+                const nextItem = waitingItems[0];
+                document.getElementById('nextPart').textContent = nextItem.part_no || '-';
+                document.getElementById('nextSeq').textContent = nextItem.seq_no;
+                
+                // 다음 작업 카드에 추가 정보 표시
+                const nextCard = document.querySelector('.urgent-next-card');
+                if (nextCard) {
+                    nextCard.classList.add('urgent-next-card');
+                    nextCard.style.animation = 'urgentPulse 2s infinite';
+                }
+            } else {
+                document.getElementById('nextPart').textContent = 'NO WORK';
+                document.getElementById('nextSeq').textContent = '-';
+            }
+            
+            // 다다음 작업 (2순위) - 그 다음에 해야 할 작업
+            if (waitingItems.length > 1) {
+                const afterNextItem = waitingItems[1];
+                document.getElementById('afterNextPart').textContent = afterNextItem.part_no || '-';
+                document.getElementById('afterNextSeq').textContent = afterNextItem.seq_no;
+            } else {
+                document.getElementById('afterNextPart').textContent = 'NO WORK';
+                document.getElementById('afterNextSeq').textContent = '-';
+            }
+        }
+
+        // 상태 계산
+        function getCalculatedStatus(item) {
+            if (item.work_status) {
+                return item.work_status;
+            }
+            
+            const now = new Date();
+            const currentTime = now.getHours() * 60 + now.getMinutes();
+            
+            if (item.work_start_time) {
+                const [startHour, startMin] = item.work_start_time.split(':').map(Number);
+                const startTime = startHour * 60 + startMin;
+                
+                if (currentTime >= startTime) {
+                    if (item.work_end_time) {
+                        return 'completed';
+                    } else {
+                        return 'active';
+                    }
+                }
+            }
+            
+            return 'waiting';
+        }
+
+        // 상태 텍스트
+        function getStatusText(status) {
+            switch (status) {
+                case 'waiting': return '📦 PREPARE';
+                case 'active': return '🔄 PACKAGING';
+                case 'completed': return '🧹 CLEAN UP';
+                default: return '❓ UNKNOWN';
+            }
+        }
+
+        // 상태별 배경색
+        function getStatusBackgroundColor(status) {
+            switch (status) {
+                case 'waiting': return 'bg-orange-500';
+                case 'active': return 'bg-green-500';
+                case 'completed': return 'bg-gray-600';
+                default: return 'bg-gray-500';
+            }
+        }
+
+        // 상태별 테두리색
+        function getStatusBorderColor(status) {
+            switch (status) {
+                case 'waiting': return 'border-orange-300';
+                case 'active': return 'border-green-300';
+                case 'completed': return 'border-gray-400';
+                default: return 'border-gray-300';
+            }
+        }
+
+        // 상태별 배지색
+        function getStatusBadgeColor(status) {
+            switch (status) {
+                case 'waiting': return 'bg-orange-600 text-orange-100';
+                case 'active': return 'bg-green-600 text-green-100';
+                case 'completed': return 'bg-gray-600 text-gray-100';
+                default: return 'bg-gray-600 text-gray-100';
+            }
+        }
+
+        // 자동 새로고침 시작
+        function startAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            
+            refreshInterval = setInterval(() => {
+                loadForkliftScheduleData();
+            }, 5000); // 5초마다 새로고침
+            
+            console.log('🔄 Auto-refresh started (5s interval)');
+        }
+
+        // 전체화면 토글
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().then(() => {
+                    document.getElementById('fullscreenText').textContent = '🖥️ EXIT FULLSCREEN';
+                });
+            } else {
+                document.exitFullscreen().then(() => {
+                    document.getElementById('fullscreenText').textContent = '🖥️ FULLSCREEN';
+                });
+            }
+        }
+
+        // SUPERVISOR CONTROL에서 호출되는 알림 함수
+        function showForkliftNotification(seqNo) {
+            console.log(`🚛 Forklift notification received for seq: ${seqNo}`);
+            
+            // 데이터 새로고침
+            loadForkliftScheduleData();
+            
+            // 완료된 작업 찾기
+            const completedItem = forkliftScheduleData.find(item => item.seq_no === seqNo);
+            if (completedItem) {
+                // 강력한 알림 표시
+                showUrgentNotification(completedItem);
+                
+                // 사운드 알림
+                playNotificationSound();
+                
+                // 화면 깜빡임 효과
+                flashScreen();
+            }
+        }
+        
+        // 전역 함수로 등록 (SUPERVISOR CONTROL에서 호출)
+        window.showForkliftNotification = showForkliftNotification;
+        
+        // 페이지 언로드 시 정리
+        window.addEventListener('beforeunload', function() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            if (notificationTimeout) {
+                clearTimeout(notificationTimeout);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "Forklift Display - Packaging Order",
+  "short_name": "Forklift Display",
+  "description": "Forklift Display for Packaging Order Management",
+  "start_url": "/forklift-display.html",
+  "display": "standalone",
+  "background_color": "#1e3a8a",
+  "theme_color": "#1e40af",
+  "orientation": "landscape",
+  "scope": "/",
+  "lang": "en",
+  "icons": [],
+  "categories": ["productivity", "business"],
+  "screenshots": [],
+  "shortcuts": []
+}

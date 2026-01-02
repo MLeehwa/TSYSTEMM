@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>파트별 포장 상태 분석 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js"></script>
+    <style>
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-semibold text-gray-900">파트별 포장 상태 분석 시스템</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="../index.html" class="text-gray-500 hover:text-gray-700">홈</a>
+                    <a href="analysis-new.html" class="text-gray-500 hover:text-gray-700">FIFO 분석</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <!-- Loading State -->
+        <div id="loadingState" class="hidden bg-white shadow rounded-lg p-6 mb-6">
+            <div class="flex items-center justify-center">
+                <div class="loading-spinner"></div>
+                <span id="loadingMessage" class="ml-3 text-gray-600">데이터를 불러오는 중...</span>
+            </div>
+        </div>
+
+        <!-- Packaging Status Information -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <h3 class="text-sm font-medium text-blue-900 mb-2">📦 포장 상태 분류 기준</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                    <span class="font-medium text-orange-700">포장 전 (미포장):</span>
+                    <span class="text-orange-600">LHSAA, LHSAB, LHSBA, LHSBB</span>
+                </div>
+                <div>
+                    <span class="font-medium text-green-700">포장 후 (완료):</span>
+                    <span class="text-green-600">LHSAC, LHSAD, LHSBC, LHSBD</span>
+                </div>
+            </div>
+            <p class="text-xs text-gray-600 mt-2">• 각 파트별로 포장 전/후 팔렛 개수를 분석합니다 (팔렛 단위로 분석)</p>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="bg-white shadow rounded-lg p-6 mb-6">
+            <h2 class="text-lg font-medium text-gray-900 mb-4">필터 조건</h2>
+            <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
+                <!-- Location Filter -->
+                <div>
+                    <label for="locationFilter" class="block text-sm font-medium text-gray-700">Location</label>
+                    <select id="locationFilter" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">All</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Fixed Filter Information -->
+            <div class="mt-4 p-3 bg-gray-50 rounded-md">
+                <h4 class="text-sm font-medium text-gray-700 mb-2">고정 필터 조건</h4>
+                <div class="text-sm text-gray-600">
+                    <p>• Hold Whether: <span class="font-medium text-green-600">N (고정)</span></p>
+                    <p>• Pallet No당 8개가 모두 Hold Whether 'N'인 팔렛만 분석</p>
+                    <p>• Part No: <span class="font-medium text-blue-600">모든 Part No별 포장 상태 분석</span></p>
+                </div>
+            </div>
+
+            <!-- Auto Filter Notice -->
+            <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <p class="text-sm text-blue-700">
+                    <span class="font-medium">자동 필터링:</span> 
+                    Location 선택 시 자동으로 Hold Whether 'N'인 완전한 팔렛(8개)만 분석됩니다.
+                </p>
+            </div>
+            
+            <!-- Refresh Button -->
+            <div class="mt-4">
+                <button id="refreshDataBtn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+                    데이터 새로고침
+                </button>
+            </div>
+
+            <!-- Filter Status -->
+            <div class="mt-4">
+                <span id="filterStatus" class="text-xs text-gray-500">필터를 적용해주세요</span>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <!-- Before Packaging -->
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div id="summaryBefore" class="flex items-center">
+                        <div class="text-2xl font-bold text-orange-600">0</div>
+                        <div class="ml-3">
+                            <div class="text-sm text-gray-500">포장 전</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- After Packaging -->
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div id="summaryAfter" class="flex items-center">
+                        <div class="text-2xl font-bold text-green-600">0</div>
+                        <div class="ml-3">
+                            <div class="text-sm text-gray-500">포장 후</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total -->
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div id="summaryTotal" class="flex items-center">
+                        <div class="text-2xl font-bold text-blue-600">0</div>
+                        <div class="ml-3">
+                            <div class="text-sm text-gray-500">합계</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-medium text-gray-900">포장 전후 분석 결과</h3>
+                    <div class="flex space-x-3">
+                        <span id="resultCount" class="text-sm text-gray-500">결과 없음</span>
+                        <button id="exportExcelBtn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+                            Excel 내보내기
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('partNo')">
+                                Part No <span id="sort-partNo" class="ml-1 text-gray-400">↕</span>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('beforePackaging')">
+                                포장 전 <span id="sort-beforePackaging" class="ml-1 text-gray-400">↕</span>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('afterPackaging')">
+                                포장 후 <span id="sort-afterPackaging" class="ml-1 text-gray-400">↕</span>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortPackagingTable('total')">
+                                합계 <span id="sort-total" class="ml-1 text-gray-400">↕</span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsTable" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="4" class="px-6 py-4 text-center text-gray-500">
+                                필터를 적용하여 분석을 시작하세요.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../js/core/supabase-config.js"></script>
+    <script src="../js/packaging/packaging-analysis.js"></script>
+</body>
+</html>

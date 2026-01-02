@@ -250,20 +250,51 @@ async function loadAnalysisData() {
       throw new Error('Supabase client not available');
     }
     
-    // Get all data from the database - load all at once
-    console.log('🔄 Loading all data from database...');
+    // Get all data from the database with pagination to handle large datasets
+    let allData = [];
+    let hasMore = true;
+    let page = 0;
+    const pageSize = 1000; // Supabase default limit
     
-    const { data: allData, error } = await supabaseClient
-      .from('vwtm_list_data')
-      .select('*')
-      .order('upload_time', { ascending: false })
-      .limit(40000); // Match Supabase MAX ROWS setting
+    console.log('🔄 Starting data pagination...');
     
-    if (error) {
-      throw new Error(`Database error: ${error.message}`);
+    while (hasMore) {
+      const { data, error } = await supabaseClient
+        .from('vwtm_list_data')
+        .select('*')
+        .order('upload_time', { ascending: false })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      
+      if (error) {
+        throw new Error(`Database error: ${error.message}`);
+      }
+      
+      if (!data || data.length === 0) {
+        hasMore = false;
+        break;
+      }
+      
+      allData = allData.concat(data);
+      console.log(`📊 Page ${page + 1}: Loaded ${data.length} records (Total: ${allData.length})`);
+      
+      // If we got less than pageSize, we've reached the end
+      if (data.length < pageSize) {
+        hasMore = false;
+      }
+      
+      page++;
+      
+      // Update progress for user
+      const progressPercent = Math.round((allData.length / Math.max(allData.length, 1)) * 100);
+      updateFilterStatusLoading(`Loading data... Page ${page + 1} (${allData.length} records loaded)`);
+      
+      // Add small delay to prevent overwhelming the UI
+      if (page > 0) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
     
-    if (!allData || allData.length === 0) {
+    if (allData.length === 0) {
       console.log('📭 No data found in database');
       window.allData = [];
       window.filteredData = [];
@@ -272,7 +303,7 @@ async function loadAnalysisData() {
       return;
     }
     
-    console.log(`✅ Total data loaded: ${allData.length} records`);
+    console.log(`✅ Total data loaded: ${allData.length} records from ${page} pages`);
     window.allData = allData;
     window.filteredData = [...allData];
     
@@ -284,7 +315,7 @@ async function loadAnalysisData() {
     performAnalysis();
     
     hideLoadingProgress();
-    updateFilterStatus(`Loaded ${allData.length} records - Analysis completed`);
+    updateFilterStatus(`Loaded ${allData.length} records from ${page} pages - Analysis completed`);
     
   } catch (error) {
     console.error('❌ Error loading analysis data:', error);
