@@ -44,6 +44,7 @@
         <!-- Header -->
         <div class="text-center mb-4 relative">
             <h2 class="text-3xl font-semibold text-blue-300 mb-1">PACKAGING SCHEDULE STATUS</h2>
+            <div class="text-sm text-gray-400 mb-2">ESTADO DEL HORARIO DE EMPAQUE</div>
             <div class="text-lg font-bold text-yellow-300 mb-2" id="displayDate">-</div>
             <button onclick="toggleFullscreen()" id="fullscreenBtn" class="absolute top-0 right-0 bg-red-500 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold text-lg shadow-lg">
                 <span id="fullscreenText">🖥️ FULLSCREEN</span>
@@ -53,23 +54,26 @@
         <!-- Current Status Card -->
         <div class="bg-gray-800 rounded-xl shadow-xl p-6 mb-4">
             <div class="text-center">
-                <h3 class="text-3xl font-bold mb-6 text-green-300">CURRENT PROGRESS</h3>
+                <h3 class="text-3xl font-bold mb-2 text-green-300">CURRENT PROGRESS</h3>
+                <div class="text-sm text-gray-400 mb-6">PROGRESO ACTUAL</div>
                 <div class="grid grid-cols-4 gap-6">
                     <!-- Current NO -->
                     <div class="bg-gray-700 rounded-lg p-6 border-2 border-gray-600 flex flex-col items-center justify-center">
                         <div class="text-8xl font-bold text-yellow-300" id="currentId">-</div>
                         <div class="text-sm text-gray-400 mt-2">CURRENT ID</div>
+                        <div class="text-xs text-gray-500">ID ACTUAL</div>
                     </div>
                     
                     <!-- Current Part -->
                     <div class="bg-gray-700 rounded-lg p-6 border-2 border-gray-600 flex flex-col items-center justify-center">
                         <div class="text-8xl font-bold text-blue-300" id="currentPart">-</div>
                         <div class="text-sm text-gray-400 mt-2">PART NO</div>
+                        <div class="text-xs text-gray-500">NO. DE PIEZA</div>
                     </div>
                     
                     <!-- Runtime -->
                     <div class="bg-gray-700 rounded-lg p-6 border-2 border-gray-600 flex flex-col items-center justify-center">
-                        <div class="text-8xl font-bold text-red-300 timer-display" id="elapsedTime">00:00:00</div>
+                        <div class="text-8xl font-bold text-red-300 timer-display" id="elapsedTime">00:00</div>
                         <div class="text-sm text-gray-400 mt-2">RUNTIME</div>
                         <div class="text-xs text-gray-500 mt-1">TIEMPO DE EJECUCIÓN</div>
                     </div>
@@ -86,7 +90,8 @@
 
         <!-- Today's Schedule -->
         <div class="bg-gray-800 rounded-xl shadow-xl p-6 flex-1">
-            <h3 class="text-2xl font-bold mb-4 text-center text-green-300">TODAY'S SCHEDULE</h3>
+            <h3 class="text-2xl font-bold mb-2 text-center text-green-300">TODAY'S SCHEDULE</h3>
+            <div class="text-sm text-gray-400 mb-4 text-center">HORARIO DE HOY</div>
             <div class="overflow-y-auto h-[600px]">
                 <div id="scheduleList" class="space-y-2">
                     <!-- Schedule items will be loaded here -->
@@ -101,7 +106,7 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmbmlodG1tYWViZ2p0ZG1hem1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3NTY3NTcsImV4cCI6MjA2NTMzMjc1N30.FYfdgSvOT1qUvANGlqXCEGvSR2JujggU7T_Sjzys3HQ';
         
         // Supabase 클라이언트 생성
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             autoRefreshToken: true,
             persistSession: true
         });
@@ -153,7 +158,7 @@
                 
                 const today = new Date().toISOString().split('T')[0];
                 
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('tm_packaging_schedule')
                     .select('*')
                     .eq('work_date', today)
@@ -208,7 +213,7 @@
                                'bg-orange-500';
                 
                 const statusText = workStatus === 'completed' ? 'COMPLETED' :
-                                 workStatus === 'active' ? 'IN PROGRESS' :
+                                 workStatus === 'active' ? 'PACKAGING' :
                                  'WAITING';
                 
                 // 완료된 항목은 투명도 적용
@@ -292,7 +297,7 @@
                     console.log('⏰ No active work, stopping timer');
                     document.getElementById('currentId').textContent = '-';
                     document.getElementById('currentPart').textContent = '-';
-                    document.getElementById('elapsedTime').textContent = '00:00:00';
+                    document.getElementById('elapsedTime').textContent = '00:00';
 
                     if (displayTimerInterval) {
                         clearInterval(displayTimerInterval);
@@ -322,7 +327,7 @@
                     const minutes = Math.floor((elapsed % 3600) / 60);
                     const seconds = elapsed % 60;
 
-                    const timeString = hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0') + ':' + seconds.toString().padStart(2, '0');
+                    const timeString = hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0');
                     const elapsedTimeEl = document.getElementById('elapsedTime');
                     if (elapsedTimeEl) {
                         elapsedTimeEl.textContent = timeString;
@@ -342,8 +347,8 @@
                         console.log(`⏰ Display Timer update: Elapsed: ${timeString}`);
                     }
 
-                    // 스케줄 목록의 진행중인 작업 경과시간도 업데이트 (5초마다만)
-                    if (seconds % 5 === 0) {
+                    // 스케줄 목록의 진행중인 작업 경과시간도 업데이트 (30초마다만)
+                    if (seconds % 30 === 0) {
                         displaySchedule();
                     }
                 } else {
@@ -357,6 +362,12 @@
 
         // 상태 계산
         function calculateStatus(item) {
+            // 데이터베이스 work_status 필드를 우선 확인
+            if (item.work_status) {
+                return item.work_status;
+            }
+            
+            // work_status가 없으면 시간 기반으로 계산
             if (item.work_start_time && item.work_end_time) {
                 return 'completed';
             } else if (item.work_start_time) {
@@ -452,6 +463,12 @@
                     console.error('❌ Error exiting fullscreen:', err);
                 });
             }
+        }
+
+
+        // 알림 권한 요청
+        if (Notification.permission === 'default') {
+            Notification.requestPermission();
         }
     </script>
 </body>
